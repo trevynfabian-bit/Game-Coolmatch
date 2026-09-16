@@ -89,6 +89,12 @@ export interface ShotHit {
   point: Vec3;
   fighterId?: string;
   isHeadshot?: boolean;
+  /**
+   * Urutan balok peta yang kena, sesuai urutan `colliders`. Hanya terisi saat
+   * `kind` bernilai "map". Dipakai pemanggil untuk mengenali balok tertentu —
+   * misalnya sasaran di tempat latihan — tanpa mengulang raycast.
+   */
+  blockIndex?: number;
 }
 
 /**
@@ -110,6 +116,7 @@ export function raycastArena(
     kind: ShotHitKind,
     fighterId?: string,
     headMinY?: number,
+    blockIndex?: number,
   ) => {
     if (distance === null || distance < 0 || distance > maxDistance) return;
     if (best && distance >= best.distance) return;
@@ -129,12 +136,19 @@ export function raycastArena(
         kind === "fighter" && headMinY !== undefined
           ? point[1] >= headMinY
           : undefined,
+      blockIndex,
     };
   };
 
-  for (const collider of colliders) {
-    consider(rayHitsAabb(origin, direction, collider, maxDistance), "map");
-  }
+  colliders.forEach((collider, index) => {
+    consider(
+      rayHitsAabb(origin, direction, collider, maxDistance),
+      "map",
+      undefined,
+      undefined,
+      index,
+    );
+  });
   for (const target of targets) {
     consider(
       rayHitsAabb(origin, direction, target.box, maxDistance),

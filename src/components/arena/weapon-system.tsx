@@ -19,6 +19,7 @@ import {
   effectiveSpread,
   raycastArena,
   shotInterval,
+  type ShotHit,
 } from "@/lib/game/shooting";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { resolveShotDamage } from "@/lib/game/damage";
@@ -57,14 +58,15 @@ function spreadToPixels(
  * `ShotEffects` lewat ref imperatif supaya menembak beruntun tidak memicu
  * render ulang React.
  *
- * Kerusakan pada petarung belum diterapkan di sini — tembakan yang kena
- * dilaporkan lewat `onFighterHit` supaya task nyawa & respawn tinggal
- * menyambungkannya.
+ * Tembakan yang mengenai petarung diterapkan lewat `useMatchStore.damageFighter`
+ * dan juga dilaporkan ke `onFighterHit`, sementara `onShot` melaporkan setiap
+ * butir peluru termasuk yang meleset.
  */
 export function WeaponSystem({
   match,
   weapon,
   onFighterHit,
+  onShot,
 }: {
   match: MatchSnapshot;
   weapon: Weapon;
@@ -73,6 +75,11 @@ export function WeaponSystem({
     isHeadshot: boolean;
     damage: number;
   }) => void;
+  /**
+   * Dipanggil sekali per butir peluru, termasuk yang meleset (`null`).
+   * Dipakai tempat latihan untuk menghitung sasaran yang kena.
+   */
+  onShot?: (hit: ShotHit | null) => void;
 }) {
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
@@ -205,6 +212,7 @@ export function WeaponSystem({
           ];
 
       effects.current?.spawnTracer([muzzle.x, muzzle.y, muzzle.z], end);
+      onShot?.(hit);
 
       if (hit) {
         effects.current?.spawnImpact(hit.point, hit.kind === "fighter");
