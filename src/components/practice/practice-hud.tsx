@@ -75,27 +75,70 @@ function ScorePanel({ weapon }: { weapon: Weapon }) {
   );
 }
 
-/** Lapisan ajakan mulai; browser hanya mengunci kursor sesudah gerakan pengguna. */
+/**
+ * Lapisan ajakan mulai sekaligus layar jeda.
+ *
+ * Browser hanya mengunci kursor sesudah gerakan pengguna, jadi latihan selalu
+ * dimulai dari sini. Sesudah pemain pernah menembak, lapisan yang sama menjadi
+ * tempat memutuskan langkah berikutnya: lanjut berlatih, membawa senjata ini ke
+ * arena, atau menukarnya dengan senjata lain.
+ *
+ * Tautan di sini menghentikan perambatan klik, sebab PointerLockControls
+ * menyimak klik di level document dan akan mencoba mengunci kursor tepat saat
+ * halaman sedang ditinggalkan.
+ */
 function StartOverlay({ weapon }: { weapon: Weapon }) {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const hasEngaged = usePlayerStore((state) => state.hasEngaged);
+  const shots = usePracticeStore((state) => state.shots);
+  const hits = usePracticeStore((state) => state.hits);
 
   if (isLocked) return null;
 
+  const practiced = shots > 0;
+  const stopClick = (event: { stopPropagation: () => void }) =>
+    event.stopPropagation();
+
   return (
-    <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-slate-950/70 px-6 backdrop-blur-[2px]">
+    <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center overflow-y-auto bg-slate-950/75 px-6 py-8 backdrop-blur-[2px]">
       <div className="w-full max-w-sm text-center">
         <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase">
-          {hasEngaged ? "Jeda" : "Tempat latihan"}
+          {hasEngaged ? "Jeda latihan" : "Tempat latihan"}
         </p>
         <p className="mt-2 text-lg font-semibold text-white">{weapon.name}</p>
 
+        {practiced ? (
+          <p className="mt-2 text-xs text-slate-400">
+            Sudah {shots} butir dilepas, {hits} kena — ketepatan{" "}
+            <span className="font-mono text-slate-200">
+              {accuracyPercent(shots, hits).toFixed(0)}%
+            </span>
+          </p>
+        ) : null}
+
         <button
           type="button"
-          className="pointer-events-auto mt-4 rounded-lg bg-emerald-500 px-7 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+          className="pointer-events-auto mt-5 w-full rounded-lg bg-emerald-500 px-7 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
         >
-          {hasEngaged ? "Klik untuk lanjut" : "Klik untuk mulai"}
+          {hasEngaged ? "Lanjut latihan" : "Klik untuk mulai"}
         </button>
+
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <Link
+            href="/arena"
+            onClick={stopClick}
+            className="pointer-events-auto flex-1 rounded-lg border border-white/20 px-4 py-2.5 text-center text-sm font-semibold text-slate-100 transition-colors hover:border-white/40 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+          >
+            Pakai senjata ini
+          </Link>
+          <Link
+            href="/senjata"
+            onClick={stopClick}
+            className="pointer-events-auto flex-1 rounded-lg border border-white/15 px-4 py-2.5 text-center text-sm font-medium text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+          >
+            Ganti senjata
+          </Link>
+        </div>
 
         <dl className="mx-auto mt-7 grid max-w-[18rem] grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-left">
           {CONTROL_HINTS.filter((hint) => hint.keys !== "Tab").map((hint) => (
@@ -111,13 +154,6 @@ function StartOverlay({ weapon }: { weapon: Weapon }) {
         <p className="mt-6 text-[11px] text-slate-500">
           Tidak ada lawan dan tidak ada batas waktu. Peluru cadangan berlimpah.
         </p>
-
-        <Link
-          href="/senjata"
-          className="pointer-events-auto mt-4 inline-block rounded-lg border border-white/15 px-5 py-2 text-xs font-medium text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-        >
-          Kembali ke pilih senjata
-        </Link>
       </div>
     </div>
   );
@@ -134,7 +170,7 @@ export function PracticeHud({ weapon }: { weapon: Weapon }) {
         {isLocked ? <Crosshair /> : null}
         <AmmoPanel weapon={weapon} />
         <p className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-slate-950/60 px-4 py-1.5 text-[11px] text-slate-400 backdrop-blur-sm">
-          Esc lalu klik &ldquo;Kembali&rdquo; untuk memilih senjata lain
+          Tekan Esc untuk jeda, memakai senjata ini, atau menggantinya
         </p>
       </div>
 

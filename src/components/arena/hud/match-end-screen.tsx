@@ -13,7 +13,9 @@ function killRatio(fighter: Fighter): string {
  * Layar akhir pertandingan: juara, klasemen akhir lengkap, dan pilihan lanjut.
  *
  * Kursor sengaja sudah dilepas saat pertandingan usai (lihat RoundTicker),
- * jadi tombol di sini bisa diklik langsung.
+ * jadi tombol di sini bisa diklik langsung. Kliknya dihentikan agar tidak
+ * merambat ke document, tempat PointerLockControls menyimak dan akan mencoba
+ * mengunci kursor kembali di saat yang salah.
  */
 export function MatchEndScreen({
   round,
@@ -135,13 +137,17 @@ export function MatchEndScreen({
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <button
             type="button"
-            onClick={() => restartMatch(map, snapshot)}
+            onClick={(event) => {
+              event.stopPropagation();
+              restartMatch(map, snapshot);
+            }}
             className="rounded-lg bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
           >
             Main lagi
           </button>
           <Link
             href="/"
+            onClick={(event) => event.stopPropagation()}
             className="rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
           >
             Kembali ke menu
