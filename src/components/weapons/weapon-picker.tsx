@@ -7,6 +7,7 @@ import { WeaponPreview } from "@/components/weapons/weapon-preview";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
+import { killSummary, weaponFeel } from "@/lib/weapons/weapon-feel";
 import { weaponBlurb, weaponStatBars } from "@/lib/weapons/weapon-stats";
 
 function StatRow({
@@ -21,18 +22,16 @@ function StatRow({
   accent: string;
 }) {
   return (
-    <div className="grid grid-cols-[5.5rem_1fr_4rem] items-center gap-3">
+    <div className="grid grid-cols-[5.5rem_1fr] items-center gap-x-3 gap-y-1">
       <span className="text-[11px] tracking-wider text-slate-400 uppercase">
         {label}
       </span>
-      <span className="h-1.5 overflow-hidden rounded-full bg-white/10">
+      <span className="text-[11px] font-medium text-slate-200">{display}</span>
+      <span className="col-start-2 h-1.5 overflow-hidden rounded-full bg-white/10">
         <span
           className="block h-full rounded-full transition-[width] duration-300"
           style={{ width: `${value * 100}%`, backgroundColor: accent }}
         />
-      </span>
-      <span className="text-right font-mono text-[11px] text-slate-300 tabular-nums">
-        {display}
       </span>
     </div>
   );
@@ -50,6 +49,7 @@ export function WeaponPicker() {
 
   const selected = useMemo(() => findWeapon(selectedWeaponId), [selectedWeaponId]);
   const bars = useMemo(() => weaponStatBars(selected), [selected]);
+  const feel = useMemo(() => weaponFeel(selected), [selected]);
   const accent = WEAPON_SHAPES[selected.type].accent;
 
   return (
@@ -97,7 +97,28 @@ export function WeaponPicker() {
             {weaponBlurb(selected)}
           </p>
 
-          <div className="mt-5 space-y-2.5">
+          <p
+            className="mt-4 rounded-lg border px-3 py-2 text-xs font-medium"
+            style={{
+              borderColor: `${accent}55`,
+              backgroundColor: `${accent}14`,
+              color: accent,
+            }}
+          >
+            {killSummary(feel)}
+          </p>
+          <p className="mt-1.5 text-[11px] text-slate-500">
+            {/* Baris kepala dilewati saat sekali tembak badan pun sudah cukup. */}
+            {feel.shotsToKill > 1 ? (
+              <>
+                Kena kepala: {feel.shotsToKillHeadshot} tembakan
+                <span className="text-slate-700"> · </span>
+              </>
+            ) : null}
+            {feel.rangeWord}
+          </p>
+
+          <div className="mt-5 space-y-3">
             {bars.map((bar) => (
               <StatRow key={bar.label} {...bar} accent={accent} />
             ))}
@@ -106,21 +127,45 @@ export function WeaponPicker() {
           <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-4 text-xs">
             <div>
               <dt className="text-[10px] tracking-wider text-slate-500 uppercase">
-                Magasin
+                Muat peluru
               </dt>
-              <dd className="font-mono text-slate-200">
-                {selected.magazineSize} peluru
+              <dd className="text-slate-200">
+                {selected.magazineSize} butir per magasin
               </dd>
             </div>
             <div>
               <dt className="text-[10px] tracking-wider text-slate-500 uppercase">
                 Isi ulang
               </dt>
-              <dd className="font-mono text-slate-200">
-                {selected.reloadSeconds.toFixed(1)} detik
+              <dd className="text-slate-200">
+                {feel.reloadWord}
+                <span className="text-slate-500">
+                  {" "}
+                  ({selected.reloadSeconds.toFixed(1)} dtk)
+                </span>
               </dd>
             </div>
           </dl>
+
+          <details className="mt-4 border-t border-white/10 pt-3">
+            <summary className="cursor-pointer list-none text-[11px] text-slate-500 transition-colors hover:text-slate-300">
+              Rincian teknis
+            </summary>
+            <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px] text-slate-400">
+              {bars.map((bar) => (
+                <div key={bar.label} className="contents">
+                  <dt className="text-slate-500">{bar.label}</dt>
+                  <dd className="text-right text-slate-300 tabular-nums">
+                    {bar.technical}
+                  </dd>
+                </div>
+              ))}
+              <dt className="text-slate-500">Mode</dt>
+              <dd className="text-right text-slate-300">
+                {selected.automatic ? "otomatis" : "semi"}
+              </dd>
+            </dl>
+          </details>
 
           <Link
             href="/arena"

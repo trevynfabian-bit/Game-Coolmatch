@@ -1,12 +1,15 @@
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
+import { weaponFeel } from "@/lib/weapons/weapon-feel";
 import type { Weapon } from "@/types/game";
 
 export interface WeaponStatBar {
   label: string;
   /** 0..1, siap dipakai sebagai lebar bar. */
   value: number;
-  /** Angka mentah beserta satuannya, untuk ditampilkan di samping bar. */
+  /** Keterangan sehari-hari, bukan angka mentah. */
   display: string;
+  /** Angka mentah beserta satuannya, untuk baris rincian teknis. */
+  technical: string;
 }
 
 /** Nilai 0..1 terhadap rentang yang benar-benar ada di daftar senjata. */
@@ -26,9 +29,13 @@ function scale(value: number, values: number[], higherIsBetter: boolean): number
  *
  * Sebaran dan sentakan dibalik: makin kecil angkanya, makin panjang barnya,
  * karena keduanya memang makin baik saat makin kecil.
+ *
+ * Label di samping bar memakai kata sehari-hari; angka mentahnya tetap
+ * tersimpan di `technical` untuk baris rincian yang bisa dibuka sendiri.
  */
 export function weaponStatBars(weapon: Weapon): WeaponStatBar[] {
   const all = MOCK_WEAPONS;
+  const feel = weaponFeel(weapon);
   const perShot = weapon.damage * weapon.pellets;
 
   return [
@@ -39,7 +46,14 @@ export function weaponStatBars(weapon: Weapon): WeaponStatBar[] {
         all.map((w) => w.damage * w.pellets),
         true,
       ),
-      display: weapon.pellets > 1 ? `${weapon.damage} x${weapon.pellets}` : `${weapon.damage}`,
+      display:
+        feel.shotsToKill === 1
+          ? "Sekali tembak"
+          : `${feel.shotsToKill} tembakan`,
+      technical:
+        weapon.pellets > 1
+          ? `${weapon.damage} x${weapon.pellets}`
+          : `${weapon.damage}`,
     },
     {
       label: "Laju tembak",
@@ -48,7 +62,8 @@ export function weaponStatBars(weapon: Weapon): WeaponStatBar[] {
         all.map((w) => w.fireRate),
         true,
       ),
-      display: `${weapon.fireRate} rpm`,
+      display: feel.fireRateWord,
+      technical: `${weapon.fireRate} rpm`,
     },
     {
       label: "Akurasi",
@@ -57,7 +72,8 @@ export function weaponStatBars(weapon: Weapon): WeaponStatBar[] {
         all.map((w) => w.spreadDegrees),
         false,
       ),
-      display: `${weapon.spreadDegrees}°`,
+      display: feel.accuracyWord,
+      technical: `${weapon.spreadDegrees}°`,
     },
     {
       label: "Kontrol",
@@ -66,7 +82,8 @@ export function weaponStatBars(weapon: Weapon): WeaponStatBar[] {
         all.map((w) => w.recoilDegrees),
         false,
       ),
-      display: `${weapon.recoilDegrees}°`,
+      display: feel.controlWord,
+      technical: `${weapon.recoilDegrees}°`,
     },
   ];
 }
