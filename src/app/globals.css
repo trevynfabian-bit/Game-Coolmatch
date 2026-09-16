@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  /* Tema gelap permanen — arena tembak dibaca paling enak di latar gelap. */
+  --background: #060910;
+  --foreground: #e6ebf2;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Kanvas game mengisi penuh dan tidak boleh memicu scroll halaman. */
+html,
+body {
+  overscroll-behavior: none;
+}
