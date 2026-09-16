@@ -70,6 +70,8 @@ export function StubIncomingFire({ map }: { map: ArenaMapInfo }) {
     if (!usePlayerStore.getState().isLocked) return;
 
     const match = useMatchStore.getState();
+    if (match.round.status !== "live") return;
+
     const local = match.fighters.find((fighter) => fighter.isLocal);
     if (!local || !local.isAlive) return;
 

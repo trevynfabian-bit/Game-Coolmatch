@@ -32,6 +32,9 @@ export function RespawnTicker({
   useFrame((_state, rawDelta) => {
     const delta = Math.min(rawDelta, MAX_DELTA);
     const match = useMatchStore.getState();
+    // Di luar ronde berjalan tidak ada yang perlu dihidupkan: peralihan ronde
+    // sendiri yang menghidupkan semua orang sekaligus.
+    if (match.round.status !== "live") return;
 
     for (const fighter of match.fighters) {
       if (fighter.isAlive) {

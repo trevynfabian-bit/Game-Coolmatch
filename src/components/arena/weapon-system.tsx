@@ -264,10 +264,12 @@ export function WeaponSystem({
       combat.finishReload();
     }
 
+    const matchNow = useMatchStore.getState();
     const localAlive =
-      useMatchStore.getState().fighters.find((f) => f.isLocal)?.isAlive ?? true;
+      matchNow.fighters.find((f) => f.isLocal)?.isAlive ?? true;
+    const roundLive = matchNow.round.status === "live";
 
-    if (locked && localAlive && !combat.isReloading) {
+    if (locked && localAlive && roundLive && !combat.isReloading) {
       const canPull = weapon.automatic
         ? triggerHeld.current
         : triggerHeld.current && !triggerConsumed.current;

@@ -5,6 +5,7 @@ import { ArenaMap } from "@/components/arena/arena-map";
 import { FighterMarker } from "@/components/arena/fighter-marker";
 import { PlayerController } from "@/components/arena/player-controller";
 import { RespawnTicker } from "@/components/arena/respawn-ticker";
+import { RoundTicker } from "@/components/arena/round-ticker";
 import { StubIncomingFire } from "@/components/arena/stub-incoming-fire";
 import { WeaponSystem } from "@/components/arena/weapon-system";
 import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
@@ -75,6 +76,7 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
       <ArenaLights />
       <PlayerController map={match.map} spawn={spawnFighter.position} />
       <RespawnTicker map={match.map} snapshot={match} />
+      <RoundTicker map={match.map} snapshot={match} />
       <WeaponSystem match={match} weapon={weapon} />
       {/* Sementara sampai AI musuh dibangun di fase berikutnya. */}
       <StubIncomingFire map={match.map} />

@@ -1,5 +1,10 @@
 import { create } from "zustand";
 import { applyDamageToFighter, killScore } from "@/lib/game/damage";
+import {
+  findMatchWinner,
+  findRoundWinner,
+  hasReachedScoreLimit,
+} from "@/lib/game/round";
 import type {
   Fighter,
   KillFeedEntry,
@@ -52,13 +57,44 @@ interface MatchState {
 
   /** Menghidupkan kembali petarung di titik spawn yang diberikan. */
   respawnFighter: (fighterId: string, position: Vec3) => void;
+
+  /** Memperbarui detik bulat pada jam ronde. */
+  setRoundClock: (seconds: number) => void;
+
+  /**
+   * Benar bila ronde sekarang sudah harus berakhir: waktu habis atau ada yang
+   * mencapai batas kill.
+   */
+  shouldEndRound: () => boolean;
+
+  /**
+   * Menutup ronde berjalan: menetapkan pemenangnya, menambah roundWins, lalu
+   * masuk jeda antar ronde. Bila ini ronde terakhir, pertandingan diakhiri.
+   */
+  finishRound: () => void;
+
+  /**
+   * Memulai ronde berikutnya: semua petarung hidup penuh di titik spawn yang
+   * diberikan, kill ronde dinolkan, dan jam ronde disetel ulang.
+   */
+  beginNextRound: (spawns: Record<string, Vec3>) => void;
 }
 
 export const useMatchStore = create<MatchState>((set, get) => ({
   matchId: "",
   fighters: [],
   killFeed: [],
-  round: { current: 1, total: 1, secondsLeft: 0, scoreLimit: 0, status: "warmup" },
+  round: {
+    current: 1,
+    total: 1,
+    secondsLeft: 0,
+    durationSeconds: 0,
+    intermissionSeconds: 0,
+    scoreLimit: 0,
+    status: "warmup",
+    lastRoundWinner: null,
+    matchWinner: null,
+  },
 
   init: (snapshot) =>
     set({
@@ -84,6 +120,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
         return {
           ...fighter,
           kills: fighter.kills + 1,
+          roundKills: fighter.roundKills + 1,
           score: fighter.score + killScore(isHeadshot),
         };
       }
@@ -127,6 +164,71 @@ export const useMatchStore = create<MatchState>((set, get) => ({
             ? { ...fighter, respawnInSeconds: seconds }
             : fighter,
         ),
+      };
+    }),
+
+  setRoundClock: (seconds) =>
+    set((state) =>
+      state.round.secondsLeft === seconds
+        ? state
+        : { round: { ...state.round, secondsLeft: seconds } },
+    ),
+
+  shouldEndRound: () => {
+    const { round, fighters } = get();
+    if (round.status !== "live") return false;
+    return (
+      round.secondsLeft <= 0 || hasReachedScoreLimit(fighters, round.scoreLimit)
+    );
+  },
+
+  finishRound: () =>
+    set((state) => {
+      if (state.round.status !== "live") return state;
+
+      const winner = findRoundWinner(state.fighters);
+      const fighters = winner
+        ? state.fighters.map((fighter) =>
+            fighter.id === winner.id
+              ? { ...fighter, roundWins: fighter.roundWins + 1 }
+              : fighter,
+          )
+        : state.fighters;
+
+      const isLastRound = state.round.current >= state.round.total;
+
+      return {
+        fighters,
+        round: {
+          ...state.round,
+          secondsLeft: isLastRound ? 0 : state.round.intermissionSeconds,
+          status: isLastRound ? "ended" : "intermission",
+          lastRoundWinner: winner?.name ?? null,
+          matchWinner: isLastRound ? (findMatchWinner(fighters)?.name ?? null) : null,
+        },
+      };
+    }),
+
+  beginNextRound: (spawns) =>
+    set((state) => {
+      if (state.round.status !== "intermission") return state;
+      return {
+        fighters: state.fighters.map((fighter) => ({
+          ...fighter,
+          health: fighter.maxHealth,
+          armor: 0,
+          isAlive: true,
+          respawnInSeconds: null,
+          roundKills: 0,
+          position: spawns[fighter.id] ?? fighter.position,
+        })),
+        round: {
+          ...state.round,
+          current: state.round.current + 1,
+          secondsLeft: state.round.durationSeconds,
+          status: "live",
+          lastRoundWinner: null,
+        },
       };
     }),
 

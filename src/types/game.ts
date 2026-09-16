@@ -49,6 +49,10 @@ export interface Fighter {
   kills: number;
   deaths: number;
   score: number;
+  /** Kill pada ronde yang sedang berjalan; dinolkan tiap ronde baru. */
+  roundKills: number;
+  /** Jumlah ronde yang dimenangkan sepanjang pertandingan. */
+  roundWins: number;
   isAlive: boolean;
   /** Hitung mundur respawn dalam detik; null saat masih hidup. */
   respawnInSeconds: number | null;
@@ -60,15 +64,29 @@ export interface Fighter {
   rotationY: number;
 }
 
-export type RoundStatus = "warmup" | "live" | "ended";
+/**
+ * warmup: ronde belum dimulai.
+ * live: sedang bertanding.
+ * intermission: ronde baru saja selesai, menunggu ronde berikutnya.
+ * ended: seluruh pertandingan selesai.
+ */
+export type RoundStatus = "warmup" | "live" | "intermission" | "ended";
 
 export interface RoundState {
   current: number;
   total: number;
   secondsLeft: number;
-  /** Jumlah kill yang mengakhiri ronde lebih cepat. */
+  /** Lama satu ronde penuh, dipakai saat menyetel ulang timer. */
+  durationSeconds: number;
+  /** Jeda antar ronde, dalam detik. */
+  intermissionSeconds: number;
+  /** Jumlah kill dalam satu ronde yang mengakhiri ronde lebih cepat. */
   scoreLimit: number;
   status: RoundStatus;
+  /** Nama pemenang ronde terakhir; null selagi ronde berjalan. */
+  lastRoundWinner: string | null;
+  /** Nama pemenang pertandingan; terisi hanya saat status `ended`. */
+  matchWinner: string | null;
 }
 
 export interface KillFeedEntry {

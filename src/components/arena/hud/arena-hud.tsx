@@ -9,6 +9,7 @@ import { Crosshair } from "@/components/arena/hud/crosshair";
 import { EngageOverlay } from "@/components/arena/hud/engage-overlay";
 import { KillFeed } from "@/components/arena/hud/kill-feed";
 import { LiveScore } from "@/components/arena/hud/live-score";
+import { RoundBanner } from "@/components/arena/hud/round-banner";
 import { RoundHeader } from "@/components/arena/hud/round-header";
 import { StanceBadge } from "@/components/arena/hud/stance-badge";
 import { VitalsPanel } from "@/components/arena/hud/vitals-panel";
@@ -78,6 +79,11 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
         <AmmoPanel weapon={weapon} />
         <MatchInfoStrip match={match} />
       </div>
+
+      <RoundBanner
+        round={round.total > 0 ? round : match.round}
+        fighters={fighters.length > 0 ? fighters : match.fighters}
+      />
 
       <EngageOverlay />
     </>

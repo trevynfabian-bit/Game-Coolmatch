@@ -11,12 +11,14 @@ function formatClock(totalSeconds: number): string {
 const STATUS_LABEL: Record<RoundState["status"], string> = {
   warmup: "Pemanasan",
   live: "Berlangsung",
-  ended: "Selesai",
+  intermission: "Jeda ronde",
+  ended: "Pertandingan selesai",
 };
 
 /** Panel atas-tengah: nomor ronde, sisa waktu, dan batas skor. */
 export function RoundHeader({ round }: { round: RoundState }) {
   const urgent = round.status === "live" && round.secondsLeft <= 30;
+  const finished = round.status === "ended";
 
   return (
     <div className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2">
@@ -50,10 +52,16 @@ export function RoundHeader({ round }: { round: RoundState }) {
 
         <div className="text-center">
           <p className="text-[10px] tracking-[0.2em] text-slate-400 uppercase">
-            Target
+            {finished ? "Juara" : "Target"}
           </p>
           <p className="font-mono text-sm font-semibold text-slate-100">
-            {round.scoreLimit} <span className="text-slate-500">kill</span>
+            {finished ? (
+              (round.matchWinner ?? "Seri")
+            ) : (
+              <>
+                {round.scoreLimit} <span className="text-slate-500">kill</span>
+              </>
+            )}
           </p>
         </div>
       </div>
