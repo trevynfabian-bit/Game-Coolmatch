@@ -1,6 +1,7 @@
 "use client";
 
 import { AmmoPanel } from "@/components/arena/hud/ammo-panel";
+import { ControlHints } from "@/components/arena/hud/control-hints";
 import { Crosshair } from "@/components/arena/hud/crosshair";
 import { EngageOverlay } from "@/components/arena/hud/engage-overlay";
 import { KillFeed } from "@/components/arena/hud/kill-feed";
@@ -53,6 +54,7 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
         <RoundHeader round={match.round} />
         <KillFeed entries={match.killFeed} />
         {isLocked && local.isAlive ? <Crosshair /> : null}
+        <ControlHints />
         <StanceBadge />
         <VitalsPanel fighter={local} weapon={weapon} />
         <AmmoPanel

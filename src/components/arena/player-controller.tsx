@@ -8,6 +8,7 @@ import { buildColliders, movePlayer } from "@/lib/game/collision";
 import type { PlayerPosition } from "@/lib/game/collision";
 import {
   EYE_HEIGHT,
+  HINT_AUTO_SHOW_MS,
   MOVEMENT,
   PLAYER_BOUNDS,
   type MoveAction,
@@ -42,6 +43,8 @@ export function PlayerController({
 
   const setLocked = usePlayerStore((state) => state.setLocked);
   const setMotion = usePlayerStore((state) => state.setMotion);
+  const setHintsVisible = usePlayerStore((state) => state.setHintsVisible);
+  const toggleHints = usePlayerStore((state) => state.toggleHints);
 
   const colliders = useMemo(() => buildColliders(map), [map]);
 
@@ -72,6 +75,33 @@ export function PlayerController({
       },
     );
   }, [subscribeKeys]);
+
+  // H membuka-tutup panel petunjuk kontrol kapan saja.
+  useEffect(() => {
+    return subscribeKeys(
+      (state) => state.help,
+      (pressed) => {
+        if (pressed) toggleHints();
+      },
+    );
+  }, [subscribeKeys, toggleHints]);
+
+  // Petunjuk kontrol muncul sendiri saat pemain pertama kali masuk arena, lalu
+  // menghilang supaya tidak mengganggu. Setelah itu H yang mengendalikan.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const unsubscribe = usePlayerStore.subscribe((state, previous) => {
+      if (!state.isLocked || previous.isLocked || previous.hasEngaged) return;
+      setHintsVisible(true);
+      timer = setTimeout(() => setHintsVisible(false), HINT_AUTO_SHOW_MS);
+    });
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [setHintsVisible]);
 
   // Pemain kembali ke titik spawn kalau peta atau titik spawn berganti.
   useEffect(() => {
@@ -157,6 +187,7 @@ export function PlayerController({
       verticalVelocity.current,
       colliders,
       PLAYER_BOUNDS,
+      map.playableBounds,
     );
 
     position.current = outcome.position;

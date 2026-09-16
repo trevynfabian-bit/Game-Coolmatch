@@ -197,6 +197,9 @@ export const MOCK_MAPS: ArenaMapInfo[] = [
       "Gudang tua bertingkat dengan panggung tengah dan tumpukan krat. Cocok untuk duel jarak dekat sampai menengah.",
     previewUrl: null,
     floorSize: [45, 45],
+    // Tembok keliling berpusat di +-22 dengan tebal 1, jadi permukaan dalamnya
+    // ada di +-21.5. Itulah batas keras area main.
+    playableBounds: { minX: -21.5, maxX: 21.5, minZ: -21.5, maxZ: 21.5 },
     skyColor: "#0e1219",
     fogColor: "#2a3039",
     floorColor: "#554d42",

@@ -8,7 +8,8 @@ export type MoveAction =
   | "left"
   | "right"
   | "jump"
-  | "sprint";
+  | "sprint"
+  | "help";
 
 /**
  * Pemetaan tombol bawaan. Menyertakan huruf kecil dan besar supaya tetap jalan
@@ -21,6 +22,7 @@ export const KEYBOARD_MAP: KeyboardControlsEntry<MoveAction>[] = [
   { name: "right", keys: ["KeyD", "ArrowRight"] },
   { name: "jump", keys: ["Space"] },
   { name: "sprint", keys: ["ShiftLeft", "ShiftRight"] },
+  { name: "help", keys: ["KeyH"] },
 ];
 
 /** Keterangan tombol untuk panel bantuan di HUD. */
@@ -29,6 +31,7 @@ export const CONTROL_HINTS: { keys: string; label: string }[] = [
   { keys: "Mouse", label: "Lihat sekitar" },
   { keys: "Spasi", label: "Lompat" },
   { keys: "Shift", label: "Lari" },
+  { keys: "H", label: "Petunjuk kontrol" },
   { keys: "Esc", label: "Lepas kursor" },
 ];
 
@@ -58,3 +61,6 @@ export const MOVEMENT = {
   bobAmplitude: 0.045,
   bobFrequency: 9.5,
 } as const;
+
+/** Lama petunjuk kontrol tampil otomatis saat pemain pertama kali masuk. */
+export const HINT_AUTO_SHOW_MS = 7000;

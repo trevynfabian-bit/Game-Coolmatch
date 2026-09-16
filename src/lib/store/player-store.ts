@@ -12,8 +12,12 @@ interface PlayerState {
   hasEngaged: boolean;
   isSprinting: boolean;
   isAirborne: boolean;
+  /** Panel petunjuk kontrol sedang tampil di dalam permainan. */
+  hintsVisible: boolean;
   setLocked: (locked: boolean) => void;
   setMotion: (motion: { isSprinting: boolean; isAirborne: boolean }) => void;
+  setHintsVisible: (visible: boolean) => void;
+  toggleHints: () => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set) => ({
@@ -21,6 +25,7 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   hasEngaged: false,
   isSprinting: false,
   isAirborne: false,
+  hintsVisible: false,
   setLocked: (locked) =>
     set((state) => ({
       isLocked: locked,
@@ -34,4 +39,7 @@ export const usePlayerStore = create<PlayerState>((set) => ({
         ? state
         : { isSprinting, isAirborne },
     ),
+  setHintsVisible: (visible) =>
+    set((state) => (state.hintsVisible === visible ? state : { hintsVisible: visible })),
+  toggleHints: () => set((state) => ({ hintsVisible: !state.hintsVisible })),
 }));

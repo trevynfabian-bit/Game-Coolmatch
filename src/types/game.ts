@@ -83,6 +83,19 @@ export interface MapBlock {
   color?: string;
 }
 
+/**
+ * Kotak area yang boleh ditempati pemain, diukur di permukaan dalam tembok
+ * keliling. Jadi jaring pengaman: pemain dijepit ke kotak ini tiap frame
+ * sehingga tidak pernah keluar arena walau geometri tembok berubah atau ada
+ * celah yang tak sengaja tertinggal.
+ */
+export interface ArenaBounds {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
 export interface ArenaMapInfo {
   id: string;
   name: string;
@@ -90,6 +103,8 @@ export interface ArenaMapInfo {
   previewUrl: string | null;
   /** Ukuran lantai arena (panjang x lebar) dalam satuan dunia. */
   floorSize: [width: number, depth: number];
+  /** Batas keras area main, dipakai penyelesai tabrakan. */
+  playableBounds: ArenaBounds;
   skyColor: string;
   fogColor: string;
   floorColor: string;

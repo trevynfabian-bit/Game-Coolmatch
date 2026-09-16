@@ -1,4 +1,4 @@
-import type { ArenaMapInfo, MapBlock } from "@/types/game";
+import type { ArenaBounds, ArenaMapInfo, MapBlock } from "@/types/game";
 
 /** Kotak sejajar sumbu dalam koordinat dunia. */
 export interface Aabb {
@@ -159,14 +159,61 @@ export interface MoveOutcome {
  * Menggerakkan pemain lalu menyelesaikan tabrakan: vertikal dulu supaya status
  * menjejak tanah diketahui, baru mendatar per sumbu dengan percobaan menaiki
  * undakan bila terhalang. Lantai arena di y = 0 diperlakukan sebagai batas
- * keras sehingga pemain tidak pernah jatuh menembus peta.
+ * keras sehingga pemain tidak pernah jatuh menembus peta, dan bila `arena`
+ * diberikan, posisi akhir dijepit ke dalam kotak area main.
  */
+export function clampToArena(
+  pos: PlayerPosition,
+  arena: ArenaBounds,
+  radius: number,
+): boolean {
+  let clamped = false;
+
+  // Arena yang lebih sempit dari badan pemain akan membuat batas saling silang;
+  // pusatkan pemain alih-alih menghasilkan posisi yang tidak masuk akal.
+  const minX = arena.minX + radius;
+  const maxX = arena.maxX - radius;
+  const minZ = arena.minZ + radius;
+  const maxZ = arena.maxZ - radius;
+
+  if (minX > maxX) {
+    const mid = (arena.minX + arena.maxX) / 2;
+    if (pos.x !== mid) {
+      pos.x = mid;
+      clamped = true;
+    }
+  } else if (pos.x < minX) {
+    pos.x = minX;
+    clamped = true;
+  } else if (pos.x > maxX) {
+    pos.x = maxX;
+    clamped = true;
+  }
+
+  if (minZ > maxZ) {
+    const mid = (arena.minZ + arena.maxZ) / 2;
+    if (pos.z !== mid) {
+      pos.z = mid;
+      clamped = true;
+    }
+  } else if (pos.z < minZ) {
+    pos.z = minZ;
+    clamped = true;
+  } else if (pos.z > maxZ) {
+    pos.z = maxZ;
+    clamped = true;
+  }
+
+  return clamped;
+}
+
 export function movePlayer(
   start: PlayerPosition,
   input: MoveInput,
   verticalVelocity: number,
   colliders: Aabb[],
   bounds: PlayerBounds,
+  arena?: ArenaBounds,
 ): MoveOutcome {
   const pos: PlayerPosition = { ...start };
   let vy = verticalVelocity;
@@ -228,6 +275,13 @@ export function movePlayer(
         blocked = false;
       }
     }
+  }
+
+  // Jaring pengaman terakhir: apa pun yang terjadi di atas, pemain tetap di
+  // dalam kotak area main. Dijalankan paling akhir supaya tidak bisa ditembus
+  // oleh langkah naik undakan maupun dorongan keluar penghalang.
+  if (arena && clampToArena(pos, arena, bounds.radius)) {
+    blocked = true;
   }
 
   return {
