@@ -1,11 +1,16 @@
+"use client";
+
 import { AmmoPanel } from "@/components/arena/hud/ammo-panel";
 import { Crosshair } from "@/components/arena/hud/crosshair";
+import { EngageOverlay } from "@/components/arena/hud/engage-overlay";
 import { KillFeed } from "@/components/arena/hud/kill-feed";
 import { LiveScore } from "@/components/arena/hud/live-score";
 import { RoundHeader } from "@/components/arena/hud/round-header";
+import { StanceBadge } from "@/components/arena/hud/stance-badge";
 import { VitalsPanel } from "@/components/arena/hud/vitals-panel";
 import { getLocalFighter, getScoreboard } from "@/lib/mock/match";
 import { findWeapon } from "@/lib/mock/weapons";
+import { usePlayerStore } from "@/lib/store/player-store";
 import type { MatchSnapshot } from "@/types/game";
 
 const DIFFICULTY_LABEL: Record<MatchSnapshot["difficulty"], string> = {
@@ -33,30 +38,32 @@ function MatchInfoStrip({ match }: { match: MatchSnapshot }) {
 
 /**
  * Seluruh lapisan HUD arena. Semuanya dibaca dari satu `MatchSnapshot`, dan
- * lapisan ini tidak menangkap pointer sama sekali supaya nanti input bidik
- * langsung sampai ke kanvas di bawahnya.
+ * lapisan ini tidak menangkap pointer sama sekali supaya input bidik langsung
+ * sampai ke kanvas di bawahnya.
  */
 export function ArenaHud({ match }: { match: MatchSnapshot }) {
   const local = getLocalFighter(match);
   const weapon = findWeapon(local.weaponId);
+  const isLocked = usePlayerStore((state) => state.isLocked);
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 select-none">
-      <LiveScore scoreboard={getScoreboard(match)} />
-      <RoundHeader round={match.round} />
-      <KillFeed entries={match.killFeed} />
-      {local.isAlive ? <Crosshair /> : null}
-      <VitalsPanel fighter={local} weapon={weapon} />
-      <AmmoPanel
-        weapon={weapon}
-        inMagazine={match.ammoInMagazine}
-        reserve={match.ammoReserve}
-      />
-      <MatchInfoStrip match={match} />
+    <>
+      <div className="pointer-events-none absolute inset-0 z-10 select-none">
+        <LiveScore scoreboard={getScoreboard(match)} />
+        <RoundHeader round={match.round} />
+        <KillFeed entries={match.killFeed} />
+        {isLocked && local.isAlive ? <Crosshair /> : null}
+        <StanceBadge />
+        <VitalsPanel fighter={local} weapon={weapon} />
+        <AmmoPanel
+          weapon={weapon}
+          inMagazine={match.ammoInMagazine}
+          reserve={match.ammoReserve}
+        />
+        <MatchInfoStrip match={match} />
+      </div>
 
-      <p className="absolute top-20 left-1/2 max-w-[92vw] -translate-x-1/2 rounded-full border border-amber-400/25 bg-amber-950/50 px-3 py-1 text-center text-[10px] text-amber-200/90 backdrop-blur-sm sm:text-[11px] lg:top-auto lg:bottom-16 lg:whitespace-nowrap">
-        Data tiruan — kontrol gerak, bidik, dan tembak menyusul di task berikutnya
-      </p>
-    </div>
+      <EngageOverlay />
+    </>
   );
 }

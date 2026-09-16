@@ -1,7 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
+import { KEYBOARD_MAP } from "@/lib/game/controls";
 import { MOCK_MATCH } from "@/lib/mock/match";
 import type { MatchSnapshot } from "@/types/game";
 
@@ -36,6 +38,10 @@ const ArenaScene = dynamic(
 
 /**
  * Akar halaman arena: menyatukan kanvas 3D dengan lapisan HUD di atasnya.
+ * `KeyboardControls` membungkus keduanya — React Three Fiber menjembatani
+ * context-nya ke dalam kanvas, jadi controller di dalam scene tetap bisa
+ * membaca tombol yang ditekan.
+ *
  * Sumber datanya masih `MOCK_MATCH`; prop `match` sengaja dibuka supaya task
  * backend nanti tinggal mengoper data asli dari server.
  */
@@ -45,9 +51,11 @@ export function ArenaExperience({
   match?: MatchSnapshot;
 }) {
   return (
-    <div className="relative h-full w-full overflow-hidden bg-slate-950">
-      <ArenaScene match={match} />
-      <ArenaHud match={match} />
-    </div>
+    <KeyboardControls map={KEYBOARD_MAP}>
+      <div className="relative h-full w-full overflow-hidden bg-slate-950">
+        <ArenaScene match={match} />
+        <ArenaHud match={match} />
+      </div>
+    </KeyboardControls>
   );
 }
