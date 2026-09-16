@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { WeaponCard } from "@/components/weapons/weapon-card";
 import { WeaponPreview } from "@/components/weapons/weapon-preview";
+import { weaponOwnership } from "@/lib/mock/player-weapons";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
@@ -51,6 +52,11 @@ export function WeaponPicker() {
   const bars = useMemo(() => weaponStatBars(selected), [selected]);
   const feel = useMemo(() => weaponFeel(selected), [selected]);
   const accent = WEAPON_SHAPES[selected.type].accent;
+  const unlockedCount = useMemo(
+    () => MOCK_WEAPONS.filter((weapon) => weaponOwnership(weapon.id).isUnlocked)
+      .length,
+    [],
+  );
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-10 sm:px-8">
@@ -68,17 +74,29 @@ export function WeaponPicker() {
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <ul className="space-y-2">
+        <div>
+          <p className="mb-3 text-[11px] text-slate-500">
+            {unlockedCount} dari {MOCK_WEAPONS.length} senjata terbuka
+            {unlockedCount < MOCK_WEAPONS.length ? (
+              <span className="text-slate-600">
+                {" "}
+                · sisanya terbuka seiring kamu main
+              </span>
+            ) : null}
+          </p>
+          <ul className="space-y-2">
           {MOCK_WEAPONS.map((weapon) => (
             <li key={weapon.id}>
               <WeaponCard
                 weapon={weapon}
+                ownership={weaponOwnership(weapon.id)}
                 selected={weapon.id === selectedWeaponId}
                 onSelect={() => selectWeapon(weapon.id)}
               />
             </li>
-          ))}
-        </ul>
+            ))}
+          </ul>
+        </div>
 
         <aside className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
           <div className="rounded-lg bg-slate-950/50">
