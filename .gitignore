@@ -44,3 +44,6 @@ next-env.d.ts
 /.ngodingpakeai/index/
 /.ngodingpakeai/pending.json
 /.ngodingpakeai/summaries.json
+
+# berkas database sqlite lokal
+/data/
