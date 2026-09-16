@@ -35,6 +35,7 @@ export const CONTROL_HINTS: { keys: string; label: string }[] = [
   { keys: "Shift", label: "Lari" },
   { keys: "Klik", label: "Tembak" },
   { keys: "R", label: "Isi ulang" },
+  { keys: "Tab", label: "Papan skor" },
   { keys: "H", label: "Petunjuk kontrol" },
   { keys: "Esc", label: "Lepas kursor" },
 ];

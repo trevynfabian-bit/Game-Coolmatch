@@ -11,6 +11,7 @@ import { KillFeed } from "@/components/arena/hud/kill-feed";
 import { LiveScore } from "@/components/arena/hud/live-score";
 import { RoundBanner } from "@/components/arena/hud/round-banner";
 import { RoundHeader } from "@/components/arena/hud/round-header";
+import { ScoreboardOverlay } from "@/components/arena/hud/scoreboard-overlay";
 import { StanceBadge } from "@/components/arena/hud/stance-badge";
 import { VitalsPanel } from "@/components/arena/hud/vitals-panel";
 import { getLocalFighter } from "@/lib/mock/match";
@@ -79,6 +80,12 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
         <AmmoPanel weapon={weapon} />
         <MatchInfoStrip match={match} />
       </div>
+
+      <ScoreboardOverlay
+        fighters={fighters.length > 0 ? fighters : match.fighters}
+        round={round.total > 0 ? round : match.round}
+        pingMs={match.pingMs}
+      />
 
       <RoundBanner
         round={round.total > 0 ? round : match.round}

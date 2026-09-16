@@ -14,10 +14,13 @@ interface PlayerState {
   isAirborne: boolean;
   /** Panel petunjuk kontrol sedang tampil di dalam permainan. */
   hintsVisible: boolean;
+  /** Papan skor penuh sedang dibuka (tombol Tab ditahan). */
+  scoreboardOpen: boolean;
   setLocked: (locked: boolean) => void;
   setMotion: (motion: { isSprinting: boolean; isAirborne: boolean }) => void;
   setHintsVisible: (visible: boolean) => void;
   toggleHints: () => void;
+  setScoreboardOpen: (open: boolean) => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set) => ({
@@ -26,12 +29,15 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   isSprinting: false,
   isAirborne: false,
   hintsVisible: false,
+  scoreboardOpen: false,
   setLocked: (locked) =>
     set((state) => ({
       isLocked: locked,
       hasEngaged: state.hasEngaged || locked,
-      // Saat kursor lepas, hentikan indikator gerak supaya HUD tidak bohong.
+      // Saat kursor lepas, hentikan indikator gerak supaya HUD tidak bohong
+      // dan tutup papan skor agar tidak tertinggal terbuka.
       isSprinting: locked ? state.isSprinting : false,
+      scoreboardOpen: locked ? state.scoreboardOpen : false,
     })),
   setMotion: ({ isSprinting, isAirborne }) =>
     set((state) =>
@@ -42,4 +48,6 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   setHintsVisible: (visible) =>
     set((state) => (state.hintsVisible === visible ? state : { hintsVisible: visible })),
   toggleHints: () => set((state) => ({ hintsVisible: !state.hintsVisible })),
+  setScoreboardOpen: (open) =>
+    set((state) => (state.scoreboardOpen === open ? state : { scoreboardOpen: open })),
 }));

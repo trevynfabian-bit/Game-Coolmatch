@@ -1,16 +1,19 @@
 import type { Fighter } from "@/types/game";
 
 /**
- * Papan skor ringkas di kiri-atas selama pertandingan berjalan: nama, kill,
- * dan mati tiap peserta. Ringkasan akhir yang lebih lengkap ditangani fase
- * penilaian.
+ * Papan skor ringkas di kiri-atas selama pertandingan berjalan: kemenangan
+ * ronde, kill, dan mati tiap peserta. Kolom ronde ditaruh lebih dulu karena
+ * itulah yang menentukan juara; rincian lengkapnya ada di papan skor Tab.
  */
 export function LiveScore({ scoreboard }: { scoreboard: Fighter[] }) {
   return (
-    <div className="pointer-events-none absolute top-4 left-5 hidden w-56 lg:block">
+    <div className="pointer-events-none absolute top-4 left-5 hidden w-64 lg:block">
       <div className="overflow-hidden rounded-lg border border-white/10 bg-slate-950/70 backdrop-blur-sm">
-        <div className="grid grid-cols-[1fr_auto_auto] gap-2 border-b border-white/10 px-3 py-1.5 text-[10px] tracking-[0.15em] text-slate-400 uppercase">
+        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 border-b border-white/10 px-3 py-1.5 text-[10px] tracking-[0.15em] text-slate-400 uppercase">
           <span>Pemain</span>
+          <span className="w-8 text-right" title="Kemenangan ronde">
+            Ronde
+          </span>
           <span className="w-6 text-right">K</span>
           <span className="w-6 text-right">M</span>
         </div>
@@ -19,7 +22,7 @@ export function LiveScore({ scoreboard }: { scoreboard: Fighter[] }) {
           {scoreboard.map((fighter) => (
             <li
               key={fighter.id}
-              className={`grid grid-cols-[1fr_auto_auto] items-center gap-2 px-3 py-1.5 text-xs ${
+              className={`grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 px-3 py-1.5 text-xs ${
                 fighter.isLocal ? "bg-sky-500/10" : ""
               }`}
             >
@@ -38,6 +41,9 @@ export function LiveScore({ scoreboard }: { scoreboard: Fighter[] }) {
                 >
                   {fighter.name}
                 </span>
+              </span>
+              <span className="w-8 text-right font-mono font-semibold tabular-nums text-amber-300">
+                {fighter.roundWins}
               </span>
               <span className="w-6 text-right font-mono tabular-nums text-slate-100">
                 {fighter.kills}
