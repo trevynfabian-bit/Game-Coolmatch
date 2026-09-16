@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
 import { KEYBOARD_MAP } from "@/lib/game/controls";
@@ -10,6 +10,8 @@ import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
 import { MOCK_MATCH } from "@/lib/mock/match";
+import { findWeapon } from "@/lib/mock/weapons";
+import { useLoadoutStore } from "@/lib/store/loadout-store";
 import type { MatchSnapshot } from "@/types/game";
 
 /** Placeholder selagi bundel 3D diunduh dan konteks WebGL disiapkan. */
@@ -55,20 +57,38 @@ export function ArenaExperience({
 }: {
   match?: MatchSnapshot;
 }) {
+  const selectedWeaponId = useLoadoutStore((state) => state.selectedWeaponId);
+
+  /**
+   * Senjata yang dipilih di halaman Pilih Senjata dibawa masuk ke arena. Isi
+   * magasin awal dijepit ke kapasitas senjata itu, sebab angka pada potret
+   * pertandingan mengacu pada senjata bawaan yang magasinnya bisa lebih besar.
+   */
+  const armedMatch = useMemo<MatchSnapshot>(() => {
+    const weapon = findWeapon(selectedWeaponId);
+    return {
+      ...match,
+      fighters: match.fighters.map((fighter) =>
+        fighter.isLocal ? { ...fighter, weaponId: weapon.id } : fighter,
+      ),
+      ammoInMagazine: Math.min(match.ammoInMagazine, weapon.magazineSize),
+    };
+  }, [match, selectedWeaponId]);
+
   // Potret pertandingan menjadi keadaan awal store; sejak itu seluruh HUD dan
   // arena membaca state yang hidup, bukan data tiruan yang statis.
   useEffect(() => {
     resetFighterHits();
     resetRespawnTimers();
-    setRoundClock(match.round.secondsLeft);
-    useMatchStore.getState().init(match);
-  }, [match]);
+    setRoundClock(armedMatch.round.secondsLeft);
+    useMatchStore.getState().init(armedMatch);
+  }, [armedMatch]);
 
   return (
     <KeyboardControls map={KEYBOARD_MAP}>
       <div className="relative h-full w-full overflow-hidden bg-slate-950">
-        <ArenaScene match={match} />
-        <ArenaHud match={match} />
+        <ArenaScene match={armedMatch} />
+        <ArenaHud match={armedMatch} />
       </div>
     </KeyboardControls>
   );

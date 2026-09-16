@@ -21,12 +21,20 @@ export default function Home() {
           kuasai panggung tengah, dan kumpulkan kill sampai batas skor tercapai.
         </p>
 
-        <Link
-          href="/arena"
-          className="mt-8 inline-flex items-center justify-center rounded-lg bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-        >
-          Masuk Arena
-        </Link>
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link
+            href="/arena"
+            className="w-full rounded-lg bg-emerald-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 sm:w-auto"
+          >
+            Masuk Arena
+          </Link>
+          <Link
+            href="/senjata"
+            className="w-full rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
+          >
+            Pilih Senjata
+          </Link>
+        </div>
 
         <p className="mt-6 text-xs text-slate-600">
           Peta saat ini: {MOCK_MATCH.map.name} · {MOCK_MATCH.botCount} musuh
