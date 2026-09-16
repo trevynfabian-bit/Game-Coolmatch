@@ -1,10 +1,17 @@
 "use client";
 
+import { useRef } from "react";
 import { Billboard, Html } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import type { MeshStandardMaterial } from "three";
+import { secondsSinceHit } from "@/lib/game/fighter-runtime";
 import type { Fighter } from "@/types/game";
 
 /** Tinggi papan nama di atas kepala petarung, dalam satuan dunia. */
 const NAMETAG_HEIGHT = 2.45;
+
+/** Lama badan berkedip putih setelah kena tembak, dalam detik. */
+const HIT_FLASH_SECONDS = 0.14;
 
 /**
  * Penanda satu petarung di arena: badan kapsul low-poly, kepala, laras senjata
@@ -18,13 +25,31 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
   );
   const dimmed = !fighter.isAlive;
 
+  const bodyMaterial = useRef<MeshStandardMaterial>(null);
+  const headMaterial = useRef<MeshStandardMaterial>(null);
+
+  // Kedipan kena tembak dijalankan langsung di material, bukan lewat state
+  // React, supaya rentetan tembakan tidak memicu render ulang berturut-turut.
+  useFrame(() => {
+    const since = secondsSinceHit(fighter.id);
+    const strength =
+      since >= HIT_FLASH_SECONDS ? 0 : 1 - since / HIT_FLASH_SECONDS;
+    for (const material of [bodyMaterial.current, headMaterial.current]) {
+      if (!material) continue;
+      material.emissiveIntensity = strength * 1.6;
+    }
+  });
+
   return (
     <group position={fighter.position} rotation={[0, fighter.rotationY, 0]}>
       <mesh position={[0, 0.8, 0]} castShadow>
         <capsuleGeometry args={[0.35, 0.9, 4, 12]} />
         <meshStandardMaterial
+          ref={bodyMaterial}
           color={fighter.color}
           roughness={0.6}
+          emissive="#ffffff"
+          emissiveIntensity={0}
           transparent={dimmed}
           opacity={dimmed ? 0.25 : 1}
         />
@@ -33,8 +58,11 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
       <mesh position={[0, 1.75, 0]} castShadow>
         <sphereGeometry args={[0.22, 12, 12]} />
         <meshStandardMaterial
+          ref={headMaterial}
           color={fighter.color}
           roughness={0.5}
+          emissive="#ffffff"
+          emissiveIntensity={0}
           transparent={dimmed}
           opacity={dimmed ? 0.25 : 1}
         />

@@ -5,7 +5,10 @@ import type { KillFeedEntry } from "@/types/game";
  * ditaruh di atas; kill oleh pemain lokal diberi sorotan.
  */
 export function KillFeed({ entries }: { entries: KillFeedEntry[] }) {
-  const latest = [...entries].sort((a, b) => b.atSecond - a.atSecond).slice(0, 5);
+  // Store menyisipkan entri baru di depan, jadi urutan array sudah terbaru
+  // dulu. Jangan urutkan ulang memakai atSecond: nilainya dibaca dari jam ronde
+  // yang menghitung mundur, sehingga kill terbaru justru punya angka terkecil.
+  const latest = entries.slice(0, 5);
 
   if (latest.length === 0) return null;
 

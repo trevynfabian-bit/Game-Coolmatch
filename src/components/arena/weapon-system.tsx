@@ -20,7 +20,10 @@ import {
   raycastArena,
   shotInterval,
 } from "@/lib/game/shooting";
+import { markFighterHit } from "@/lib/game/fighter-runtime";
+import { resolveShotDamage } from "@/lib/game/damage";
 import { useCombatStore } from "@/lib/store/combat-store";
+import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { MatchSnapshot, Vec3, Weapon } from "@/types/game";
 
@@ -77,10 +80,6 @@ export function WeaponSystem({
   const effects = useRef<ShotEffectsHandle>(null);
 
   const colliders = useMemo(() => buildColliders(match.map), [match.map]);
-  const targets = useMemo(
-    () => buildFighterTargets(match.fighters),
-    [match.fighters],
-  );
 
   const triggerHeld = useRef(false);
   const triggerConsumed = useRef(false);
@@ -187,6 +186,9 @@ export function WeaponSystem({
 
     const base: Vec3 = [forward.x, forward.y, forward.z];
     const originVec: Vec3 = [origin.x, origin.y, origin.z];
+    const matchState = useMatchStore.getState();
+    const targets = buildFighterTargets(matchState.fighters);
+    const shooterId = matchState.fighters.find((f) => f.isLocal)?.id ?? "";
     let bestHitOnFighter: { fighterId: string; isHeadshot: boolean } | null =
       null;
 
@@ -208,14 +210,33 @@ export function WeaponSystem({
         effects.current?.spawnImpact(hit.point, hit.kind === "fighter");
         if (hit.kind === "fighter" && hit.fighterId) {
           const isHeadshot = hit.isHeadshot ?? false;
-          onFighterHit?.({
-            fighterId: hit.fighterId,
+          const damage = resolveShotDamage(weapon.damage, isHeadshot);
+
+          const report = matchState.damageFighter({
+            attackerId: shooterId,
+            targetId: hit.fighterId,
+            damage,
             isHeadshot,
-            damage: isHeadshot ? weapon.damage * 2 : weapon.damage,
+            weaponName: weapon.name,
           });
-          // Satu penanda kena per tarikan pelatuk; headshot menang.
-          if (!bestHitOnFighter || isHeadshot) {
-            bestHitOnFighter = { fighterId: hit.fighterId, isHeadshot };
+
+          // Null berarti sasaran sudah tumbang lebih dulu — misalnya butir
+          // shotgun berikutnya yang datang sesudah butir yang mematikan.
+          if (report) {
+            markFighterHit(hit.fighterId);
+            useCombatStore.getState().pushDamagePop({
+              amount: report.healthLost + report.armorLost,
+              isHeadshot,
+              isLethal: report.isLethal,
+            });
+            onFighterHit?.({
+              fighterId: hit.fighterId,
+              isHeadshot,
+              damage,
+            });
+            if (!bestHitOnFighter || isHeadshot) {
+              bestHitOnFighter = { fighterId: hit.fighterId, isHeadshot };
+            }
           }
         }
       }

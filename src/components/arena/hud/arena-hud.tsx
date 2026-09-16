@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { AmmoPanel } from "@/components/arena/hud/ammo-panel";
 import { ControlHints } from "@/components/arena/hud/control-hints";
+import { DamageNumbers } from "@/components/arena/hud/damage-numbers";
 import { Crosshair } from "@/components/arena/hud/crosshair";
 import { EngageOverlay } from "@/components/arena/hud/engage-overlay";
 import { KillFeed } from "@/components/arena/hud/kill-feed";
@@ -9,8 +11,9 @@ import { LiveScore } from "@/components/arena/hud/live-score";
 import { RoundHeader } from "@/components/arena/hud/round-header";
 import { StanceBadge } from "@/components/arena/hud/stance-badge";
 import { VitalsPanel } from "@/components/arena/hud/vitals-panel";
-import { getLocalFighter, getScoreboard } from "@/lib/mock/match";
+import { getLocalFighter } from "@/lib/mock/match";
 import { findWeapon } from "@/lib/mock/weapons";
+import { sortScoreboard, useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { MatchSnapshot } from "@/types/game";
 
@@ -43,17 +46,29 @@ function MatchInfoStrip({ match }: { match: MatchSnapshot }) {
  * sampai ke kanvas di bawahnya.
  */
 export function ArenaHud({ match }: { match: MatchSnapshot }) {
-  const local = getLocalFighter(match);
-  const weapon = findWeapon(local.weaponId);
   const isLocked = usePlayerStore((state) => state.isLocked);
+  const fighters = useMatchStore((state) => state.fighters);
+  const killFeed = useMatchStore((state) => state.killFeed);
+  const round = useMatchStore((state) => state.round);
+
+  // Sebelum store terisi pada render pertama, jatuh ke potret pertandingan
+  // supaya HUD tidak pernah kosong sekejap.
+  const local =
+    fighters.find((fighter) => fighter.isLocal) ?? getLocalFighter(match);
+  const scoreboard = useMemo(
+    () => sortScoreboard(fighters.length > 0 ? fighters : match.fighters),
+    [fighters, match.fighters],
+  );
+  const weapon = findWeapon(local.weaponId);
 
   return (
     <>
       <div className="pointer-events-none absolute inset-0 z-10 select-none">
-        <LiveScore scoreboard={getScoreboard(match)} />
-        <RoundHeader round={match.round} />
-        <KillFeed entries={match.killFeed} />
+        <LiveScore scoreboard={scoreboard} />
+        <RoundHeader round={round.total > 0 ? round : match.round} />
+        <KillFeed entries={killFeed.length > 0 ? killFeed : match.killFeed} />
         {isLocked && local.isAlive ? <Crosshair /> : null}
+        <DamageNumbers />
         <ControlHints />
         <StanceBadge />
         <VitalsPanel fighter={local} weapon={weapon} />

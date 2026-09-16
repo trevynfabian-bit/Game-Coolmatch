@@ -1,9 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect } from "react";
 import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
 import { KEYBOARD_MAP } from "@/lib/game/controls";
+import { resetFighterHits } from "@/lib/game/fighter-runtime";
+import { useMatchStore } from "@/lib/store/match-store";
 import { MOCK_MATCH } from "@/lib/mock/match";
 import type { MatchSnapshot } from "@/types/game";
 
@@ -50,6 +53,13 @@ export function ArenaExperience({
 }: {
   match?: MatchSnapshot;
 }) {
+  // Potret pertandingan menjadi keadaan awal store; sejak itu seluruh HUD dan
+  // arena membaca state yang hidup, bukan data tiruan yang statis.
+  useEffect(() => {
+    resetFighterHits();
+    useMatchStore.getState().init(match);
+  }, [match]);
+
   return (
     <KeyboardControls map={KEYBOARD_MAP}>
       <div className="relative h-full w-full overflow-hidden bg-slate-950">

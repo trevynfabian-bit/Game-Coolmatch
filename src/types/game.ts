@@ -77,7 +77,10 @@ export interface KillFeedEntry {
   victimName: string;
   weaponName: string;
   isHeadshot: boolean;
-  /** Detik sejak ronde dimulai, dipakai untuk mengurutkan feed. */
+  /**
+   * Bacaan jam ronde saat kejadian, sekadar informasi. Urutan feed mengikuti
+   * posisi array (terbaru di depan), bukan angka ini.
+   */
   atSecond: number;
 }
 

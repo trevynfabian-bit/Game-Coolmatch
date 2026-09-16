@@ -9,6 +9,7 @@ import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
 import { EYE_HEIGHT } from "@/lib/game/controls";
 import { getLocalFighter } from "@/lib/mock/match";
 import { findWeapon } from "@/lib/mock/weapons";
+import { useMatchStore } from "@/lib/store/match-store";
 import type { MatchSnapshot } from "@/types/game";
 
 /** Pencahayaan arena: matahari senja yang menghasilkan bayangan + isian lembut. */
@@ -44,8 +45,11 @@ function ArenaLights() {
  * jadi saat data tiruan diganti respons API nanti, komponen ini tidak berubah.
  */
 export function ArenaScene({ match }: { match: MatchSnapshot }) {
-  const local = getLocalFighter(match);
-  const weapon = findWeapon(local.weaponId);
+  const spawnFighter = getLocalFighter(match);
+  const weapon = findWeapon(spawnFighter.weaponId);
+  // Petarung dibaca dari state yang hidup supaya nyawa, kematian, dan skor
+  // langsung terlihat di arena.
+  const fighters = useMatchStore((state) => state.fighters);
 
   return (
     <Canvas
@@ -56,9 +60,9 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
         near: 0.1,
         far: 220,
         position: [
-          local.position[0],
-          local.position[1] + EYE_HEIGHT,
-          local.position[2],
+          spawnFighter.position[0],
+          spawnFighter.position[1] + EYE_HEIGHT,
+          spawnFighter.position[2],
         ],
       }}
       gl={{ antialias: true }}
@@ -67,17 +71,17 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
       <fog attach="fog" args={[match.map.fogColor, 34, 110]} />
 
       <ArenaLights />
-      <PlayerController map={match.map} spawn={local.position} />
+      <PlayerController map={match.map} spawn={spawnFighter.position} />
       <WeaponSystem match={match} weapon={weapon} />
       <ArenaMap map={match.map} />
 
-      {match.fighters
+      {fighters
         .filter((fighter) => !fighter.isLocal)
         .map((fighter) => (
           <FighterMarker key={fighter.id} fighter={fighter} />
         ))}
 
-      <WeaponViewmodel color={local.color === "#38bdf8" ? "#39424d" : local.color} />
+      <WeaponViewmodel color={spawnFighter.color === "#38bdf8" ? "#39424d" : spawnFighter.color} />
     </Canvas>
   );
 }

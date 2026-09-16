@@ -6,6 +6,20 @@ export interface HitMarker {
   isHeadshot: boolean;
 }
 
+/** Angka kerusakan yang melayang sesaat di dekat crosshair. */
+export interface DamagePop {
+  id: number;
+  amount: number;
+  isHeadshot: boolean;
+  isLethal: boolean;
+  /** Geser acak dalam piksel, dibuat sekali supaya tidak loncat saat render. */
+  offsetX: number;
+  offsetY: number;
+}
+
+/** Batas angka kerusakan yang ditahan sekaligus di layar. */
+const DAMAGE_POP_LIMIT = 6;
+
 /**
  * Keadaan tembak-menembak pemain lokal. Hanya menyimpan nilai yang berubah
  * sesekali — peluru, status isi ulang, dan penanda kena. Nilai yang berubah
@@ -21,6 +35,7 @@ interface CombatState {
   /** Lama isi ulang yang sedang berjalan, dipakai HUD untuk durasi animasi. */
   reloadSeconds: number;
   hitMarker: HitMarker | null;
+  damagePops: DamagePop[];
 
   /** Menyiapkan amunisi awal dari potret pertandingan. */
   arm: (config: {
@@ -34,6 +49,12 @@ interface CombatState {
   finishReload: () => void;
   registerHit: (isHeadshot: boolean) => void;
   clearHitMarker: (id: number) => void;
+  pushDamagePop: (pop: {
+    amount: number;
+    isHeadshot: boolean;
+    isLethal: boolean;
+  }) => void;
+  removeDamagePop: (id: number) => void;
 }
 
 export const useCombatStore = create<CombatState>((set, get) => ({
@@ -43,6 +64,7 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   isReloading: false,
   reloadSeconds: 0,
   hitMarker: null,
+  damagePops: [],
 
   arm: ({ ammoInMagazine, ammoReserve, magazineSize }) =>
     set({
@@ -52,6 +74,7 @@ export const useCombatStore = create<CombatState>((set, get) => ({
       isReloading: false,
       reloadSeconds: 0,
       hitMarker: null,
+      damagePops: [],
     }),
 
   consumeRound: () => {
@@ -88,4 +111,24 @@ export const useCombatStore = create<CombatState>((set, get) => ({
     set((state) =>
       state.hitMarker?.id === id ? { hitMarker: null } : state,
     ),
+
+  pushDamagePop: ({ amount, isHeadshot, isLethal }) =>
+    set((state) => ({
+      damagePops: [
+        ...state.damagePops.slice(-(DAMAGE_POP_LIMIT - 1)),
+        {
+          id: Date.now() + Math.random(),
+          amount: Math.round(amount),
+          isHeadshot,
+          isLethal,
+          offsetX: (Math.random() - 0.5) * 70,
+          offsetY: (Math.random() - 0.5) * 26,
+        },
+      ],
+    })),
+
+  removeDamagePop: (id) =>
+    set((state) => ({
+      damagePops: state.damagePops.filter((pop) => pop.id !== id),
+    })),
 }));
