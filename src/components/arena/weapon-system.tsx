@@ -101,15 +101,6 @@ export function WeaponSystem({
   const forward = useMemo(() => new Vector3(), []);
   const muzzle = useMemo(() => new Vector3(), []);
 
-  // Amunisi awal diambil dari potret pertandingan, lalu dikelola combat store.
-  useEffect(() => {
-    useCombatStore.getState().arm({
-      ammoInMagazine: match.ammoInMagazine,
-      ammoReserve: match.ammoReserve,
-      magazineSize: weapon.magazineSize,
-    });
-  }, [match.ammoInMagazine, match.ammoReserve, weapon.magazineSize]);
-
   // Pelatuk. Klik pertama yang mengunci kursor sengaja diabaikan karena saat
   // mousedown itu terjadi pointer lock belum aktif.
   useEffect(() => {
@@ -277,7 +268,7 @@ export function WeaponSystem({
       matchNow.fighters.find((f) => f.isLocal)?.isAlive ?? true;
     const roundLive = matchNow.round.status === "live";
 
-    if (locked && localAlive && roundLive && !combat.isReloading) {
+    if (locked && localAlive && roundLive && !combat.isReloading && !combat.isSwapping) {
       const canPull = weapon.automatic
         ? triggerHeld.current
         : triggerHeld.current && !triggerConsumed.current;

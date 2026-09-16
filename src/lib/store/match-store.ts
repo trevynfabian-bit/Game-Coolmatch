@@ -72,6 +72,9 @@ interface MatchState {
   /** Menghidupkan kembali petarung di titik spawn yang diberikan. */
   respawnFighter: (fighterId: string, position: Vec3) => void;
 
+  /** Mengganti senjata yang dipegang seorang petarung. */
+  setFighterWeapon: (fighterId: string, weaponId: string) => void;
+
   /** Memperbarui detik bulat pada jam ronde. */
   setRoundClock: (seconds: number) => void;
 
@@ -207,6 +210,17 @@ export const useMatchStore = create<MatchState>((set, get) => ({
           fighter.id === fighterId
             ? { ...fighter, respawnInSeconds: seconds }
             : fighter,
+        ),
+      };
+    }),
+
+  setFighterWeapon: (fighterId, weaponId) =>
+    set((state) => {
+      const current = state.fighters.find((f) => f.id === fighterId);
+      if (!current || current.weaponId === weaponId) return state;
+      return {
+        fighters: state.fighters.map((fighter) =>
+          fighter.id === fighterId ? { ...fighter, weaponId } : fighter,
         ),
       };
     }),

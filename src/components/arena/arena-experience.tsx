@@ -1,10 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
 import { KEYBOARD_MAP } from "@/lib/game/controls";
+import { armPlayerFrom } from "@/lib/game/arm-player";
 import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
@@ -57,15 +58,25 @@ export function ArenaExperience({
 }: {
   match?: MatchSnapshot;
 }) {
-  const selectedWeaponId = useLoadoutStore((state) => state.selectedWeaponId);
+  /**
+   * Senjata yang dipilih di halaman Pilih Senjata dibawa masuk ke arena.
+   *
+   * Dibaca SEKALI saat arena dibuka, bukan dilanggani. Pemain bisa menukar
+   * senjata di tengah pertandingan, dan pergantian itu ikut memperbarui pilihan
+   * di loadout store; kalau nilai ini dilanggani, potret pertandingan akan
+   * disusun ulang dan seluruh pertandingan ikut dimulai dari awal.
+   */
+  const [entryWeaponId] = useState(
+    () => useLoadoutStore.getState().selectedWeaponId,
+  );
 
   /**
-   * Senjata yang dipilih di halaman Pilih Senjata dibawa masuk ke arena. Isi
-   * magasin awal dijepit ke kapasitas senjata itu, sebab angka pada potret
-   * pertandingan mengacu pada senjata bawaan yang magasinnya bisa lebih besar.
+   * Isi magasin awal dijepit ke kapasitas senjata yang dibawa, sebab angka pada
+   * potret pertandingan mengacu pada senjata bawaan yang magasinnya bisa lebih
+   * besar.
    */
   const armedMatch = useMemo<MatchSnapshot>(() => {
-    const weapon = findWeapon(selectedWeaponId);
+    const weapon = findWeapon(entryWeaponId);
     return {
       ...match,
       fighters: match.fighters.map((fighter) =>
@@ -73,7 +84,7 @@ export function ArenaExperience({
       ),
       ammoInMagazine: Math.min(match.ammoInMagazine, weapon.magazineSize),
     };
-  }, [match, selectedWeaponId]);
+  }, [match, entryWeaponId]);
 
   // Potret pertandingan menjadi keadaan awal store; sejak itu seluruh HUD dan
   // arena membaca state yang hidup, bukan data tiruan yang statis.
@@ -82,6 +93,7 @@ export function ArenaExperience({
     resetRespawnTimers();
     setRoundClock(armedMatch.round.secondsLeft);
     useMatchStore.getState().init(armedMatch);
+    armPlayerFrom(armedMatch);
   }, [armedMatch]);
 
   return (

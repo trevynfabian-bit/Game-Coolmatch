@@ -1,15 +1,15 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
+import { refillActiveWeapon } from "@/lib/game/arm-player";
 import {
   clearRespawnTimer,
   ensureRespawnTimer,
   tickRespawnTimer,
 } from "@/lib/game/respawn-runtime";
 import { pickSpawnPoint } from "@/lib/game/spawn";
-import { useCombatStore } from "@/lib/store/combat-store";
 import { useMatchStore } from "@/lib/store/match-store";
-import type { ArenaMapInfo, MatchSnapshot, Vec3 } from "@/types/game";
+import type { ArenaMapInfo, Vec3 } from "@/types/game";
 
 /** Batas delta time agar jeda tab tidak memunculkan semua orang sekaligus. */
 const MAX_DELTA = 1 / 15;
@@ -22,13 +22,7 @@ const MAX_DELTA = 1 / 15;
  * detik bulat yang ditampilkan berubah, jadi HUD render ulang sekali per detik
  * alih-alih tiap frame.
  */
-export function RespawnTicker({
-  map,
-  snapshot,
-}: {
-  map: ArenaMapInfo;
-  snapshot: MatchSnapshot;
-}) {
+export function RespawnTicker({ map }: { map: ArenaMapInfo }) {
   useFrame((_state, rawDelta) => {
     const delta = Math.min(rawDelta, MAX_DELTA);
     const match = useMatchStore.getState();
@@ -59,13 +53,9 @@ export function RespawnTicker({
       clearRespawnTimer(fighter.id);
       match.respawnFighter(fighter.id, spawn);
 
-      // Pemain lokal juga dapat magasin penuh dan layar yang bersih kembali.
+      // Pemain lokal juga dapat magasin penuh saat muncul kembali.
       if (fighter.isLocal) {
-        useCombatStore.getState().arm({
-          ammoInMagazine: snapshot.ammoInMagazine,
-          ammoReserve: snapshot.ammoReserve,
-          magazineSize: useCombatStore.getState().magazineSize,
-        });
+        refillActiveWeapon();
       }
     }
   });

@@ -1,8 +1,8 @@
+import { armPlayerFrom } from "@/lib/game/arm-player";
 import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { pickSpawnPoint } from "@/lib/game/spawn";
-import { useCombatStore } from "@/lib/store/combat-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { ArenaMapInfo, Fighter, MatchSnapshot, Vec3 } from "@/types/game";
@@ -41,11 +41,7 @@ export function restartMatch(map: ArenaMapInfo, snapshot: MatchSnapshot) {
   useMatchStore.getState().startFreshMatch(snapshot, spawns);
   setRoundClock(useMatchStore.getState().round.secondsLeft);
 
-  useCombatStore.getState().arm({
-    ammoInMagazine: snapshot.ammoInMagazine,
-    ammoReserve: snapshot.ammoReserve,
-    magazineSize: useCombatStore.getState().magazineSize,
-  });
+  armPlayerFrom(snapshot);
 
   usePlayerStore.getState().setScoreboardOpen(false);
 }

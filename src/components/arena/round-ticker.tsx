@@ -3,11 +3,11 @@
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { setRoundClock, tickRoundClock } from "@/lib/game/round-runtime";
+import { refillActiveWeapon } from "@/lib/game/arm-player";
 import { spreadSpawns } from "@/lib/game/match-reset";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
-import { useCombatStore } from "@/lib/store/combat-store";
 import { useMatchStore } from "@/lib/store/match-store";
-import type { ArenaMapInfo, MatchSnapshot } from "@/types/game";
+import type { ArenaMapInfo } from "@/types/game";
 
 /** Batas delta time agar jeda tab tidak melompati satu ronde penuh. */
 const MAX_DELTA = 1 / 10;
@@ -23,13 +23,7 @@ const MAX_DELTA = 1 / 10;
  * Jam pecahannya hidup di round-runtime; store hanya diperbarui saat detik
  * bulat berubah, jadi HUD render ulang sekali per detik alih-alih tiap frame.
  */
-export function RoundTicker({
-  map,
-  snapshot,
-}: {
-  map: ArenaMapInfo;
-  snapshot: MatchSnapshot;
-}) {
+export function RoundTicker({ map }: { map: ArenaMapInfo }) {
   /**
    * Penanda pertandingan yang jam-nya sudah disetel, berisi matchId dan
    * generation. Penyetelan sengaja dilakukan di dalam loop frame, BUKAN lewat
@@ -82,11 +76,7 @@ export function RoundTicker({
     match.beginNextRound(spawns);
     setRoundClock(useMatchStore.getState().round.secondsLeft);
 
-    useCombatStore.getState().arm({
-      ammoInMagazine: snapshot.ammoInMagazine,
-      ammoReserve: snapshot.ammoReserve,
-      magazineSize: useCombatStore.getState().magazineSize,
-    });
+    refillActiveWeapon();
   });
 
   return null;

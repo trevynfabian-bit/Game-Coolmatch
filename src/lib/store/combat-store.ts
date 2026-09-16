@@ -54,11 +54,36 @@ interface CombatState {
   damagePops: DamagePop[];
   incomingHits: IncomingHit[];
 
+  /** Senjata yang sedang dipegang. */
+  activeWeaponId: string;
+  /**
+   * Amunisi tiap senjata yang pernah dipegang. Disimpan supaya menukar senjata
+   * tidak berfungsi sebagai isi ulang instan: magasin yang tadi tinggal separuh
+   * tetap separuh saat senjata itu dipegang lagi.
+   */
+  ammoByWeapon: Record<string, { magazine: number; reserve: number }>;
+  /** Benar selama tangan masih berpindah senjata; pelatuk dikunci. */
+  isSwapping: boolean;
+
   /** Menyiapkan amunisi awal dari potret pertandingan. */
   arm: (config: {
+    weaponId: string;
     ammoInMagazine: number;
     ammoReserve: number;
     magazineSize: number;
+  }) => void;
+
+  setSwapping: (swapping: boolean) => void;
+
+  /**
+   * Berpindah ke senjata lain: amunisi senjata lama disimpan, amunisi senjata
+   * baru dimuat dari catatan atau diisi penuh bila belum pernah dipegang.
+   * Isi ulang yang sedang berjalan dibatalkan.
+   */
+  swapTo: (config: {
+    weaponId: string;
+    magazineSize: number;
+    defaultReserve: number;
   }) => void;
   /** Mengurangi satu peluru. Mengembalikan false bila magasin kosong. */
   consumeRound: () => boolean;
@@ -90,17 +115,58 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   hitMarker: null,
   damagePops: [],
   incomingHits: [],
+  activeWeaponId: "",
+  ammoByWeapon: {},
+  isSwapping: false,
 
-  arm: ({ ammoInMagazine, ammoReserve, magazineSize }) =>
+  arm: ({ weaponId, ammoInMagazine, ammoReserve, magazineSize }) =>
     set({
+      activeWeaponId: weaponId,
+      ammoByWeapon: {
+        [weaponId]: { magazine: ammoInMagazine, reserve: ammoReserve },
+      },
       ammoInMagazine,
       ammoReserve,
       magazineSize,
       isReloading: false,
       reloadSeconds: 0,
+      isSwapping: false,
       hitMarker: null,
       damagePops: [],
       incomingHits: [],
+    }),
+
+  setSwapping: (swapping) =>
+    set((state) => (state.isSwapping === swapping ? state : { isSwapping: swapping })),
+
+  swapTo: ({ weaponId, magazineSize, defaultReserve }) =>
+    set((state) => {
+      if (weaponId === state.activeWeaponId) {
+        return { isSwapping: false };
+      }
+
+      const saved = {
+        ...state.ammoByWeapon,
+        [state.activeWeaponId]: {
+          magazine: state.ammoInMagazine,
+          reserve: state.ammoReserve,
+        },
+      };
+      const next = saved[weaponId] ?? {
+        magazine: magazineSize,
+        reserve: defaultReserve,
+      };
+
+      return {
+        activeWeaponId: weaponId,
+        ammoByWeapon: saved,
+        ammoInMagazine: next.magazine,
+        ammoReserve: next.reserve,
+        magazineSize,
+        isReloading: false,
+        reloadSeconds: 0,
+        isSwapping: false,
+      };
     }),
 
   consumeRound: () => {

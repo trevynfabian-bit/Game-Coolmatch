@@ -10,7 +10,12 @@ export type MoveAction =
   | "jump"
   | "sprint"
   | "reload"
-  | "help";
+  | "help"
+  | "slot1"
+  | "slot2"
+  | "slot3"
+  | "slot4"
+  | "slot5";
 
 /**
  * Pemetaan tombol bawaan. Menyertakan huruf kecil dan besar supaya tetap jalan
@@ -25,7 +30,22 @@ export const KEYBOARD_MAP: KeyboardControlsEntry<MoveAction>[] = [
   { name: "sprint", keys: ["ShiftLeft", "ShiftRight"] },
   { name: "reload", keys: ["KeyR"] },
   { name: "help", keys: ["KeyH"] },
+  // Slot senjata. Angka baris atas maupun papan angka sama-sama diterima.
+  { name: "slot1", keys: ["Digit1", "Numpad1"] },
+  { name: "slot2", keys: ["Digit2", "Numpad2"] },
+  { name: "slot3", keys: ["Digit3", "Numpad3"] },
+  { name: "slot4", keys: ["Digit4", "Numpad4"] },
+  { name: "slot5", keys: ["Digit5", "Numpad5"] },
 ];
+
+/** Nama aksi slot senjata, urut dari slot pertama. */
+export const SLOT_ACTIONS = [
+  "slot1",
+  "slot2",
+  "slot3",
+  "slot4",
+  "slot5",
+] as const satisfies readonly MoveAction[];
 
 /** Keterangan tombol untuk panel bantuan di HUD. */
 export const CONTROL_HINTS: { keys: string; label: string }[] = [
@@ -35,6 +55,7 @@ export const CONTROL_HINTS: { keys: string; label: string }[] = [
   { keys: "Shift", label: "Lari" },
   { keys: "Klik", label: "Tembak" },
   { keys: "R", label: "Isi ulang" },
+  { keys: "1-5", label: "Tukar senjata" },
   { keys: "Tab", label: "Papan skor" },
   { keys: "H", label: "Petunjuk kontrol" },
   { keys: "Esc", label: "Lepas kursor" },
@@ -69,3 +90,6 @@ export const MOVEMENT = {
 
 /** Lama petunjuk kontrol tampil otomatis saat pemain pertama kali masuk. */
 export const HINT_AUTO_SHOW_MS = 7000;
+
+/** Lama tangan berpindah senjata; selama itu pelatuk terkunci. */
+export const WEAPON_SWAP_SECONDS = 0.55;

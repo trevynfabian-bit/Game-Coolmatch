@@ -15,6 +15,7 @@ import { RoundHeader } from "@/components/arena/hud/round-header";
 import { ScoreboardOverlay } from "@/components/arena/hud/scoreboard-overlay";
 import { StanceBadge } from "@/components/arena/hud/stance-badge";
 import { VitalsPanel } from "@/components/arena/hud/vitals-panel";
+import { WeaponSlots } from "@/components/arena/hud/weapon-slots";
 import { getLocalFighter } from "@/lib/mock/match";
 import { findWeapon } from "@/lib/mock/weapons";
 import { sortScoreboard, useMatchStore } from "@/lib/store/match-store";
@@ -79,6 +80,7 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
         <StanceBadge />
         <VitalsPanel fighter={local} weapon={weapon} />
         <AmmoPanel weapon={weapon} />
+        <WeaponSlots />
         <MatchInfoStrip match={match} />
       </div>
 

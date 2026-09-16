@@ -7,6 +7,7 @@ import { PlayerController } from "@/components/arena/player-controller";
 import { RespawnTicker } from "@/components/arena/respawn-ticker";
 import { RoundTicker } from "@/components/arena/round-ticker";
 import { StubIncomingFire } from "@/components/arena/stub-incoming-fire";
+import { WeaponSwap } from "@/components/arena/weapon-swap";
 import { WeaponSystem } from "@/components/arena/weapon-system";
 import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
 import { EYE_HEIGHT } from "@/lib/game/controls";
@@ -49,10 +50,15 @@ function ArenaLights() {
  */
 export function ArenaScene({ match }: { match: MatchSnapshot }) {
   const spawnFighter = getLocalFighter(match);
-  const weapon = findWeapon(spawnFighter.weaponId);
   // Petarung dibaca dari state yang hidup supaya nyawa, kematian, dan skor
   // langsung terlihat di arena.
   const fighters = useMatchStore((state) => state.fighters);
+  // Senjata juga dibaca dari state hidup, bukan dari potret, supaya pergantian
+  // senjata di tengah pertandingan langsung dipakai sistem tembak.
+  const weapon = findWeapon(
+    fighters.find((fighter) => fighter.isLocal)?.weaponId ??
+      spawnFighter.weaponId,
+  );
 
   return (
     <Canvas
@@ -75,9 +81,10 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
 
       <ArenaLights />
       <PlayerController map={match.map} spawn={spawnFighter.position} />
-      <RespawnTicker map={match.map} snapshot={match} />
-      <RoundTicker map={match.map} snapshot={match} />
+      <RespawnTicker map={match.map} />
+      <RoundTicker map={match.map} />
       <WeaponSystem match={match} weapon={weapon} />
+      <WeaponSwap />
       {/* Sementara sampai AI musuh dibangun di fase berikutnya. */}
       <StubIncomingFire map={match.map} />
       <ArenaMap map={match.map} />
