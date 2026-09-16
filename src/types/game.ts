@@ -20,6 +20,14 @@ export interface Weapon {
   fireRate: number;
   magazineSize: number;
   reloadSeconds: number;
+  /** True untuk senjata otomatis: tahan klik untuk terus menembak. */
+  automatic: boolean;
+  /** Butir per tarikan pelatuk; lebih dari satu hanya untuk shotgun. */
+  pellets: number;
+  /** Sebaran dasar dalam derajat saat pemain diam dan tidak menembak. */
+  spreadDegrees: number;
+  /** Sentakan kamera ke atas per tembakan, dalam derajat. */
+  recoilDegrees: number;
   imageUrl: string | null;
 }
 

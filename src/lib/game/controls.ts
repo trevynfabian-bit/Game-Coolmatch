@@ -9,6 +9,7 @@ export type MoveAction =
   | "right"
   | "jump"
   | "sprint"
+  | "reload"
   | "help";
 
 /**
@@ -22,6 +23,7 @@ export const KEYBOARD_MAP: KeyboardControlsEntry<MoveAction>[] = [
   { name: "right", keys: ["KeyD", "ArrowRight"] },
   { name: "jump", keys: ["Space"] },
   { name: "sprint", keys: ["ShiftLeft", "ShiftRight"] },
+  { name: "reload", keys: ["KeyR"] },
   { name: "help", keys: ["KeyH"] },
 ];
 
@@ -31,6 +33,8 @@ export const CONTROL_HINTS: { keys: string; label: string }[] = [
   { keys: "Mouse", label: "Lihat sekitar" },
   { keys: "Spasi", label: "Lompat" },
   { keys: "Shift", label: "Lari" },
+  { keys: "Klik", label: "Tembak" },
+  { keys: "R", label: "Isi ulang" },
   { keys: "H", label: "Petunjuk kontrol" },
   { keys: "Esc", label: "Lepas kursor" },
 ];

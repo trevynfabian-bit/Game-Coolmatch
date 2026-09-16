@@ -24,3 +24,32 @@ html,
 body {
   overscroll-behavior: none;
 }
+
+/* Celah crosshair ditulis tiap frame oleh sistem senjata (lihat weapon-system). */
+:root {
+  --crosshair-gap: 10px;
+}
+
+@keyframes hit-marker {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+}
+
+@keyframes reload-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}

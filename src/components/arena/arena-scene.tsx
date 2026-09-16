@@ -4,9 +4,11 @@ import { Canvas } from "@react-three/fiber";
 import { ArenaMap } from "@/components/arena/arena-map";
 import { FighterMarker } from "@/components/arena/fighter-marker";
 import { PlayerController } from "@/components/arena/player-controller";
+import { WeaponSystem } from "@/components/arena/weapon-system";
 import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
 import { EYE_HEIGHT } from "@/lib/game/controls";
 import { getLocalFighter } from "@/lib/mock/match";
+import { findWeapon } from "@/lib/mock/weapons";
 import type { MatchSnapshot } from "@/types/game";
 
 /** Pencahayaan arena: matahari senja yang menghasilkan bayangan + isian lembut. */
@@ -43,6 +45,7 @@ function ArenaLights() {
  */
 export function ArenaScene({ match }: { match: MatchSnapshot }) {
   const local = getLocalFighter(match);
+  const weapon = findWeapon(local.weaponId);
 
   return (
     <Canvas
@@ -65,6 +68,7 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
 
       <ArenaLights />
       <PlayerController map={match.map} spawn={local.position} />
+      <WeaponSystem match={match} weapon={weapon} />
       <ArenaMap map={match.map} />
 
       {match.fighters

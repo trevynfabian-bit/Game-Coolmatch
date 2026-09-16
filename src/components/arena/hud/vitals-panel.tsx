@@ -45,6 +45,8 @@ export function VitalsPanel({
                 className={`font-mono text-2xl leading-6 font-bold tabular-nums sm:text-3xl sm:leading-7 ${
                   critical ? "text-rose-400" : "text-emerald-300"
                 }`}
+                role="status"
+                aria-label={`Nyawa ${fighter.health} dari ${fighter.maxHealth}`}
               >
                 {fighter.health}
               </span>
@@ -61,7 +63,10 @@ export function VitalsPanel({
             </div>
 
             <div className="flex items-end gap-3">
-              <span className="font-mono text-xl leading-5 font-semibold tabular-nums text-sky-300">
+              <span
+                className="font-mono text-xl leading-5 font-semibold tabular-nums text-sky-300"
+                aria-label={`Rompi ${fighter.armor} dari 100`}
+              >
                 {fighter.armor}
               </span>
               <div className="pb-0.5">

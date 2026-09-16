@@ -57,11 +57,7 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
         <ControlHints />
         <StanceBadge />
         <VitalsPanel fighter={local} weapon={weapon} />
-        <AmmoPanel
-          weapon={weapon}
-          inMagazine={match.ammoInMagazine}
-          reserve={match.ammoReserve}
-        />
+        <AmmoPanel weapon={weapon} />
         <MatchInfoStrip match={match} />
       </div>
 

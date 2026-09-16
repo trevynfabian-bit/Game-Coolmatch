@@ -13,6 +13,7 @@ import {
   PLAYER_BOUNDS,
   type MoveAction,
 } from "@/lib/game/controls";
+import { playerRuntime } from "@/lib/game/player-runtime";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { ArenaMapInfo, Vec3 } from "@/types/game";
 
@@ -129,6 +130,8 @@ export function PlayerController({
       );
       camera.lookAt(lookTarget.current);
       jumpQueued.current = false;
+      playerRuntime.planarSpeed = 0;
+      playerRuntime.isAirborne = false;
       return;
     }
 
@@ -221,6 +224,13 @@ export function PlayerController({
       position.current.y + EYE_HEIGHT + bob,
       position.current.z,
     );
+
+    // Disalurkan ke sistem senjata lewat objek biasa, bukan state React.
+    playerRuntime.planarSpeed = planarSpeed;
+    playerRuntime.isAirborne = !grounded.current;
+    playerRuntime.position[0] = position.current.x;
+    playerRuntime.position[1] = position.current.y;
+    playerRuntime.position[2] = position.current.z;
 
     setMotion({
       isSprinting: sprinting && planarSpeed > 0.5,
