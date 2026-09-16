@@ -6,6 +6,7 @@ import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
 import { KEYBOARD_MAP } from "@/lib/game/controls";
 import { resetFighterHits } from "@/lib/game/fighter-runtime";
+import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
 import { MOCK_MATCH } from "@/lib/mock/match";
 import type { MatchSnapshot } from "@/types/game";
@@ -57,6 +58,7 @@ export function ArenaExperience({
   // arena membaca state yang hidup, bukan data tiruan yang statis.
   useEffect(() => {
     resetFighterHits();
+    resetRespawnTimers();
     useMatchStore.getState().init(match);
   }, [match]);
 

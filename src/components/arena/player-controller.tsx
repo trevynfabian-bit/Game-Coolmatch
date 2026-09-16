@@ -14,6 +14,7 @@ import {
   type MoveAction,
 } from "@/lib/game/controls";
 import { playerRuntime } from "@/lib/game/player-runtime";
+import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { ArenaMapInfo, Vec3 } from "@/types/game";
 
@@ -59,6 +60,8 @@ export function PlayerController({
   const grounded = useRef(true);
   const jumpQueued = useRef(false);
   const bobPhase = useRef(0);
+  /** Seberapa jauh kamera merosot saat pemain tumbang, 0..1. */
+  const deathSlump = useRef(0);
 
   // Vektor kerja, dibuat sekali supaya tidak ada alokasi per frame.
   const forward = useRef(new Vector3());
@@ -104,6 +107,27 @@ export function PlayerController({
     };
   }, [setHintsVisible]);
 
+  // Pemain lokal muncul kembali: pindahkan badan ke titik spawn barunya dan
+  // hentikan sisa momentum dari sebelum tumbang.
+  useEffect(() => {
+    return useMatchStore.subscribe((state, previous) => {
+      const now = state.fighters.find((fighter) => fighter.isLocal);
+      const before = previous.fighters.find((fighter) => fighter.isLocal);
+      if (!now || !before || !now.isAlive || before.isAlive) return;
+
+      position.current = {
+        x: now.position[0],
+        y: now.position[1],
+        z: now.position[2],
+      };
+      horizontalVelocity.current.set(0, 0, 0);
+      verticalVelocity.current = 0;
+      deathSlump.current = 0;
+      bobPhase.current = 0;
+      jumpQueued.current = false;
+    });
+  }, []);
+
   // Pemain kembali ke titik spawn kalau peta atau titik spawn berganti.
   useEffect(() => {
     position.current = { x: spawn[0], y: spawn[1], z: spawn[2] };
@@ -135,6 +159,28 @@ export function PlayerController({
       return;
     }
 
+    const localFighter = useMatchStore
+      .getState()
+      .fighters.find((fighter) => fighter.isLocal);
+
+    if (localFighter && !localFighter.isAlive) {
+      // Tumbang: kendali dibekukan dan kamera merosot ke dekat lantai.
+      deathSlump.current = Math.min(1, deathSlump.current + delta * 3.2);
+      const drop = deathSlump.current * (EYE_HEIGHT - 0.45);
+      camera.position.set(
+        position.current.x,
+        position.current.y + EYE_HEIGHT - drop,
+        position.current.z,
+      );
+      horizontalVelocity.current.set(0, 0, 0);
+      jumpQueued.current = false;
+      playerRuntime.planarSpeed = 0;
+      playerRuntime.isAirborne = false;
+      setMotion({ isSprinting: false, isAirborne: false });
+      return;
+    }
+
+    deathSlump.current = 0;
     const keys = getKeys();
 
     // Sumbu gerak relatif arah pandang, diratakan ke bidang XZ.

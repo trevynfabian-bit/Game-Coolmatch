@@ -5,6 +5,7 @@ import type {
   KillFeedEntry,
   MatchSnapshot,
   RoundState,
+  Vec3,
 } from "@/types/game";
 
 /** Jumlah entri kill feed yang disimpan; sisanya dibuang. */
@@ -41,6 +42,16 @@ interface MatchState {
     isHeadshot: boolean;
     weaponName: string;
   }) => DamageReport | null;
+
+  /**
+   * Memperbarui detik bulat yang ditampilkan HUD. Hitung mundur pecahan yang
+   * sebenarnya hidup di respawn-runtime supaya HUD cukup render sekali per
+   * detik, bukan tiap frame.
+   */
+  setRespawnCountdown: (fighterId: string, seconds: number) => void;
+
+  /** Menghidupkan kembali petarung di titik spawn yang diberikan. */
+  respawnFighter: (fighterId: string, position: Vec3) => void;
 }
 
 export const useMatchStore = create<MatchState>((set, get) => ({
@@ -105,6 +116,40 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       isLethal: outcome.isLethal,
     };
   },
+
+  setRespawnCountdown: (fighterId, seconds) =>
+    set((state) => {
+      const current = state.fighters.find((f) => f.id === fighterId);
+      if (!current || current.respawnInSeconds === seconds) return state;
+      return {
+        fighters: state.fighters.map((fighter) =>
+          fighter.id === fighterId
+            ? { ...fighter, respawnInSeconds: seconds }
+            : fighter,
+        ),
+      };
+    }),
+
+  respawnFighter: (fighterId, position) =>
+    set((state) => {
+      const current = state.fighters.find((f) => f.id === fighterId);
+      if (!current || current.isAlive) return state;
+      return {
+        fighters: state.fighters.map((fighter) =>
+          fighter.id === fighterId
+            ? {
+                ...fighter,
+                health: fighter.maxHealth,
+                // Rompi tidak ikut pulih: pemain harus menjaganya.
+                armor: 0,
+                isAlive: true,
+                respawnInSeconds: null,
+                position: [...position] as Vec3,
+              }
+            : fighter,
+        ),
+      };
+    }),
 }));
 
 /**
