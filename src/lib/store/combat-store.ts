@@ -20,6 +20,22 @@ export interface DamagePop {
 /** Batas angka kerusakan yang ditahan sekaligus di layar. */
 const DAMAGE_POP_LIMIT = 6;
 
+/** Satu tembakan yang mengenai pemain lokal, untuk umpan balik arah. */
+export interface IncomingHit {
+  id: number;
+  /**
+   * Sudut penyerang relatif arah pandang pemain, dalam radian. Nol berarti
+   * tepat di depan, nilai positif ke kanan.
+   */
+  angleRad: number;
+  /** 0..1, seberapa berat tembakannya dibanding nyawa maksimum. */
+  severity: number;
+  attackerName: string;
+}
+
+/** Batas penunjuk arah kerusakan yang ditahan sekaligus. */
+const INCOMING_LIMIT = 4;
+
 /**
  * Keadaan tembak-menembak pemain lokal. Hanya menyimpan nilai yang berubah
  * sesekali — peluru, status isi ulang, dan penanda kena. Nilai yang berubah
@@ -36,6 +52,7 @@ interface CombatState {
   reloadSeconds: number;
   hitMarker: HitMarker | null;
   damagePops: DamagePop[];
+  incomingHits: IncomingHit[];
 
   /** Menyiapkan amunisi awal dari potret pertandingan. */
   arm: (config: {
@@ -55,6 +72,13 @@ interface CombatState {
     isLethal: boolean;
   }) => void;
   removeDamagePop: (id: number) => void;
+  /** Mencatat tembakan yang mengenai pemain, untuk vignette dan penunjuk arah. */
+  pushIncomingHit: (hit: {
+    angleRad: number;
+    severity: number;
+    attackerName: string;
+  }) => void;
+  removeIncomingHit: (id: number) => void;
 }
 
 export const useCombatStore = create<CombatState>((set, get) => ({
@@ -65,6 +89,7 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   reloadSeconds: 0,
   hitMarker: null,
   damagePops: [],
+  incomingHits: [],
 
   arm: ({ ammoInMagazine, ammoReserve, magazineSize }) =>
     set({
@@ -75,6 +100,7 @@ export const useCombatStore = create<CombatState>((set, get) => ({
       reloadSeconds: 0,
       hitMarker: null,
       damagePops: [],
+      incomingHits: [],
     }),
 
   consumeRound: () => {
@@ -130,5 +156,23 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   removeDamagePop: (id) =>
     set((state) => ({
       damagePops: state.damagePops.filter((pop) => pop.id !== id),
+    })),
+
+  pushIncomingHit: ({ angleRad, severity, attackerName }) =>
+    set((state) => ({
+      incomingHits: [
+        ...state.incomingHits.slice(-(INCOMING_LIMIT - 1)),
+        {
+          id: Date.now() + Math.random(),
+          angleRad,
+          severity: Math.max(0, Math.min(1, severity)),
+          attackerName,
+        },
+      ],
+    })),
+
+  removeIncomingHit: (id) =>
+    set((state) => ({
+      incomingHits: state.incomingHits.filter((hit) => hit.id !== id),
     })),
 }));

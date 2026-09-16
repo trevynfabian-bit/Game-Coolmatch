@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { AmmoPanel } from "@/components/arena/hud/ammo-panel";
 import { ControlHints } from "@/components/arena/hud/control-hints";
 import { DamageNumbers } from "@/components/arena/hud/damage-numbers";
+import { DamageVignette } from "@/components/arena/hud/damage-vignette";
 import { Crosshair } from "@/components/arena/hud/crosshair";
 import { EngageOverlay } from "@/components/arena/hud/engage-overlay";
 import { KillFeed } from "@/components/arena/hud/kill-feed";
@@ -63,6 +64,8 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
 
   return (
     <>
+      <DamageVignette fighter={local} />
+
       <div className="pointer-events-none absolute inset-0 z-10 select-none">
         <LiveScore scoreboard={scoreboard} />
         <RoundHeader round={round.total > 0 ? round : match.round} />

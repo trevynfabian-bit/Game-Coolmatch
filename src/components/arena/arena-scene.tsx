@@ -4,6 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { ArenaMap } from "@/components/arena/arena-map";
 import { FighterMarker } from "@/components/arena/fighter-marker";
 import { PlayerController } from "@/components/arena/player-controller";
+import { StubIncomingFire } from "@/components/arena/stub-incoming-fire";
 import { WeaponSystem } from "@/components/arena/weapon-system";
 import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
 import { EYE_HEIGHT } from "@/lib/game/controls";
@@ -73,6 +74,8 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
       <ArenaLights />
       <PlayerController map={match.map} spawn={spawnFighter.position} />
       <WeaponSystem match={match} weapon={weapon} />
+      {/* Sementara sampai AI musuh dibangun di fase berikutnya. */}
+      <StubIncomingFire map={match.map} />
       <ArenaMap map={match.map} />
 
       {fighters

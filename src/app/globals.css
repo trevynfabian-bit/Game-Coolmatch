@@ -68,3 +68,34 @@ body {
     transform: translate(-50%, -160%) scale(0.95);
   }
 }
+
+@keyframes damage-flash {
+  from {
+    opacity: var(--flash-peak, 0.85);
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes low-health-pulse {
+  0%,
+  100% {
+    opacity: 0.32;
+  }
+  50% {
+    opacity: 0.62;
+  }
+}
+
+@keyframes damage-arc {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+  }
+}
