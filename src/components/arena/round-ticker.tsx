@@ -3,11 +3,11 @@
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { setRoundClock, tickRoundClock } from "@/lib/game/round-runtime";
+import { spreadSpawns } from "@/lib/game/match-reset";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
-import { pickSpawnPoint } from "@/lib/game/spawn";
 import { useCombatStore } from "@/lib/store/combat-store";
 import { useMatchStore } from "@/lib/store/match-store";
-import type { ArenaMapInfo, MatchSnapshot, Vec3 } from "@/types/game";
+import type { ArenaMapInfo, MatchSnapshot } from "@/types/game";
 
 /** Batas delta time agar jeda tab tidak melompati satu ronde penuh. */
 const MAX_DELTA = 1 / 10;
@@ -31,17 +31,21 @@ export function RoundTicker({
   snapshot: MatchSnapshot;
 }) {
   /**
-   * Pertandingan yang jam-nya sudah disetel. Penyetelan sengaja dilakukan di
-   * dalam loop frame, BUKAN lewat useEffect: loop bisa berjalan sebelum effect
-   * sempat jalan, dan jam yang masih nol akan langsung mengakhiri ronde.
+   * Penanda pertandingan yang jam-nya sudah disetel, berisi matchId dan
+   * generation. Penyetelan sengaja dilakukan di dalam loop frame, BUKAN lewat
+   * useEffect: loop bisa berjalan sebelum effect sempat jalan, dan jam yang
+   * masih nol akan langsung mengakhiri ronde. Generation membuatnya ikut
+   * menyetel ulang saat pemain menekan "Main lagi", yang tidak mengubah
+   * matchId.
    */
   const seededFor = useRef<string | null>(null);
 
   useFrame((_state, rawDelta) => {
     const match = useMatchStore.getState();
 
-    if (seededFor.current !== match.matchId) {
-      seededFor.current = match.matchId;
+    const seedKey = `${match.matchId}:${match.generation}`;
+    if (seededFor.current !== seedKey) {
+      seededFor.current = seedKey;
       setRoundClock(match.round.secondsLeft);
       return;
     }
@@ -57,7 +61,14 @@ export function RoundTicker({
       if (match.shouldEndRound()) {
         match.finishRound();
         // finishRound sudah menetapkan panjang jeda; jam disetel ulang ke sana.
-        setRoundClock(useMatchStore.getState().round.secondsLeft);
+        const after = useMatchStore.getState().round;
+        setRoundClock(after.secondsLeft);
+
+        // Pertandingan usai: lepaskan kursor supaya tombol di layar akhir bisa
+        // diklik tanpa pemain harus menekan Esc lebih dulu.
+        if (after.status === "ended" && document.pointerLockElement) {
+          document.exitPointerLock();
+        }
       }
       return;
     }
@@ -65,15 +76,7 @@ export function RoundTicker({
     // status === "intermission"
     if (remaining > 0) return;
 
-    // Sebarkan semua petarung: tiap orang mengambil titik terjauh dari yang
-    // sudah dipesan, jadi tidak ada dua orang muncul berdempetan.
-    const taken: Vec3[] = [];
-    const spawns: Record<string, Vec3> = {};
-    for (const fighter of match.fighters) {
-      const point = pickSpawnPoint(map.spawnPoints, taken);
-      spawns[fighter.id] = point;
-      taken.push(point);
-    }
+    const spawns = spreadSpawns(map, match.fighters);
 
     resetRespawnTimers();
     match.beginNextRound(spawns);

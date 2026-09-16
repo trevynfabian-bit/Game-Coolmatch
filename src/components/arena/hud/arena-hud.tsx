@@ -9,6 +9,7 @@ import { Crosshair } from "@/components/arena/hud/crosshair";
 import { EngageOverlay } from "@/components/arena/hud/engage-overlay";
 import { KillFeed } from "@/components/arena/hud/kill-feed";
 import { LiveScore } from "@/components/arena/hud/live-score";
+import { MatchEndScreen } from "@/components/arena/hud/match-end-screen";
 import { RoundBanner } from "@/components/arena/hud/round-banner";
 import { RoundHeader } from "@/components/arena/hud/round-header";
 import { ScoreboardOverlay } from "@/components/arena/hud/scoreboard-overlay";
@@ -90,6 +91,13 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
       <RoundBanner
         round={round.total > 0 ? round : match.round}
         fighters={fighters.length > 0 ? fighters : match.fighters}
+      />
+
+      <MatchEndScreen
+        round={round.total > 0 ? round : match.round}
+        fighters={fighters.length > 0 ? fighters : match.fighters}
+        map={match.map}
+        snapshot={match}
       />
 
       <EngageOverlay />

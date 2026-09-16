@@ -47,9 +47,8 @@ function Standings({ fighters }: { fighters: Fighter[] }) {
 }
 
 /**
- * Papan besar di tengah layar saat ronde berganti atau pertandingan berakhir.
- * Ringkasan akhir yang lebih lengkap adalah bagian fase penilaian; di sini
- * cukup pemenang dan klasemen ronde.
+ * Papan besar di tengah layar saat ronde berganti. Akhir pertandingan ditangani
+ * MatchEndScreen yang punya klasemen lengkap dan pilihan lanjut.
  */
 export function RoundBanner({
   round,
@@ -58,36 +57,24 @@ export function RoundBanner({
   round: RoundState;
   fighters: Fighter[];
 }) {
-  if (round.status !== "intermission" && round.status !== "ended") return null;
-
-  const ended = round.status === "ended";
+  if (round.status !== "intermission") return null;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-slate-950/70 px-6 backdrop-blur-[2px]">
       <div className="w-full max-w-sm text-center">
         <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase">
-          {ended ? "Pertandingan selesai" : `Ronde ${round.current} selesai`}
+          Ronde {round.current} selesai
         </p>
 
         <p className="mt-3 text-2xl font-bold text-white">
-          {ended
-            ? round.matchWinner
-              ? `${round.matchWinner} juara`
-              : "Pertandingan berakhir seri"
-            : round.lastRoundWinner
-              ? `${round.lastRoundWinner} menang ronde ini`
-              : "Ronde berakhir seri"}
+          {round.lastRoundWinner
+            ? `${round.lastRoundWinner} menang ronde ini`
+            : "Ronde berakhir seri"}
         </p>
 
-        {ended ? (
-          <p className="mt-2 text-xs text-slate-400">
-            {round.total} ronde dimainkan di arena ini.
-          </p>
-        ) : (
-          <p className="mt-2 font-mono text-sm text-slate-300 tabular-nums">
-            Ronde {round.current + 1} mulai dalam {Math.max(0, round.secondsLeft)}s
-          </p>
-        )}
+        <p className="mt-2 font-mono text-sm text-slate-300 tabular-nums">
+          Ronde {round.current + 1} mulai dalam {Math.max(0, round.secondsLeft)}s
+        </p>
 
         <Standings fighters={fighters} />
       </div>

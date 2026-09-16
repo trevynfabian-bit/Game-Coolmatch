@@ -28,12 +28,26 @@ export interface DamageReport {
 
 interface MatchState {
   matchId: string;
+  /**
+   * Naik tiap kali pertandingan disiapkan ulang. Dipakai RoundTicker untuk
+   * tahu bahwa jam ronde harus disetel ulang, sebab matchId sendiri tidak
+   * berubah saat pemain menekan "Main lagi".
+   */
+  generation: number;
   fighters: Fighter[];
   killFeed: KillFeedEntry[];
   round: RoundState;
 
   /** Mengisi state dari potret pertandingan; dipanggil saat arena dibuka. */
   init: (snapshot: MatchSnapshot) => void;
+
+  /**
+   * Memulai pertandingan baru dari nol: semua perolehan dinolkan, ronde kembali
+   * ke satu, dan semua petarung hidup penuh di titik spawn yang diberikan.
+   * Berbeda dengan `init` yang memuat potret apa adanya, termasuk ronde yang
+   * sedang berjalan.
+   */
+  startFreshMatch: (snapshot: MatchSnapshot, spawns: Record<string, Vec3>) => void;
 
   /**
    * Menerapkan satu tembakan pada seorang petarung. Mengembalikan laporan bila
@@ -82,6 +96,7 @@ interface MatchState {
 
 export const useMatchStore = create<MatchState>((set, get) => ({
   matchId: "",
+  generation: 0,
   fighters: [],
   killFeed: [],
   round: {
@@ -97,13 +112,42 @@ export const useMatchStore = create<MatchState>((set, get) => ({
   },
 
   init: (snapshot) =>
-    set({
+    set((state) => ({
+      generation: state.generation + 1,
       matchId: snapshot.matchId,
       // Salinan dangkal supaya data tiruan yang diimpor tidak ikut berubah.
       fighters: snapshot.fighters.map((fighter) => ({ ...fighter })),
       killFeed: [...snapshot.killFeed],
       round: { ...snapshot.round },
-    }),
+    })),
+
+  startFreshMatch: (snapshot, spawns) =>
+    set((state) => ({
+      generation: state.generation + 1,
+      matchId: snapshot.matchId,
+      killFeed: [],
+      fighters: snapshot.fighters.map((fighter) => ({
+        ...fighter,
+        health: fighter.maxHealth,
+        armor: 0,
+        isAlive: true,
+        respawnInSeconds: null,
+        kills: 0,
+        deaths: 0,
+        score: 0,
+        roundKills: 0,
+        roundWins: 0,
+        position: spawns[fighter.id] ?? fighter.position,
+      })),
+      round: {
+        ...snapshot.round,
+        current: 1,
+        secondsLeft: snapshot.round.durationSeconds,
+        status: "live",
+        lastRoundWinner: null,
+        matchWinner: null,
+      },
+    })),
 
   damageFighter: ({ attackerId, targetId, damage, isHeadshot, weaponName }) => {
     const { fighters, killFeed, round } = get();

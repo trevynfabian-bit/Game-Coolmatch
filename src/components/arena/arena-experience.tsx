@@ -7,6 +7,7 @@ import { ArenaHud } from "@/components/arena/hud/arena-hud";
 import { KEYBOARD_MAP } from "@/lib/game/controls";
 import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
+import { setRoundClock } from "@/lib/game/round-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
 import { MOCK_MATCH } from "@/lib/mock/match";
 import type { MatchSnapshot } from "@/types/game";
@@ -59,6 +60,7 @@ export function ArenaExperience({
   useEffect(() => {
     resetFighterHits();
     resetRespawnTimers();
+    setRoundClock(match.round.secondsLeft);
     useMatchStore.getState().init(match);
   }, [match]);
 
