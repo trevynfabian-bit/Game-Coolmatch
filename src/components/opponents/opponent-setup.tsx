@@ -10,6 +10,7 @@ import {
   difficultyTraits,
 } from "@/lib/game/difficulty";
 import { buildBotRoster, maxBotsForMap } from "@/lib/mock/bots";
+import { MapThumbnail } from "@/components/maps/map-thumbnail";
 import { findMap } from "@/lib/mock/maps";
 import { findWeapon } from "@/lib/mock/weapons";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
@@ -79,6 +80,40 @@ export function OpponentSetup() {
           Atur seberapa pintar mereka dan berapa banyak yang muncul di arena.
         </p>
       </header>
+
+      {/*
+        Peta ditaruh paling atas karena ia yang membatasi sisanya: daya tampung
+        lawan mengikuti jumlah titik spawn-nya, jadi pemain yang mentok di
+        penggeser harus bisa langsung melihat arena mana yang sedang dipakai dan
+        pindah dari sini — bukan kembali ke menu untuk mencarinya.
+      */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-[11px] tracking-[0.2em] text-slate-400 uppercase">
+          Arena
+        </h2>
+        <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-slate-900/60 px-5 py-5 sm:flex-row sm:items-center">
+          <span className="block w-full shrink-0 overflow-hidden rounded-lg border border-white/10 sm:w-40">
+            <MapThumbnail map={map} />
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-100">{map.name}</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+              {map.description}
+            </p>
+            <p className="mt-2 text-[11px] text-slate-500">
+              Muat sampai {maxBots} lawan.
+            </p>
+          </div>
+
+          <Link
+            href="/peta"
+            className="shrink-0 rounded-lg border border-white/15 px-4 py-2.5 text-center text-sm font-medium text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+          >
+            Ganti peta
+          </Link>
+        </div>
+      </section>
 
       <section className="mb-8">
         <h2 className="mb-3 text-[11px] tracking-[0.2em] text-slate-400 uppercase">
@@ -175,7 +210,9 @@ export function OpponentSetup() {
             <span>{maxBots}</span>
           </div>
 
-          <p className="mt-3 text-[11px] text-slate-400">{crowdWord(botCount)}</p>
+          <p className="mt-3 text-[11px] text-slate-400">
+            {crowdWord(botCount)}
+          </p>
         </div>
       </section>
 
@@ -217,8 +254,8 @@ export function OpponentSetup() {
           melawan {botCount} musuh tingkat{" "}
           <span className="font-medium text-slate-200">
             {profile.label.toLowerCase()}
-          </span>
-          .
+          </span>{" "}
+          di <span className="font-medium text-slate-200">{map.name}</span>.
         </p>
         <p className="mt-1 text-[11px] text-slate-500">
           Pengaturan ini tersimpan otomatis di perangkat ini, jadi pertandingan
