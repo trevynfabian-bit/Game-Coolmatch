@@ -38,6 +38,7 @@ export function MapCard({
   allFacts,
   selected,
   onSelect,
+  buttonRef,
 }: {
   map: ArenaMapInfo;
   facts: MapFacts;
@@ -45,12 +46,30 @@ export function MapCard({
   allFacts: MapFacts[];
   selected: boolean;
   onSelect: () => void;
+  /** Dipegang daftar untuk memindahkan fokus saat tombol panah ditekan. */
+  buttonRef?: (element: HTMLButtonElement | null) => void;
 }) {
   return (
+    /*
+      role="radio", bukan aria-pressed. Keduanya sama-sama menandai "terpilih",
+      tetapi artinya berbeda: aria-pressed menggambarkan tombol yang bisa
+      dinyalakan dan dimatikan sendiri-sendiri, sedangkan peta adalah pilihan
+      yang SALING MENIADAKAN. Dengan aria-pressed, pembaca layar mengumumkan
+      tiga tombol terpisah tanpa petunjuk bahwa ketiganya alternatif satu sama
+      lain; dengan radio, ia menyebut "1 dari 3" dan pemakainya tahu memilih
+      satu berarti melepas yang lain.
+
+      tabIndex mengikuti pilihan — hanya peta terpilih yang masuk urutan Tab,
+      sisanya dicapai dengan tombol panah. Itu perilaku baku sekelompok radio,
+      dan mencegah daftar panjang memakan belasan kali Tab untuk dilewati.
+    */
     <button
+      ref={buttonRef}
       type="button"
+      role="radio"
+      aria-checked={selected}
+      tabIndex={selected ? 0 : -1}
       onClick={onSelect}
-      aria-pressed={selected}
       className={`flex h-full flex-col rounded-xl border px-4 py-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
         selected
           ? "border-emerald-400/70 bg-emerald-500/10"
@@ -58,7 +77,16 @@ export function MapCard({
       }`}
     >
       <span className="flex items-start justify-between gap-2">
-        <span className="text-base font-semibold text-slate-100">{map.name}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          {selected ? (
+            <span className="text-sm text-emerald-400" aria-hidden>
+              ✓
+            </span>
+          ) : null}
+          <span className="truncate text-base font-semibold text-slate-100">
+            {map.name}
+          </span>
+        </span>
         {selected ? (
           <span className="shrink-0 rounded bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.12em] text-emerald-300 uppercase">
             Dipilih

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { MapCard } from "@/components/maps/map-card";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { mapFacts } from "@/lib/game/map-info";
@@ -23,7 +23,52 @@ export function MapPicker() {
 
   const facts = useMemo(() => MOCK_MAPS.map((map) => mapFacts(map)), []);
   const selected = findMap(selectedMapId);
-  const selectedFacts = facts[MOCK_MAPS.findIndex((m) => m.id === selected.id)];
+  const selectedIndex = MOCK_MAPS.findIndex((m) => m.id === selected.id);
+  const selectedFacts = facts[selectedIndex];
+
+  const kartuRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  /**
+   * Tombol panah memindahkan pilihan, Home dan End melompat ke ujung.
+   *
+   * Ini bagian yang tidak boleh ditinggalkan begitu daftar ini dinyatakan
+   * sebagai sekelompok radio: hanya peta terpilih yang masuk urutan Tab, jadi
+   * tanpa tombol panah, peta lain tidak bisa dicapai dari papan ketik sama
+   * sekali — penanda yang lebih tepat justru akan membuat halamannya lebih
+   * sulit dipakai daripada sebelumnya.
+   */
+  const onKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      const jumlah = MOCK_MAPS.length;
+      let tujuan: number | null = null;
+
+      switch (event.key) {
+        case "ArrowRight":
+        case "ArrowDown":
+          tujuan = (selectedIndex + 1) % jumlah;
+          break;
+        case "ArrowLeft":
+        case "ArrowUp":
+          tujuan = (selectedIndex - 1 + jumlah) % jumlah;
+          break;
+        case "Home":
+          tujuan = 0;
+          break;
+        case "End":
+          tujuan = jumlah - 1;
+          break;
+        default:
+          return;
+      }
+
+      // Panah atas/bawah menggulung halaman bila dibiarkan, dan gulungan itu
+      // membuat kartu yang baru dipilih justru keluar dari pandangan.
+      event.preventDefault();
+      selectMap(MOCK_MAPS[tujuan].id);
+      kartuRefs.current[tujuan]?.focus();
+    },
+    [selectedIndex, selectMap],
+  );
 
   /**
    * Jumlah lawan yang dipilih pemain bisa melebihi daya tampung peta yang baru
@@ -49,7 +94,12 @@ export function MapPicker() {
         </p>
       </header>
 
-      <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+      <section
+        role="radiogroup"
+        aria-label="Peta yang bisa dimainkan"
+        onKeyDown={onKeyDown}
+        className="grid gap-3 md:grid-cols-2 lg:grid-cols-3"
+      >
         {MOCK_MAPS.map((map, index) => (
           <MapCard
             key={map.id}
@@ -58,6 +108,9 @@ export function MapPicker() {
             allFacts={facts}
             selected={map.id === selected.id}
             onSelect={() => selectMap(map.id)}
+            buttonRef={(element) => {
+              kartuRefs.current[index] = element;
+            }}
           />
         ))}
       </section>
