@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
 import { KEYBOARD_MAP } from "@/lib/game/controls";
@@ -11,6 +11,7 @@ import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { findMap } from "@/lib/mock/maps";
 import { buildMatchSnapshot } from "@/lib/mock/match";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
@@ -25,17 +26,6 @@ interface MatchEntry {
   weaponId: string;
   mapId: string;
 }
-
-/**
- * Penanda "render ini sudah di browser". Nilainya tidak pernah berubah setelah
- * terpasang, jadi tidak ada yang perlu dilanggani; yang penting adalah potret
- * server-nya berbeda, sehingga React memakai `false` saat hidrasi lalu langsung
- * merender ulang dengan `true`. Ini cara memakai nilai yang hanya ada di
- * browser tanpa membuat hasil prerender dan hasil hidrasi berselisih.
- */
-const subscribeNever = () => () => {};
-const onClient = () => true;
-const onServer = () => false;
 
 /**
  * Placeholder selagi bundel 3D diunduh dan konteks WebGL disiapkan.
@@ -76,7 +66,9 @@ const ArenaScene = dynamic(
     // diambil langsung dari store alih-alih lewat prop. Yang penting layar
     // tunggu menyebut arena yang benar-benar akan dimuat.
     loading: () => (
-      <SceneFallback mapName={findMap(useMapStore.getState().selectedMapId).name} />
+      <SceneFallback
+        mapName={findMap(useMapStore.getState().selectedMapId).name}
+      />
     ),
   },
 );
@@ -115,7 +107,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
     };
   });
 
-  const hydrated = useSyncExternalStore(subscribeNever, onClient, onServer);
+  const hydrated = useHydrated();
 
   /**
    * Pertandingan disusun dari pengaturan tadi. Prop `match` tetap dibuka supaya
