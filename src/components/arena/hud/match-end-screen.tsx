@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo } from "react";
 import { RoundResultStrip } from "@/components/scoreboard/round-result-strip";
 import {
@@ -9,6 +8,7 @@ import {
   scoreRowFromFighter,
 } from "@/components/scoreboard/score-row";
 import { PlayerStatTiles } from "@/components/scoreboard/stat-tile";
+import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { WinnerIndicator } from "@/components/scoreboard/winner-indicator";
 import { restartMatch } from "@/lib/game/match-reset";
 import {
@@ -199,38 +199,23 @@ export function MatchEndScreen({
           </table>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              restartMatch(map, snapshot);
-            }}
-            className="rounded-lg bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+        <ActionRow className="mt-6">
+          <ActionButton
+            variant="utama"
+            onClick={() => restartMatch(map, snapshot)}
           >
             Main lagi
-          </button>
+          </ActionButton>
           {/*
             Menutup lingkaran: dari hasil pertandingan langsung kembali ke
             layar yang menentukan lawannya. Tanpa ini, pemain yang baru saja
             kewalahan melawan enam musuh Susah harus lewat menu utama dulu
             hanya untuk menurunkan tingkat kesulitan.
           */}
-          <Link
-            href="/lawan"
-            onClick={(event) => event.stopPropagation()}
-            className="rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-          >
-            Ganti lawan
-          </Link>
-          <Link
-            href="/skor"
-            onClick={(event) => event.stopPropagation()}
-            className="rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-          >
-            Papan skor
-          </Link>
-        </div>
+          <ActionButton href="/lawan">Ganti lawan</ActionButton>
+          <ActionButton href="/skor">Papan skor</ActionButton>
+          <ActionButton href="/">Kembali ke menu</ActionButton>
+        </ActionRow>
 
         <p className="mt-4 text-center text-[11px] text-slate-600">
           &ldquo;Main lagi&rdquo; memakai pengaturan yang sama; &ldquo;Ganti

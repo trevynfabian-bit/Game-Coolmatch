@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { AmmoPanel } from "@/components/arena/hud/ammo-panel";
 import { Crosshair } from "@/components/arena/hud/crosshair";
+import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { CONTROL_HINTS } from "@/lib/game/controls";
 import { RANGE_TARGETS } from "@/lib/practice/range-map";
 import { accuracyPercent, usePracticeStore } from "@/lib/store/practice-store";
@@ -96,8 +96,6 @@ function StartOverlay({ weapon }: { weapon: Weapon }) {
   if (isLocked) return null;
 
   const practiced = shots > 0;
-  const stopClick = (event: { stopPropagation: () => void }) =>
-    event.stopPropagation();
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center overflow-y-auto bg-slate-950/75 px-6 py-8 backdrop-blur-[2px]">
@@ -123,22 +121,17 @@ function StartOverlay({ weapon }: { weapon: Weapon }) {
           {hasEngaged ? "Lanjut latihan" : "Klik untuk mulai"}
         </button>
 
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Link
-            href="/arena"
-            onClick={stopClick}
-            className="pointer-events-auto flex-1 rounded-lg border border-white/20 px-4 py-2.5 text-center text-sm font-semibold text-slate-100 transition-colors hover:border-white/40 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-          >
+        <ActionRow className="pointer-events-auto mt-3">
+          <ActionButton size="ringkas" href="/arena">
             Pakai senjata ini
-          </Link>
-          <Link
-            href="/senjata"
-            onClick={stopClick}
-            className="pointer-events-auto flex-1 rounded-lg border border-white/15 px-4 py-2.5 text-center text-sm font-medium text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-          >
+          </ActionButton>
+          <ActionButton size="ringkas" href="/senjata">
             Ganti senjata
-          </Link>
-        </div>
+          </ActionButton>
+          <ActionButton size="ringkas" href="/">
+            Kembali ke menu
+          </ActionButton>
+        </ActionRow>
 
         <dl className="mx-auto mt-7 grid max-w-[18rem] grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-left">
           {CONTROL_HINTS.filter((hint) => hint.keys !== "Tab").map((hint) => (

@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { LiveScoreDemo } from "@/components/scoreboard/live-score-demo";
+import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { MatchDetail } from "@/components/scoreboard/match-detail";
 import { MatchHistory } from "@/components/scoreboard/match-history";
 import { killRatio, summarizeHistory } from "@/lib/game/scoreboard";
@@ -50,12 +50,11 @@ function EmptyState() {
         juara, kemenangan ronde, kill, dan skor tiap peserta — akan muncul di
         halaman ini.
       </p>
-      <Link
-        href="/lawan"
-        className="mt-5 inline-block rounded-lg bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-      >
-        Mulai bertanding
-      </Link>
+      <div className="mt-5 flex justify-center">
+        <ActionButton variant="utama" size="ringkas" href="/lawan">
+          Mulai bertanding
+        </ActionButton>
+      </div>
     </div>
   );
 }
@@ -162,20 +161,12 @@ export function ScoreboardScreen({
         </>
       )}
 
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Link
-          href="/lawan"
-          className="flex-1 rounded-lg bg-emerald-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-        >
+      <ActionRow className="mt-8">
+        <ActionButton variant="utama" href="/lawan">
           Bertanding lagi
-        </Link>
-        <Link
-          href="/"
-          className="flex-1 rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-medium text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-        >
-          Kembali ke menu
-        </Link>
-      </div>
+        </ActionButton>
+        <ActionButton href="/">Kembali ke menu</ActionButton>
+      </ActionRow>
     </div>
   );
 }

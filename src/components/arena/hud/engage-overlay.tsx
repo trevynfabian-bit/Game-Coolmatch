@@ -1,7 +1,9 @@
 "use client";
 
+import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { CONTROL_HINTS } from "@/lib/game/controls";
 import { difficultyProfile } from "@/lib/game/difficulty";
+import { restartMatch } from "@/lib/game/match-reset";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { MatchSnapshot, RoundState } from "@/types/game";
 
@@ -22,6 +24,12 @@ function Fact({ children }: { children: React.ReactNode }) {
  * tingkat kesulitan, dan aturan rondenya — supaya jelas pertandingan seperti
  * apa yang sedang ia masuki. Sesudah pertandingan berjalan, layar yang sama
  * berubah jadi layar jeda yang menunjukkan posisi ronde saat ini.
+ *
+ * Layar jeda juga satu-satunya tempat pemain bisa MENINGGALKAN pertandingan
+ * yang sedang berjalan. Sebelum ada tombolnya, menekan Esc hanya menawarkan
+ * satu pilihan — kembali bertanding — dan pemain yang ingin berhenti harus
+ * memakai tombol back browser. Mengulang dari awal juga tidak mungkin tanpa
+ * menyelesaikan pertandingannya lebih dulu.
  */
 export function EngageOverlay({
   round,
@@ -40,7 +48,11 @@ export function EngageOverlay({
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-slate-950/70 px-6 backdrop-blur-[2px]">
-      <div className="w-full max-w-sm text-center">
+      {/*
+        Selebar max-w-md, bukan max-w-sm: tiga tombol keluar di bawah harus
+        muat sebaris tanpa teksnya terpotong jadi dua baris.
+      */}
+      <div className="w-full max-w-md text-center">
         <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase">
           {isStart ? "Bersiap" : "Jeda"}
         </p>
@@ -74,6 +86,12 @@ export function EngageOverlay({
           )}
         </p>
 
+        {/*
+          Tombol ini sengaja TIDAK menghentikan rambatan kliknya: justru klik
+          yang sampai ke document itulah yang membuat PointerLockControls
+          mengunci kursor dan pertandingan berjalan. Ia hanya sasaran klik yang
+          jelas — mengklik di mana pun pada lapisan ini berfungsi sama.
+        */}
         <button
           type="button"
           className="pointer-events-auto mt-5 rounded-lg bg-emerald-500 px-7 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
@@ -93,6 +111,28 @@ export function EngageOverlay({
             </div>
           ))}
         </dl>
+
+        {/*
+          Berbeda dengan tombol di atas, tombol-tombol ini menghentikan
+          rambatan kliknya (ditangani ActionButton) supaya menekan "Kembali ke
+          menu" tidak sekaligus mengunci kursor dan melanjutkan pertandingan.
+        */}
+        <ActionRow className="pointer-events-auto mt-7">
+          {isStart ? null : (
+            <ActionButton
+              size="ringkas"
+              onClick={() => restartMatch(match.map, match)}
+            >
+              Ulangi dari awal
+            </ActionButton>
+          )}
+          <ActionButton size="ringkas" href="/lawan">
+            Ganti lawan
+          </ActionButton>
+          <ActionButton size="ringkas" href="/">
+            Kembali ke menu
+          </ActionButton>
+        </ActionRow>
 
         <p className="mt-6 text-[11px] leading-relaxed text-slate-500">
           {isStart
