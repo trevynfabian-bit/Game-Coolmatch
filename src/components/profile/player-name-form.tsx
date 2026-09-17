@@ -28,14 +28,21 @@ const PROBLEM_TEXT: Record<PlayerNameProblem, string> = {
 };
 
 /**
- * Layar pertama: pemain menuliskan namanya.
+ * Isian nama pemain.
+ *
+ * Dipakai dua kali: berdiri sendiri sebagai layar onboarding, dan disisipkan di
+ * halaman profil lewat `embedded` — yang membuang judul dan tautan lanjutannya,
+ * karena halaman profil sudah punya judulnya sendiri dan tidak sedang menuntun
+ * siapa pun ke mana-mana.
  *
  * Satu isian saja, tanpa kata sandi dan tanpa akun — nama ini hanya dipakai di
  * papan skor dan kill feed perangkat ini sendiri. Itu sebabnya ia bisa
  * dilewati: pemain yang hanya ingin langsung menembak tetap punya nama bawaan,
  * dan bisa kembali menamai dirinya kapan saja.
  */
-export function PlayerNameForm() {
+export function PlayerNameForm({
+  embedded = false,
+}: { embedded?: boolean } = {}) {
   const playerName = useProfileStore((state) => state.playerName);
   const hasNamed = useProfileStore((state) => state.hasNamed);
   const setPlayerName = useProfileStore((state) => state.setPlayerName);
@@ -62,19 +69,23 @@ export function PlayerNameForm() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-lg px-5 py-12 sm:px-8">
-      <header className="mb-8">
-        <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase">
-          Nama pemain
-        </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">
-          {hasNamed ? "Ganti namamu" : "Siapa namamu?"}
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-slate-400">
-          Nama ini yang muncul di papan skor dan kill feed. Tidak ada akun dan
-          tidak ada kata sandi — ia hanya tersimpan di perangkat ini.
-        </p>
-      </header>
+    <div
+      className={embedded ? "" : "mx-auto w-full max-w-lg px-5 py-12 sm:px-8"}
+    >
+      {embedded ? null : (
+        <header className="mb-8">
+          <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase">
+            Nama pemain
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">
+            {hasNamed ? "Ganti namamu" : "Siapa namamu?"}
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-400">
+            Nama ini yang muncul di papan skor dan kill feed. Tidak ada akun dan
+            tidak ada kata sandi — ia hanya tersimpan di perangkat ini.
+          </p>
+        </header>
+      )}
 
       <form onSubmit={submit} noValidate>
         <label className="block">
@@ -142,16 +153,18 @@ export function PlayerNameForm() {
           >
             Simpan nama
           </button>
-          <Link
-            href={saved ? "/lawan" : "/"}
-            className="flex-1 rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-medium text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-          >
-            {saved ? "Lanjut atur lawan" : "Nanti saja"}
-          </Link>
+          {embedded ? null : (
+            <Link
+              href={saved ? "/lawan" : "/"}
+              className="flex-1 rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-medium text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+            >
+              {saved ? "Lanjut atur lawan" : "Nanti saja"}
+            </Link>
+          )}
         </div>
       </form>
 
-      {hasNamed ? null : (
+      {hasNamed || embedded ? null : (
         <p className="mt-6 text-[11px] text-slate-600">
           Kalau dilewati, kamu tampil sebagai{" "}
           <span className="text-slate-400">{playerName}</span> dan bisa

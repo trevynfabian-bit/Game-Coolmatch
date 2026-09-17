@@ -64,7 +64,7 @@ export function PlayerStatus() {
             Kamu bermain sebagai{" "}
             <span className="font-semibold text-white">{playerName}</span>.{" "}
             <Link
-              href="/nama"
+              href="/profil"
               className="text-emerald-400 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
             >
               Ganti nama

@@ -8,7 +8,7 @@ const DESTINATIONS = [
   { href: "/lawan", label: "Atur Lawan" },
   { href: "/latihan", label: "Latihan" },
   { href: "/skor", label: "Papan Skor" },
-  { href: "/nama", label: "Nama Pemain" },
+  { href: "/profil", label: "Profil" },
 ] as const;
 
 /**
