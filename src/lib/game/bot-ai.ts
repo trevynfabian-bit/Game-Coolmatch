@@ -71,8 +71,21 @@ const ROAM_MAX_SECONDS = 3.2;
  */
 const ROAM_SPREAD = 1.15;
 
-/** Seberapa cepat arah hadap menyusul arah yang dituju, per detik. */
-const TURN_RATE = 6.5;
+/**
+ * Patokan kecepatan bidik, dalam radian per detik dikali detik reaksi.
+ *
+ * Kecepatan bidik diturunkan dari waktu reaksi profil, bukan ditulis sendiri
+ * per tingkat, supaya "kesigapan" hanya punya satu sumber kebenaran: musuh
+ * yang lambat menyadari pemain juga lambat mengayunkan moncongnya. Santai
+ * berputar sekitar 2,2 radian per detik — hampir satu detik untuk memutar
+ * badan setengah lingkaran — sementara Susah mengunci hampir seketika.
+ */
+const AIM_SPEED_BASE = 2.4;
+
+/** Kecepatan ayun bidikan musuh, dalam radian per detik. */
+export function aimSpeed(profile: DifficultyProfile): number {
+  return AIM_SPEED_BASE / profile.reactionSeconds;
+}
 
 /** Ingatan sesaat tiap musuh; hanya berarti selama satu ronde berjalan. */
 export interface BotBrain {
@@ -115,6 +128,12 @@ export interface BotStepResult {
   brain: BotBrain;
   /** Benar bila musuh sedang benar-benar mengejar pemain. */
   engaged: boolean;
+  /**
+   * Selisih sudut antara arah hadap musuh dan arah ke pemain sesudah langkah
+   * ini, dalam radian. Dipakai untuk menilai apakah bidikannya sudah benar-
+   * benar tertuju ke pemain saat ia menarik pelatuk.
+   */
+  aimOffRadians: number;
 }
 
 /** Jarak yang ingin dijaga musuh, diturunkan dari keberanian profilnya. */
@@ -247,13 +266,24 @@ export function stepBot(input: BotStepInput): BotStepResult {
     ? Math.atan2(toTargetX, toTargetZ)
     : Math.atan2(headingX, headingZ);
   const turn = angleDelta(yaw, wantYaw);
-  const maxTurn = TURN_RATE * delta;
+  const maxTurn = aimSpeed(profile) * delta;
+
+  const nextYaw = yaw + Math.max(-maxTurn, Math.min(maxTurn, turn));
+  // Diukur dari posisi SESUDAH melangkah, karena di situlah musuh berada saat
+  // pelatuk ditarik pada frame ini. Memakai posisi sebelumnya membuat sudut
+  // yang dilaporkan meleset satu frame, dan selisihnya paling besar justru
+  // saat musuh sedang bergerak cepat mengapit pemain.
+  const towardTargetYaw = Math.atan2(
+    target[0] - moved.position.x,
+    target[2] - moved.position.z,
+  );
 
   return {
     position: moved.position,
     verticalVelocity: moved.verticalVelocity,
-    yaw: yaw + Math.max(-maxTurn, Math.min(maxTurn, turn)),
+    yaw: nextYaw,
     brain: { seenSeconds, roamSeconds, roamOffset },
     engaged,
+    aimOffRadians: Math.abs(angleDelta(nextYaw, towardTargetYaw)),
   };
 }

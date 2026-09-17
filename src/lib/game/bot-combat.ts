@@ -26,6 +26,30 @@ const FALLOFF_FLOOR = 0.35;
 export const HEADSHOT_SHARE = 0.16;
 
 /**
+ * Seberapa melenceng arah hadap musuh masih dianggap terbidik, dalam radian.
+ *
+ * Di dalam AIM_ON_CONE bidikan dianggap tertuju penuh; di luar AIM_OFF_CONE
+ * moncongnya jelas tidak mengarah ke pemain dan tembakannya pasti meleset.
+ * Tanpa ini, musuh yang baru saja menyadari pemain di belakangnya bisa
+ * menembak setepat musuh yang sudah lama membidik — badannya masih berputar di
+ * layar, tetapi pelurunya sudah kena, dan itu terlihat seperti curang. Bersama
+ * kecepatan bidik yang mengikuti tingkat kesulitan, inilah yang membuat Santai
+ * betul-betul kalah cepat dalam adu bidik.
+ */
+const AIM_ON_CONE = 0.22;
+const AIM_OFF_CONE = 1.05;
+
+/**
+ * Pengali peluang kena menurut seberapa jauh moncong musuh masih melenceng
+ * dari pemain: 1 saat sudah terbidik, meluruh ke 0 saat jelas belum.
+ */
+export function aimFactor(offRadians: number): number {
+  if (offRadians <= AIM_ON_CONE) return 1;
+  if (offRadians >= AIM_OFF_CONE) return 0;
+  return 1 - (offRadians - AIM_ON_CONE) / (AIM_OFF_CONE - AIM_ON_CONE);
+}
+
+/**
  * Peluang satu tembakan musuh mengenai pemain pada jarak tertentu.
  *
  * Ketepatan dasar datang dari profil kesulitan — itulah yang paling terasa

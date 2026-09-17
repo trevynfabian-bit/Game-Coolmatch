@@ -6,6 +6,7 @@ import { Vector3 } from "three";
 import { stepBot } from "@/lib/game/bot-ai";
 import {
   HEADSHOT_SHARE,
+  aimFactor,
   hitChance,
   nextFireDelay,
 } from "@/lib/game/bot-combat";
@@ -132,8 +133,13 @@ export function BotDriver({
       if (now < state.nextShotAt) continue;
       state.nextShotAt = now + nextFireDelay(profile, weapon.damage);
 
+      // Peluang kena dipotong dua kali: oleh jarak, dan oleh seberapa jauh
+      // moncongnya masih melenceng. Musuh yang baru berbalik badan menembak ke
+      // arah yang salah dulu sebelum bidikannya benar-benar tertuju.
       const distance = Math.hypot(target[0] - state.x, target[2] - state.z);
-      if (Math.random() > hitChance(profile, distance)) continue;
+      const chance =
+        hitChance(profile, distance) * aimFactor(next.aimOffRadians);
+      if (Math.random() > chance) continue;
 
       const isHeadshot = Math.random() < HEADSHOT_SHARE;
       const report = match.damageFighter({
