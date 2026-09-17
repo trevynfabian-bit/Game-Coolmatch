@@ -1,5 +1,6 @@
 import { jsonError, jsonOk, readJsonBody } from "@/server/api/json";
 import { parseStartMatch, startMatch } from "@/server/matches/match-store";
+import { isPlayableMap } from "@/server/maps/map-store";
 import { ensureLocalPlayer } from "@/server/players/local-player";
 
 /**
@@ -22,6 +23,17 @@ export async function POST(request: Request): Promise<Response> {
   const parsed = parseStartMatch(body.body);
   if (!parsed.ok) {
     return jsonError(400, parsed.message);
+  }
+
+  /*
+    Peta diperiksa di sini, bukan di dalam `parseStartMatch`, karena yang ini
+    butuh membaca database sedangkan parser sengaja murni. Tanpa pemeriksaan
+    ini, id peta yang tidak dikenal akan ditolak kunci asing jauh di dalam
+    transaksi dan keluar sebagai kegagalan server — padahal penyebabnya ada di
+    permintaannya.
+  */
+  if (!isPlayableMap(parsed.value.mapId)) {
+    return jsonError(400, "Peta itu tidak ada di katalog.");
   }
 
   const player = ensureLocalPlayer();

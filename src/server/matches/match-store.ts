@@ -7,11 +7,7 @@ import {
   hasReachedScoreLimit,
 } from "@/lib/game/round";
 import { rankScores } from "@/lib/game/scoreboard";
-import {
-  DIFFICULTY_PROFILES,
-  MAX_BOTS,
-  MIN_BOTS,
-} from "@/lib/game/difficulty";
+import { DIFFICULTY_PROFILES, MAX_BOTS, MIN_BOTS } from "@/lib/game/difficulty";
 import type {
   Difficulty,
   MatchResult,
@@ -20,7 +16,7 @@ import type {
 } from "@/types/game";
 import { db } from "@/server/db/client";
 import { matchRounds, matchScores, matches } from "@/server/db/schema";
-import { ensureMapRow, findMapName } from "@/server/maps/map-store";
+import { ensureMapCatalogue, findMapName } from "@/server/maps/map-store";
 
 /** Satu peserta pertandingan saat pertandingan dimulai. */
 export interface ParticipantInput {
@@ -30,9 +26,11 @@ export interface ParticipantInput {
 }
 
 export interface StartMatchInput {
+  /**
+   * Cukup id-nya. Nama dan deskripsi peta dibaca server dari katalognya
+   * sendiri; keduanya boleh saja ikut terkirim, tetapi tidak dipercaya.
+   */
   mapId: string;
-  mapName: string;
-  mapDescription: string;
   difficulty: Difficulty;
   botCount: number;
   totalRounds: number;
@@ -72,10 +70,13 @@ export function parseStartMatch(body: unknown): Parsed<StartMatchInput> {
   }
   const b = body as Record<string, unknown>;
 
-  if (!nonEmptyString(b.mapId) || !nonEmptyString(b.mapName)) {
-    return { ok: false, message: "Peta harus punya id dan nama." };
+  if (!nonEmptyString(b.mapId)) {
+    return { ok: false, message: "Peta harus punya id." };
   }
-  if (typeof b.difficulty !== "string" || !(b.difficulty in DIFFICULTY_PROFILES)) {
+  if (
+    typeof b.difficulty !== "string" ||
+    !(b.difficulty in DIFFICULTY_PROFILES)
+  ) {
     return {
       ok: false,
       message: `Tingkat kesulitan "${String(b.difficulty)}" tidak dikenal.`,
@@ -92,10 +93,15 @@ export function parseStartMatch(body: unknown): Parsed<StartMatchInput> {
       message: `Jumlah musuh harus bilangan bulat antara ${MIN_BOTS} dan ${MAX_BOTS}.`,
     };
   }
-  if (!positiveInt(b.totalRounds) || !positiveInt(b.scoreLimit) || !positiveInt(b.roundSeconds)) {
+  if (
+    !positiveInt(b.totalRounds) ||
+    !positiveInt(b.scoreLimit) ||
+    !positiveInt(b.roundSeconds)
+  ) {
     return {
       ok: false,
-      message: "Jumlah ronde, batas kill, dan lama ronde harus bilangan bulat positif.",
+      message:
+        "Jumlah ronde, batas kill, dan lama ronde harus bilangan bulat positif.",
     };
   }
   if (!Array.isArray(b.participants) || b.participants.length < 2) {
@@ -112,7 +118,10 @@ export function parseStartMatch(body: unknown): Parsed<StartMatchInput> {
       return { ok: false, message: "Tiap peserta harus punya nama." };
     }
     if (typeof p.isBot !== "boolean") {
-      return { ok: false, message: `Peserta "${p.name}" harus menyatakan isBot.` };
+      return {
+        ok: false,
+        message: `Peserta "${p.name}" harus menyatakan isBot.`,
+      };
     }
     if (!nonEmptyString(p.color)) {
       return { ok: false, message: `Peserta "${p.name}" harus punya warna.` };
@@ -128,15 +137,16 @@ export function parseStartMatch(body: unknown): Parsed<StartMatchInput> {
   // satu peserta yang bukan bot: nol membuat perolehan pemain tidak punya
   // tempat, lebih dari satu membuat "pemain lokal" jadi ambigu.
   if (participants.filter((p) => !p.isBot).length !== 1) {
-    return { ok: false, message: "Harus ada tepat satu peserta yang bukan bot." };
+    return {
+      ok: false,
+      message: "Harus ada tepat satu peserta yang bukan bot.",
+    };
   }
 
   return {
     ok: true,
     value: {
       mapId: b.mapId,
-      mapName: b.mapName,
-      mapDescription: nonEmptyString(b.mapDescription) ? b.mapDescription : "",
       difficulty: b.difficulty as Difficulty,
       botCount: b.botCount,
       totalRounds: b.totalRounds,
@@ -158,7 +168,10 @@ export function parseKill(body: unknown): Parsed<KillInput> {
     return { ok: false, message: "Nama penembak dan korban harus diisi." };
   }
   if (b.killerName === b.victimName) {
-    return { ok: false, message: "Penembak dan korban tidak boleh orang yang sama." };
+    return {
+      ok: false,
+      message: "Penembak dan korban tidak boleh orang yang sama.",
+    };
   }
   if (typeof b.isHeadshot !== "boolean") {
     return { ok: false, message: "isHeadshot harus bernilai true atau false." };
@@ -188,12 +201,16 @@ export function parseKill(body: unknown): Parsed<KillInput> {
  */
 export function startMatch(playerId: number, input: StartMatchInput): number {
   return db.transaction((tx) => {
-    ensureMapRow({
-      id: input.mapId,
-      name: input.mapName,
-      description: input.mapDescription,
-      previewUrl: null,
-    });
+    /*
+      Katalog peta ditulis dari katalog di KODE, bukan dari badan permintaan.
+      Sebelumnya nama dan deskripsi peta diambil dari yang dikirim klien, dan
+      itu berarti setiap pertandingan menimpa keterangan katalog dengan apa pun
+      yang kebetulan dikirim — termasuk menimpa deskripsi lengkap sebuah peta
+      dengan potongan seadanya. Kunci asing `map_id` yang menjaga sisanya:
+      peta yang tidak ada di katalog tidak punya baris, jadi pertandingannya
+      ditolak alih-alih diam-diam menciptakan peta baru.
+    */
+    ensureMapCatalogue();
 
     const [row] = tx
       .insert(matches)
@@ -246,7 +263,10 @@ export type RecordKillResult =
  * tengah jalan. Pertandingan yang selesai dengan wajar ditutup dengan total
  * akhir dari arena, yang menimpa akumulasi di sini.
  */
-export function recordKill(matchId: number, input: KillInput): RecordKillResult {
+export function recordKill(
+  matchId: number,
+  input: KillInput,
+): RecordKillResult {
   return db.transaction((tx) => {
     const [match] = tx
       .select()
@@ -256,7 +276,11 @@ export function recordKill(matchId: number, input: KillInput): RecordKillResult 
       .all();
 
     if (!match) {
-      return { ok: false, status: 404, message: "Pertandingan tidak ditemukan." };
+      return {
+        ok: false,
+        status: 404,
+        message: "Pertandingan tidak ditemukan.",
+      };
     }
     if (match.endedAt !== null) {
       // Menolak di sini menutup jalur paling mungkin bagi catatan yang
@@ -264,7 +288,8 @@ export function recordKill(matchId: number, input: KillInput): RecordKillResult 
       return {
         ok: false,
         status: 409,
-        message: "Pertandingan sudah ditutup, kejadian baru tidak bisa dicatat.",
+        message:
+          "Pertandingan sudah ditutup, kejadian baru tidak bisa dicatat.",
       };
     }
 
@@ -393,20 +418,22 @@ export function loadLiveScoreboard(matchId: number): LiveScoreboard | null {
     .all();
 
   const scoreboard = rankScores(
-    lines.map((line): MatchScoreLine => ({
-      id: String(line.id),
-      participantName: line.participantName,
-      isBot: line.isBot,
-      // Satu-satunya peserta yang bukan bot adalah pemain di perangkat ini;
-      // itu dijamin saat pertandingan dibuka.
-      isLocal: !line.isBot,
-      kills: line.kills,
-      deaths: line.deaths,
-      score: line.score,
-      roundWins: line.roundWins,
-      isWinner: line.isWinner,
-      color: line.color,
-    })),
+    lines.map(
+      (line): MatchScoreLine => ({
+        id: String(line.id),
+        participantName: line.participantName,
+        isBot: line.isBot,
+        // Satu-satunya peserta yang bukan bot adalah pemain di perangkat ini;
+        // itu dijamin saat pertandingan dibuka.
+        isLocal: !line.isBot,
+        kills: line.kills,
+        deaths: line.deaths,
+        score: line.score,
+        roundWins: line.roundWins,
+        isWinner: line.isWinner,
+        color: line.color,
+      }),
+    ),
   );
 
   return {
@@ -459,7 +486,10 @@ export function parseFinishRound(body: unknown): Parsed<FinishRoundInput> {
     return { ok: false, message: "Nomor ronde harus bilangan bulat positif." };
   }
   if (!Array.isArray(b.kills) || b.kills.length === 0) {
-    return { ok: false, message: "Kill tiap peserta pada ronde ini harus disertakan." };
+    return {
+      ok: false,
+      message: "Kill tiap peserta pada ronde ini harus disertakan.",
+    };
   }
 
   const kills: RoundKillInput[] = [];
@@ -469,7 +499,10 @@ export function parseFinishRound(body: unknown): Parsed<FinishRoundInput> {
     }
     const k = raw as Record<string, unknown>;
     if (!nonEmptyString(k.participantName)) {
-      return { ok: false, message: "Tiap perolehan ronde harus menyebut nama peserta." };
+      return {
+        ok: false,
+        message: "Tiap perolehan ronde harus menyebut nama peserta.",
+      };
     }
     if (
       typeof k.roundKills !== "number" ||
@@ -481,7 +514,10 @@ export function parseFinishRound(body: unknown): Parsed<FinishRoundInput> {
         message: `Kill ronde "${k.participantName}" harus bilangan bulat tidak negatif.`,
       };
     }
-    kills.push({ participantName: k.participantName, roundKills: k.roundKills });
+    kills.push({
+      participantName: k.participantName,
+      roundKills: k.roundKills,
+    });
   }
 
   if (new Set(kills.map((k) => k.participantName)).size !== kills.length) {
@@ -537,7 +573,11 @@ export function finishRound(
       .all();
 
     if (!match) {
-      return { ok: false, status: 404, message: "Pertandingan tidak ditemukan." };
+      return {
+        ok: false,
+        status: 404,
+        message: "Pertandingan tidak ditemukan.",
+      };
     }
     if (match.endedAt !== null) {
       return {
@@ -583,7 +623,8 @@ export function finishRound(
     const roundKills = new Map<string, number>(
       lines.map((line) => [line.participantName, 0]),
     );
-    for (const k of input.kills) roundKills.set(k.participantName, k.roundKills);
+    for (const k of input.kills)
+      roundKills.set(k.participantName, k.roundKills);
 
     const standings = lines.map((line) => ({
       name: line.participantName,
@@ -725,7 +766,10 @@ export function parseFinishMatch(body: unknown): Parsed<FinishMatchInput> {
     }
     const r = raw as Record<string, unknown>;
     if (!nonEmptyString(r.participantName)) {
-      return { ok: false, message: "Tiap perolehan akhir harus menyebut nama peserta." };
+      return {
+        ok: false,
+        message: "Tiap perolehan akhir harus menyebut nama peserta.",
+      };
     }
     for (const field of ["kills", "deaths", "score", "roundWins"] as const) {
       const value = r[field];
@@ -788,7 +832,11 @@ export function finishMatch(
       .all();
 
     if (!match) {
-      return { ok: false, status: 404, message: "Pertandingan tidak ditemukan." };
+      return {
+        ok: false,
+        status: 404,
+        message: "Pertandingan tidak ditemukan.",
+      };
     }
     if (match.endedAt !== null) {
       return {
@@ -849,7 +897,9 @@ export function finishMatch(
     // pernah diuji, dan menobatkan yang kebetulan unggul saat pemain keluar
     // akan mencatat kemenangan yang tidak pernah diperjuangkan siapa pun.
     const matchWinner =
-      input.reason === "ditinggal" ? null : (findMatchWinner(akhir)?.name ?? null);
+      input.reason === "ditinggal"
+        ? null
+        : (findMatchWinner(akhir)?.name ?? null);
     const local = akhir.find((s) => !s.isBot);
     const result: MatchResult =
       input.reason === "ditinggal"

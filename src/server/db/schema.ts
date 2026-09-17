@@ -38,18 +38,74 @@ export const players = sqliteTable(
 /**
  * Peta yang bisa dimainkan.
  *
- * Isinya berasal dari katalog peta di kode klien, bukan dari masukan pemain —
- * tabel ini ada supaya `matches.map_id` punya acuan yang sah dan nama peta
- * yang dipakai sebuah pertandingan tetap terbaca walau katalognya berubah.
- * Diperluas fase "Pilih Peta".
+ * Isinya berasal dari katalog peta di kode, bukan dari masukan pemain — tabel
+ * ini ada supaya `matches.map_id` punya acuan yang sah dan nama peta yang
+ * dipakai sebuah pertandingan tetap terbaca walau katalognya berubah.
+ *
+ * Yang disimpan adalah KETERANGAN katalog, bukan geometri arenanya. Balok,
+ * titik spawn, dan pencahayaan tetap di kode karena ketiganya dibaca juga oleh
+ * penyelesai tabrakan, penyusun roster, dan kanvas 3D — memindahkannya ke sini
+ * berarti dua sumber yang bisa berselisih, dan yang kalah adalah tabrakan yang
+ * tidak lagi cocok dengan yang terlihat. `spawn_point_count` adalah satu-
+ * satunya angka geometri yang ikut, karena ia menentukan daya tampung lawan
+ * dan server perlu bisa menolak jumlah lawan yang tidak muat tanpa memuat
+ * seluruh peta.
+ *
+ * Tidak ada batasan CHECK di sini, berbeda dari tabel lain di berkas ini, dan
+ * itu disengaja. SQLite tidak bisa menambahkan CHECK tanpa menyalin ulang
+ * tabelnya, dan `matches` mengacu ke tabel ini dengan ON DELETE restrict —
+ * persis keadaan yang membuat migrasi 0003 harus ditulis tangan agar tidak
+ * menghapus data. Nilai di sini datang dari katalog di kode lewat satu penulis
+ * saja, bukan dari badan permintaan, jadi harganya tidak sepadan.
  */
-export const maps = sqliteTable("maps", {
-  /** Memakai id peta dari kode, misalnya "map-gudang-senja". */
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description").notNull().default(""),
-  previewUrl: text("preview_url"),
-});
+export const maps = sqliteTable(
+  "maps",
+  {
+    /** Memakai id peta dari kode, misalnya "map-gudang-senja". */
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    previewUrl: text("preview_url"),
+
+    /** Ukuran lantai arena dalam satuan dunia; dipakai keterangan katalog. */
+    floorWidth: integer("floor_width").notNull().default(0),
+    floorDepth: integer("floor_depth").notNull().default(0),
+
+    /**
+     * Jumlah titik spawn peta ini. Daya tampung lawannya adalah angka ini
+     * dikurangi satu — satu titik dipakai pemain sendiri.
+     */
+    spawnPointCount: integer("spawn_point_count").notNull().default(0),
+
+    /** Urutan tampil di katalog; mengikuti urutan katalog di kode. */
+    sortOrder: integer("sort_order").notNull().default(0),
+
+    /**
+     * Peta yang ditarik dari katalog ditandai tidak bisa dimainkan, BUKAN
+     * dihapus. Barisnya masih diacu pertandingan lama dengan ON DELETE
+     * restrict, dan riwayat yang menyebut arena yang sudah tidak ada lebih
+     * buruk daripada baris yang tidak lagi muncul di daftar pilihan.
+     */
+    isPlayable: integer("is_playable", { mode: "boolean" })
+      .notNull()
+      .default(true),
+
+    /**
+     * Kapan baris ini terakhir disegarkan dari katalog.
+     *
+     * Boleh kosong, tidak seperti kolom waktu tabel lain: SQLite menolak
+     * menambahkan kolom NOT NULL dengan nilai bawaan yang tidak tetap ke tabel
+     * yang sudah ada, dan `(unixepoch() * 1000)` bukan nilai tetap. Baris yang
+     * lebih tua daripada kolom ini memang tidak diketahui kapan disegarkan;
+     * kosong mengatakannya apa adanya. Satu-satunya penulisnya selalu mengisi.
+     */
+    updatedAt: integer("updated_at"),
+  },
+  (table) => [
+    // Katalog selalu dibaca sebagai "yang bisa dimainkan, urut tampil".
+    index("maps_katalog_idx").on(table.isPlayable, table.sortOrder),
+  ],
+);
 
 /** Tingkat kesulitan musuh otomatis; sama dengan tipe `Difficulty` di klien. */
 export const DIFFICULTIES = ["santai", "normal", "susah"] as const;
@@ -249,7 +305,9 @@ export const matchScores = sqliteTable(
     deaths: integer("deaths").notNull().default(0),
     score: integer("score").notNull().default(0),
     roundWins: integer("round_wins").notNull().default(0),
-    isWinner: integer("is_winner", { mode: "boolean" }).notNull().default(false),
+    isWinner: integer("is_winner", { mode: "boolean" })
+      .notNull()
+      .default(false),
   },
   (table) => [
     uniqueIndex("match_scores_peserta_unik").on(
