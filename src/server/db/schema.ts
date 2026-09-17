@@ -23,12 +23,38 @@ import {
 
 const now = sql`(unixepoch() * 1000)`;
 
-/** Identitas pemain. Diperluas fase "Nama Pemain". */
+/**
+ * Identitas pemain.
+ *
+ * Aturan panjang dan isi nama TIDAK ditegakkan di sini, berbeda dengan
+ * pengaturan lawan yang diberi CHECK. Bukan karena namanya lebih dipercaya —
+ * ia justru datang langsung dari badan permintaan — melainkan karena `players`
+ * sudah diacu `opponent_settings`, `matches`, dan `map_selections`. SQLite
+ * tidak bisa menambahkan CHECK tanpa menyalin ulang tabelnya, dan menyalin
+ * ulang tabel yang diacu bertiga adalah jebakan yang membuat migrasi 0003
+ * harus ditulis tangan. Aturannya ditegakkan pemeriksa badan permintaan,
+ * dengan definisi yang sama yang dipakai layarnya.
+ */
 export const players = sqliteTable(
   "players",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     name: text("name").notNull(),
+
+    /**
+     * Benar setelah pemain menuliskan namanya sendiri.
+     *
+     * Dipisah dari namanya karena keduanya menjawab pertanyaan berbeda. Pemain
+     * yang sengaja menamai dirinya sama dengan nama bawaan sudah melewati
+     * onboarding; membandingkan nama dengan nilai bawaan akan mengirimnya ke
+     * sana lagi setiap kali. Klien sudah memisahkan keduanya sejak layar
+     * onboarding dibuat, dan kolom ini yang membuat pemisahan itu bertahan
+     * lintas perangkat.
+     */
+    hasNamed: integer("has_named", { mode: "boolean" })
+      .notNull()
+      .default(false),
+
     createdAt: integer("created_at").notNull().default(now),
     updatedAt: integer("updated_at").notNull().default(now),
   },

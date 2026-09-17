@@ -43,6 +43,13 @@
       "when": 1789626552329,
       "tag": "0005_certain_steve_rogers",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789626895083,
+      "tag": "0006_secret_lionheart",
+      "breakpoints": true
     }
   ]
 }

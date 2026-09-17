@@ -1,9 +1,7 @@
 import { asc } from "drizzle-orm";
+import { DEFAULT_PLAYER_NAME } from "@/lib/game/player-name";
 import { db } from "@/server/db/client";
 import { players, type PlayerRow } from "@/server/db/schema";
-
-/** Nama awal pemain lokal; diganti pemain sendiri lewat fitur "Nama Pemain". */
-const SEED_NAME = "Kamu";
 
 /**
  * Pemain yang sedang bermain di perangkat ini.
@@ -14,7 +12,8 @@ const SEED_NAME = "Kamu";
  * ini dengan pencarian profil sungguhan; karena setiap pemanggil sudah lewat
  * sini, penggantinya cukup dilakukan di satu tempat.
  *
- * Yang dicari adalah baris pemain PERTAMA, bukan baris yang namanya "Kamu".
+ * Yang dicari adalah baris pemain PERTAMA, bukan baris yang namanya sama
+ * dengan nama bawaan.
  * Bedanya penting: begitu pemain mengganti namanya nanti, pencarian berdasarkan
  * nama tidak akan menemukannya lagi dan diam-diam membuat pemain kedua,
  * sehingga pengaturan dan riwayatnya seolah hilang.
@@ -26,7 +25,13 @@ export function ensureLocalPlayer(): PlayerRow {
   // onConflictDoNothing menahan kasus dua permintaan pertama yang datang
   // bersamaan: yang kalah cepat tidak gagal, ia hanya membaca baris yang sudah
   // dibuat yang menang.
-  db.insert(players).values({ name: SEED_NAME }).onConflictDoNothing().run();
+  // `hasNamed` sengaja dibiarkan pada nilai bawaannya: baris yang baru dibuat
+  // memang belum pernah dinamai siapa pun, dan itulah yang membedakannya dari
+  // pemain yang kebetulan memilih nama yang sama dengan nama bawaan.
+  db.insert(players)
+    .values({ name: DEFAULT_PLAYER_NAME })
+    .onConflictDoNothing()
+    .run();
 
   const [row] = db.select().from(players).orderBy(asc(players.id)).limit(1).all();
   if (!row) {
