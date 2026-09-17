@@ -1,5 +1,6 @@
-import { notInArray, sql } from "drizzle-orm";
+import { asc, eq, notInArray, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
+import { maxBotsForSpawnPoints } from "@/lib/mock/bots";
 import { MOCK_MAPS } from "@/lib/mock/maps";
 import { maps } from "@/server/db/schema";
 import type { ArenaMapInfo } from "@/types/game";
@@ -92,6 +93,57 @@ export function ensureMapCatalogue(): void {
 }
 
 /**
+ * Satu peta pada daftar katalog yang dikirim ke klien.
+ *
+ * Tanpa geometri. Balok dan titik spawn tetap di kode klien, jadi yang dikirim
+ * hanyalah keterangan yang memang tersimpan — klien memadukannya dengan
+ * geometri miliknya sendiri lewat `id`. Itu juga menjaga jawabannya tetap
+ * kecil: satu peta punya puluhan balok, dan tidak satu pun dibutuhkan untuk
+ * memilih peta.
+ */
+export interface MapCatalogueEntry {
+  id: string;
+  name: string;
+  description: string;
+  previewUrl: string | null;
+  floorSize: [width: number, depth: number];
+  /**
+   * Lawan terbanyak yang muat, titik pemain sudah dikurangi.
+   *
+   * Memakai aturan yang sama persis dengan arena — `maxBotsForSpawnPoints` —
+   * bukan sekadar titik spawn dikurangi satu. Banyaknya template lawan ikut
+   * membatasi, dan kedua batas itu hanya KEBETULAN bertemu di angka yang sama
+   * pada ketiga peta yang ada sekarang.
+   */
+  maxBots: number;
+}
+
+/**
+ * Katalog peta yang bisa dimainkan, urut tampil.
+ *
+ * Peta yang ditarik dari katalog tidak ikut: barisnya masih ada demi riwayat
+ * pertandingan lama, tetapi tidak lagi pantas ditawarkan untuk dimainkan.
+ */
+export function listPlayableMaps(): MapCatalogueEntry[] {
+  ensureMapCatalogue();
+
+  return db
+    .select()
+    .from(maps)
+    .where(eq(maps.isPlayable, true))
+    .orderBy(asc(maps.sortOrder), asc(maps.id))
+    .all()
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      previewUrl: row.previewUrl,
+      floorSize: [row.floorWidth, row.floorDepth] as [number, number],
+      maxBots: maxBotsForSpawnPoints(row.spawnPointCount),
+    }));
+}
+
+/**
  * Benar bila peta itu ada di katalog dan masih boleh dimainkan.
  *
  * Memanggil `ensureMapCatalogue` lebih dulu supaya jawabannya tidak bergantung
@@ -119,7 +171,10 @@ export function maxBotsForStoredMap(mapId: string): number {
     .where(sql`${maps.id} = ${mapId}`)
     .limit(1)
     .all();
-  return Math.max(0, (row?.spawnPointCount ?? 0) - 1);
+  // Nol, bukan batas terkecil, untuk peta yang tidak dikenal: pertanyaannya
+  // bukan "berapa yang muat" melainkan "peta mana", dan jawabannya tidak ada.
+  if (row === undefined || row.spawnPointCount <= 0) return 0;
+  return maxBotsForSpawnPoints(row.spawnPointCount);
 }
 
 /** Nama peta yang tersimpan, atau null bila petanya belum pernah dipakai. */

@@ -47,7 +47,20 @@ export const BOT_NAMES: readonly string[] = BOT_TEMPLATES.map(
  * sendiri, bukan ditulis tetap.
  */
 export function maxBotsForMap(map: ArenaMapInfo): number {
-  return Math.max(1, Math.min(MAX_BOT_TEMPLATES, map.spawnPoints.length - 1));
+  return maxBotsForSpawnPoints(map.spawnPoints.length);
+}
+
+/**
+ * Aturan yang sama, dihitung dari JUMLAH titik spawn saja.
+ *
+ * Ada supaya server bisa memakainya. Baris peta di database menyimpan
+ * jumlahnya, bukan titik-titiknya, dan menyalin rumusnya ke sana berarti dua
+ * definisi yang akan berselisih tepat pada peta yang kedua batasnya tidak lagi
+ * bertemu di angka yang sama — yaitu satu-satunya keadaan yang membuat
+ * perbedaannya terlihat.
+ */
+export function maxBotsForSpawnPoints(spawnPointCount: number): number {
+  return Math.max(1, Math.min(MAX_BOT_TEMPLATES, spawnPointCount - 1));
 }
 
 /**
