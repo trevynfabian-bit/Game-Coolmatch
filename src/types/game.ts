@@ -180,6 +180,22 @@ export interface MatchScoreLine {
 /** Hasil akhir pertandingan dari sudut pandang pemain; sama dengan kolom `result`. */
 export type MatchResult = "menang" | "kalah" | "seri" | "ditinggal";
 
+/** Sebab sebuah ronde berakhir; sama dengan kolom `ended_reason`. */
+export type RoundEndReason = "batas_kill" | "waktu_habis" | "ditinggal";
+
+/**
+ * Hasil satu ronde di dalam sebuah pertandingan, mengikuti tabel
+ * `match_rounds`. `winnerName` yang kosong berarti ronde itu berakhir seri —
+ * tidak ada yang unggul, sehingga ronde itu tidak diberikan kepada siapa pun.
+ */
+export interface MatchRoundResult {
+  roundNumber: number;
+  winnerName: string | null;
+  endedReason: RoundEndReason;
+  /** Kill pemain lokal pada ronde ini. */
+  playerKills: number;
+}
+
 /**
  * Satu pertandingan yang sudah tercatat, gabungan baris `matches` dengan
  * seluruh `match_scores` miliknya. Inilah bentuk yang dibaca halaman skor;
@@ -206,4 +222,6 @@ export interface MatchRecord {
   startedAt: number;
   endedAt: number;
   scores: MatchScoreLine[];
+  /** Hasil tiap ronde, urut dari ronde pertama. */
+  rounds: MatchRoundResult[];
 }

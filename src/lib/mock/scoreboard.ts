@@ -3,6 +3,7 @@ import type {
   Difficulty,
   MatchRecord,
   MatchResult,
+  MatchRoundResult,
   MatchScoreLine,
 } from "@/types/game";
 
@@ -73,6 +74,27 @@ function line(
   };
 }
 
+/**
+ * Hasil tiap ronde, ditulis ringkas sebagai [pemenang, kill pemain, sebab].
+ * Pemenang `null` berarti ronde itu berakhir SERI — tidak ada yang unggul,
+ * sehingga rondenya tidak diberikan kepada siapa pun dan jumlah kemenangan
+ * ronde seluruh peserta jadi lebih sedikit dari jumlah ronde yang dimainkan.
+ */
+type RoundSpec = [
+  winnerName: string | null,
+  playerKills: number,
+  endedReason?: MatchRoundResult["endedReason"],
+];
+
+function rounds(specs: RoundSpec[]): MatchRoundResult[] {
+  return specs.map(([winnerName, playerKills, endedReason], index) => ({
+    roundNumber: index + 1,
+    winnerName,
+    endedReason: endedReason ?? "batas_kill",
+    playerKills,
+  }));
+}
+
 function record(
   id: string,
   base: {
@@ -85,6 +107,7 @@ function record(
     endedAt: number;
   },
   scores: MatchScoreLine[],
+  roundResults: MatchRoundResult[],
 ): MatchRecord {
   return {
     id,
@@ -94,6 +117,7 @@ function record(
     scoreLimit: 15,
     ...base,
     scores,
+    rounds: roundResults,
   };
 }
 
@@ -121,6 +145,11 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
       line("mtc-006", "Bot Ayu", { kills: 6, deaths: 10, score: 600, roundWins: 0 }),
       line("mtc-006", "Bot Dimas", { kills: 5, deaths: 9, score: 500, roundWins: 0 }),
     ],
+    rounds([
+      ["Kamu", 8],
+      ["Kamu", 9],
+      ["Kamu", 7],
+    ]),
   ),
   record(
     "mtc-005",
@@ -139,6 +168,13 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
       line("mtc-005", "Bot Bima", { kills: 19, deaths: 21, score: 1950, roundWins: 1 }),
       line("mtc-005", "Bot Sari", { kills: 14, deaths: 23, score: 1400, roundWins: 0 }),
     ],
+    rounds([
+      ["Bot Dimas", 4],
+      ["Kamu", 6],
+      ["Bot Dimas", 4],
+      ["Bot Bima", 5, "waktu_habis"],
+      ["Bot Dimas", 3],
+    ]),
   ),
   record(
     "mtc-004",
@@ -156,6 +192,13 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
       line("mtc-004", "Bot Ayu", { kills: 25, deaths: 21, score: 2575, roundWins: 2 }),
       line("mtc-004", "Bot Nadia", { kills: 17, deaths: 22, score: 1700, roundWins: 0 }),
     ],
+    rounds([
+      ["Kamu", 6],
+      ["Bot Ayu", 5],
+      ["Kamu", 6],
+      ["Bot Ayu", 5],
+      ["Kamu", 6],
+    ]),
   ),
   record(
     "mtc-003",
@@ -173,6 +216,15 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
       line("mtc-003", "Bot Bima", { kills: 20, deaths: 20, score: 2050, roundWins: 2 }),
       line("mtc-003", "Bot Wulan", { kills: 12, deaths: 18, score: 1200, roundWins: 0 }),
     ],
+    rounds([
+      ["Kamu", 4],
+      ["Bot Bima", 4],
+      // Ronde yang benar-benar imbang: tidak diberikan kepada siapa pun, dan
+      // itulah sebab pertandingan ini berakhir seri 2-2 dari lima ronde.
+      [null, 4, "waktu_habis"],
+      ["Kamu", 4],
+      ["Bot Bima", 4],
+    ]),
   ),
   record(
     "mtc-002",
@@ -190,6 +242,10 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
       line("mtc-002", "Kamu", { kills: 9, deaths: 8, score: 950, roundWins: 1 }),
       line("mtc-002", "Bot Sari", { kills: 6, deaths: 9, score: 600, roundWins: 0 }),
     ],
+    rounds([
+      ["Kamu", 5],
+      ["Bot Reza", 4],
+    ]),
   ),
   record(
     "mtc-001",
@@ -208,6 +264,13 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
       line("mtc-001", "Kamu", { kills: 18, deaths: 27, score: 1875, roundWins: 1 }),
       line("mtc-001", "Bot Dimas", { kills: 15, deaths: 22, score: 1500, roundWins: 0 }),
     ],
+    rounds([
+      ["Bot Wulan", 3],
+      ["Kamu", 5],
+      ["Bot Wulan", 3],
+      ["Bot Rangga", 4, "waktu_habis"],
+      ["Bot Wulan", 3],
+    ]),
   ),
 ];
 

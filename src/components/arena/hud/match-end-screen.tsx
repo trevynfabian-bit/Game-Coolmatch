@@ -7,6 +7,8 @@ import {
   ScoreTableHead,
   scoreRowFromFighter,
 } from "@/components/scoreboard/score-row";
+import { WinnerIndicator } from "@/components/scoreboard/winner-indicator";
+import { findTiedLeaders } from "@/lib/game/scoreboard";
 import { restartMatch } from "@/lib/game/match-reset";
 import type { ArenaMapInfo, Fighter, MatchSnapshot, RoundState } from "@/types/game";
 
@@ -45,6 +47,17 @@ export function MatchEndScreen({
 
   const local = fighters.find((fighter) => fighter.isLocal);
   const playerWon = Boolean(local && round.matchWinner === local.name);
+  const tiedLeaders = round.matchWinner
+    ? []
+    : findTiedLeaders(
+        fighters.map((fighter) => ({
+          name: fighter.name,
+          roundWins: fighter.roundWins,
+          score: fighter.score,
+          kills: fighter.kills,
+          deaths: fighter.deaths,
+        })),
+      );
 
   /**
    * Pertandingan bisa ditutup sebelum ronde terakhir, yaitu saat keunggulan
@@ -65,13 +78,13 @@ export function MatchEndScreen({
           >
             Pertandingan selesai
           </p>
-          <h2 className="mt-3 text-3xl font-bold text-white">
-            {round.matchWinner
-              ? playerWon
-                ? "Kamu juara!"
-                : `${round.matchWinner} juara`
-              : "Berakhir seri"}
-          </h2>
+          <div className="mt-3">
+            <WinnerIndicator
+              winnerName={round.matchWinner}
+              tiedNames={tiedLeaders}
+              size="lg"
+            />
+          </div>
           <p className="mt-2 text-sm text-slate-400">
             {map.name}
             <span className="text-slate-600"> · </span>

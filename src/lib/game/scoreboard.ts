@@ -129,3 +129,44 @@ export function summarizeHistory(records: MatchRecord[]): HistorySummary {
     winRate: decided === 0 ? 0 : Math.round((wins / decided) * 100),
   };
 }
+
+/** Bentuk terkecil yang cukup untuk mengurutkan klasemen dan mencari puncaknya. */
+export interface RankableEntry {
+  name: string;
+  roundWins: number;
+  score: number;
+  kills: number;
+  deaths: number;
+}
+
+/**
+ * Nama peserta yang sama-sama berada di puncak klasemen.
+ *
+ * Satu nama berarti ada juara yang jelas; dua atau lebih berarti benar-benar
+ * seri — kemenangan ronde, skor, kill, dan kematiannya sama persis sehingga
+ * tidak ada satu pun pemecah kedudukan yang tersisa. Dipakai indikator
+ * pemenang untuk menyebutkan SIAPA yang seri, bukan sekadar mengumumkan bahwa
+ * pertandingannya seri.
+ */
+export function findTiedLeaders<T extends RankableEntry>(entries: T[]): string[] {
+  if (entries.length === 0) return [];
+
+  const ranked = [...entries].sort(
+    (a, b) =>
+      b.roundWins - a.roundWins ||
+      b.score - a.score ||
+      b.kills - a.kills ||
+      a.deaths - b.deaths,
+  );
+  const top = ranked[0];
+
+  return ranked
+    .filter(
+      (entry) =>
+        entry.roundWins === top.roundWins &&
+        entry.score === top.score &&
+        entry.kills === top.kills &&
+        entry.deaths === top.deaths,
+    )
+    .map((entry) => entry.name);
+}

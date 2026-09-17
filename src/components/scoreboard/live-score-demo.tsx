@@ -7,7 +7,9 @@ import {
   ScoreTableHead,
   type ScoreRowEntry,
 } from "@/components/scoreboard/score-row";
+import { WinnerIndicator } from "@/components/scoreboard/winner-indicator";
 import { difficultyProfile } from "@/lib/game/difficulty";
+import { findTiedLeaders } from "@/lib/game/scoreboard";
 import {
   createSimulation,
   rankParticipants,
@@ -99,6 +101,10 @@ export function LiveScoreDemo() {
     [state.participants],
   );
   const totals = useMemo(() => simulationTotals(state), [state]);
+  const tiedLeaders = useMemo(
+    () => (state.winnerName ? [] : findTiedLeaders(state.participants)),
+    [state.winnerName, state.participants],
+  );
   const leaderWins = ranked[0]?.roundWins ?? 0;
   const profile = difficultyProfile(SETUP.difficulty);
 
@@ -109,13 +115,20 @@ export function LiveScoreDemo() {
           <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase">
             Papan skor langsung
           </p>
-          <h2 className="mt-1.5 text-lg font-bold text-white">
-            {isEnded
-              ? state.winnerName
-                ? `${state.winnerName} juara simulasi`
-                : "Simulasi berakhir seri"
-              : `Ronde ${state.round.current} dari ${state.round.total}`}
-          </h2>
+          {isEnded ? (
+            <div className="mt-1.5">
+              <WinnerIndicator
+                winnerName={state.winnerName}
+                tiedNames={tiedLeaders}
+                subject="simulasi"
+                size="sm"
+              />
+            </div>
+          ) : (
+            <h2 className="mt-1.5 text-lg font-bold text-white">
+              Ronde {state.round.current} dari {state.round.total}
+            </h2>
+          )}
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
             <span>{state.participants.length} peserta</span>
             <span>·</span>

@@ -1,18 +1,20 @@
 import { difficultyProfile } from "@/lib/game/difficulty";
 import {
   findLocalScore,
+  findTiedLeaders,
   formatDuration,
   formatMatchDate,
   killRatio,
   matchDurationSeconds,
   rankScores,
 } from "@/lib/game/scoreboard";
-import { RESULT_STYLE } from "@/components/scoreboard/result-badge";
+import { RoundResultStrip } from "@/components/scoreboard/round-result-strip";
 import {
   ScoreRow,
   ScoreTableHead,
   scoreRowFromLine,
 } from "@/components/scoreboard/score-row";
+import { WinnerIndicator } from "@/components/scoreboard/winner-indicator";
 import type { MatchRecord } from "@/types/game";
 
 /** Satu angka besar pada ringkasan perolehan pemain. */
@@ -37,7 +39,13 @@ function Stat({
   );
 }
 
-/** Kalimat yang menjelaskan kenapa pertandingan berhenti di ronde tertentu. */
+/**
+ * Kalimat yang menjelaskan kenapa pertandingan berhenti di ronde tertentu.
+ *
+ * Seri sengaja TIDAK ditangani di sini: indikator pemenang sudah menjelaskannya
+ * dan bahkan menyebut siapa yang imbang, jadi menambahkan kalimat kedua hanya
+ * mengulang hal yang sama dua baris di bawahnya.
+ */
 function endingNote(record: MatchRecord): string | null {
   if (record.result === "ditinggal") {
     return `Pertandingan ditinggal setelah ronde ${record.roundsPlayed}, jadi juaranya tidak pernah ditentukan.`;
@@ -46,9 +54,6 @@ function endingNote(record: MatchRecord): string | null {
     return `Gelar terkunci di ronde ${record.roundsPlayed} — sisa ${
       record.totalRounds - record.roundsPlayed
     } ronde sudah tidak bisa mengubah juaranya.`;
-  }
-  if (!record.winnerName && record.result === "seri") {
-    return "Kedudukan ronde berakhir imbang sampai ronde terakhir, jadi tidak ada juara.";
   }
   return null;
 }
@@ -64,8 +69,19 @@ export function MatchDetail({ record }: { record: MatchRecord }) {
   const ranked = rankScores(record.scores);
   const local = findLocalScore(record);
   const profile = difficultyProfile(record.difficulty);
-  const style = RESULT_STYLE[record.result];
   const note = endingNote(record);
+  // Hanya perlu saat tidak ada juara; di luar itu indikator mengabaikannya.
+  const tiedLeaders = record.winnerName
+    ? []
+    : findTiedLeaders(
+        record.scores.map((score) => ({
+          name: score.participantName,
+          roundWins: score.roundWins,
+          score: score.score,
+          kills: score.kills,
+          deaths: score.deaths,
+        })),
+      );
 
   return (
     <section className="overflow-hidden rounded-xl border border-white/10 bg-slate-950/60">
@@ -73,15 +89,13 @@ export function MatchDetail({ record }: { record: MatchRecord }) {
         <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase">
           Hasil pertandingan
         </p>
-        <h2 className={`mt-2 text-2xl font-bold ${style.text}`}>
-          {record.winnerName
-            ? record.winnerName === "Kamu"
-              ? "Kamu juara"
-              : `${record.winnerName} juara`
-            : record.result === "ditinggal"
-              ? "Tidak selesai"
-              : "Berakhir seri"}
-        </h2>
+        <div className="mt-2">
+          <WinnerIndicator
+            winnerName={record.winnerName}
+            unfinished={record.result === "ditinggal"}
+            tiedNames={tiedLeaders}
+          />
+        </div>
 
         <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
           <span className="text-slate-300">{record.mapName}</span>
@@ -109,6 +123,12 @@ export function MatchDetail({ record }: { record: MatchRecord }) {
           </p>
         ) : null}
       </header>
+
+      {record.rounds.length > 0 ? (
+        <div className="border-b border-white/10 px-5 py-4">
+          <RoundResultStrip rounds={record.rounds} />
+        </div>
+      ) : null}
 
       {local ? (
         <div className="grid grid-cols-2 gap-2 border-b border-white/10 px-5 py-4 sm:grid-cols-5">
