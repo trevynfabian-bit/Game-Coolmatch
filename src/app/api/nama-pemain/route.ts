@@ -1,4 +1,6 @@
+import { guardWrite, readOr } from "@/server/api/fallback";
 import { jsonError, jsonOk, readJsonBody } from "@/server/api/json";
+import { DEFAULT_PLAYER_NAME } from "@/lib/game/player-name";
 import { ensureLocalPlayer } from "@/server/players/local-player";
 import {
   loadPlayerProfile,
@@ -21,8 +23,27 @@ export const runtime = "nodejs";
 
 /** Nama tersimpan, atau nama bawaan bila pemain belum pernah menamainya. */
 export function GET(): Response {
-  const player = ensureLocalPlayer();
-  return jsonOk(loadPlayerProfile(player.id));
+  /*
+    Cadangannya nama bawaan dengan `hasNamed` palsu-false. Itu keputusan yang
+    disengaja: pemain yang profilnya tidak terbaca akan dibawa ke onboarding,
+    dan menamai diri lagi jauh lebih ringan daripada tidak bisa membuka
+    halamannya sama sekali. `degraded` yang memberi tahu layar bahwa yang
+    ditampilkan bawaan, bukan pilihannya.
+  */
+  const cadangan = {
+    name: DEFAULT_PLAYER_NAME,
+    hasNamed: false,
+    createdAt: 0,
+    updatedAt: 0,
+  };
+
+  const profile = readOr(
+    "GET /api/nama-pemain",
+    () => loadPlayerProfile(ensureLocalPlayer().id),
+    cadangan,
+  );
+
+  return jsonOk({ ...profile, degraded: profile === cadangan });
 }
 
 /**
@@ -42,14 +63,16 @@ export async function PUT(request: Request): Promise<Response> {
     return jsonError(400, parsed.message);
   }
 
-  const player = ensureLocalPlayer();
-  const saved = savePlayerName(player.id, parsed.value);
-  if (!saved.ok) {
-    // Statusnya datang dari penyimpanannya: 409 untuk pertandingan yang masih
-    // berjalan — keadaan yang bisa berubah sendiri begitu pertandingan selesai
-    // — dan 400 untuk permintaan yang memang salah.
-    return jsonError(saved.status, saved.message);
-  }
+  return guardWrite("PUT /api/nama-pemain", () => {
+    const player = ensureLocalPlayer();
+    const saved = savePlayerName(player.id, parsed.value);
+    if (!saved.ok) {
+      // Statusnya datang dari penyimpanannya: 409 untuk pertandingan yang masih
+      // berjalan — keadaan yang bisa berubah sendiri begitu pertandingan selesai
+      // — dan 400 untuk permintaan yang memang salah.
+      return jsonError(saved.status, saved.message);
+    }
 
-  return jsonOk({ ...saved.profile, previousName: saved.previousName });
+    return jsonOk({ ...saved.profile, previousName: saved.previousName });
+  });
 }

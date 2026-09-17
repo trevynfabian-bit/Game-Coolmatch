@@ -1,3 +1,4 @@
+import { guardWrite } from "@/server/api/fallback";
 import { jsonError, jsonOk, readJsonBody } from "@/server/api/json";
 import { parseStartMatch, startMatch } from "@/server/matches/match-store";
 import { isPlayableMap, maxBotsForStoredMap } from "@/server/maps/map-store";
@@ -60,12 +61,14 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const matchId = startMatch(player.id, { ...parsed.value, mapId });
+  return guardWrite("POST /api/pertandingan", () => {
+    const matchId = startMatch(player.id, { ...parsed.value, mapId });
 
-  // 201 beserta lokasi sumbernya: pemanggil memakai id ini untuk mencatat
-  // kejadian dan, nanti, menutup pertandingannya.
-  return jsonOk(
-    { matchId },
-    { status: 201, headers: { Location: `/api/pertandingan/${matchId}` } },
-  );
+    // 201 beserta lokasi sumbernya: pemanggil memakai id ini untuk mencatat
+    // kejadian dan, nanti, menutup pertandingannya.
+    return jsonOk(
+      { matchId },
+      { status: 201, headers: { Location: `/api/pertandingan/${matchId}` } },
+    );
+  });
 }

@@ -134,6 +134,36 @@ export interface MapCatalogueEntry {
 }
 
 /**
+ * Katalog apa adanya dari kode, tanpa menyentuh database sama sekali.
+ *
+ * Cadangan untuk `listPlayableMaps`. Bisa selengkap itu karena sumber
+ * kebenaran katalog memang ADA di kode: barisnya di database adalah salinan,
+ * bukan aslinya. Jadi daftar peta adalah satu-satunya bacaan di aplikasi ini
+ * yang cadangannya sama persis dengan aslinya — database yang tidak bisa
+ * dibaca tidak menghalangi siapa pun memilih peta.
+ */
+export function catalogueFromCode(): MapCatalogueEntry[] {
+  return MOCK_MAPS.map((map) => {
+    const facts = mapFacts(map);
+    return {
+      id: map.id,
+      name: map.name,
+      description: map.description,
+      previewUrl: map.previewUrl,
+      floorSize: [
+        Math.round(map.floorSize[0]),
+        Math.round(map.floorSize[1]),
+      ] as [number, number],
+      maxBots: maxBotsForSpawnPoints(map.spawnPoints.length),
+      coverCount: facts.coverCount,
+      typicalSightline: facts.typicalSightline,
+      hasCentralStructure: facts.hasCentralStructure,
+      hiddenRouteCount: facts.hiddenRouteCount,
+    };
+  });
+}
+
+/**
  * Katalog peta yang bisa dimainkan, urut tampil.
  *
  * Peta yang ditarik dari katalog tidak ikut: barisnya masih ada demi riwayat

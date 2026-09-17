@@ -1,4 +1,6 @@
+import { guardWrite, readOr } from "@/server/api/fallback";
 import { jsonError, jsonOk, readJsonBody } from "@/server/api/json";
+import { catalogueFromCode } from "@/server/maps/map-store";
 import {
   loadSelectedMap,
   parseMapSelection,
@@ -21,8 +23,21 @@ export const runtime = "nodejs";
 
 /** Pilihan tersimpan, atau peta pertama katalog bila pemain belum memilih. */
 export function GET(): Response {
-  const player = ensureLocalPlayer();
-  return jsonOk(loadSelectedMap(player.id));
+  // Cadangannya peta pertama katalog di kode — peta yang pasti ada, karena
+  // katalog itulah sumber kebenarannya.
+  const cadangan = {
+    mapId: catalogueFromCode()[0]?.id ?? "",
+    updatedAt: null,
+    fellBack: false,
+  };
+
+  const selection = readOr(
+    "GET /api/peta-terpilih",
+    () => loadSelectedMap(ensureLocalPlayer().id),
+    cadangan,
+  );
+
+  return jsonOk({ ...selection, degraded: selection === cadangan });
 }
 
 /**
@@ -42,6 +57,8 @@ export async function PUT(request: Request): Promise<Response> {
     return jsonError(400, parsed.message);
   }
 
-  const player = ensureLocalPlayer();
-  return jsonOk(saveSelectedMap(player.id, parsed.value));
+  return guardWrite("PUT /api/peta-terpilih", () => {
+    const player = ensureLocalPlayer();
+    return jsonOk(saveSelectedMap(player.id, parsed.value));
+  });
 }

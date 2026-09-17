@@ -35,6 +35,8 @@ function createConnection() {
   return drizzle(sqlite, { schema });
 }
 
+type Db = ReturnType<typeof createConnection>;
+
 /**
  * Koneksi database dipakai bersama satu proses.
  *
@@ -42,14 +44,45 @@ function createConnection() {
  * membuka koneksi baru tiap kali modul dimuat ulang, yang lama-lama menghabiskan
  * pegangan berkas.
  */
-const globalForDb = globalThis as unknown as {
-  __arenaDb?: ReturnType<typeof createConnection>;
-};
+const globalForDb = globalThis as unknown as { __arenaDb?: Db };
 
-export const db = globalForDb.__arenaDb ?? createConnection();
+/**
+ * Membuka koneksi saat PERTAMA KALI dipakai, bukan saat modulnya dimuat.
+ *
+ * Bedanya menentukan siapa yang bisa menangani kegagalannya. Membuka berkas
+ * database bisa gagal — berkasnya rusak, foldernya tidak bisa ditulis, atau
+ * proses lain menguncinya — dan kalau itu terjadi saat modul dimuat, kegagalan
+ * terlempar sebelum satu baris pun kode endpoint berjalan: seluruh rute
+ * menjawab 500 dan tidak ada nilai cadangan yang sempat dipakai. Ditunda sampai
+ * kueri pertama, kegagalannya jatuh di dalam `readOr` dan `guardWrite`, tempat
+ * ia bisa jadi jawaban yang masuk akal.
+ *
+ * Kegagalannya tidak disimpan: percobaan berikutnya membuka lagi. Berkas yang
+ * terkunci sesaat tidak boleh membuat prosesnya menyerah selamanya.
+ */
+function connection(): Db {
+  const existing = globalForDb.__arenaDb;
+  if (existing) return existing;
 
-if (process.env.NODE_ENV !== "production") {
-  globalForDb.__arenaDb = db;
+  const dibuat = createConnection();
+  globalForDb.__arenaDb = dibuat;
+  return dibuat;
 }
+
+/**
+ * Koneksi yang dipakai seluruh aplikasi.
+ *
+ * Perantara, bukan koneksi itu sendiri, semata supaya pembukaannya bisa
+ * ditunda tanpa setiap pemanggil harus berubah jadi `getDb().select(...)`.
+ * Fungsinya diikat ke koneksi asli, sehingga apa pun yang di dalam Drizzle
+ * mengandalkan `this` tetap menemukan objek yang benar.
+ */
+export const db = new Proxy({} as Db, {
+  get(_target, prop, receiver) {
+    const real = connection();
+    const value = Reflect.get(real as object, prop, receiver);
+    return typeof value === "function" ? value.bind(real) : value;
+  },
+}) as Db;
 
 export { schema };

@@ -1,3 +1,5 @@
+import { DEFAULT_MATCH_SETUP } from "@/lib/game/difficulty";
+import { guardWrite, readOr } from "@/server/api/fallback";
 import { jsonError, jsonOk, readJsonBody } from "@/server/api/json";
 import {
   loadOpponentSettings,
@@ -21,8 +23,18 @@ export const runtime = "nodejs";
 
 /** Pengaturan yang tersimpan, atau bawaan bila pemain belum pernah memilih. */
 export function GET(): Response {
-  const player = ensureLocalPlayer();
-  return jsonOk(loadOpponentSettings(player.id));
+  // Pengaturan bawaan sudah jadi jawaban yang sah untuk pemain yang belum
+  // pernah memilih, jadi ia juga jawaban yang sah ketika pilihannya tidak
+  // terbaca — bedanya hanya ditandai `degraded`.
+  const cadangan = { ...DEFAULT_MATCH_SETUP, updatedAt: null };
+
+  const settings = readOr(
+    "GET /api/pengaturan-lawan",
+    () => loadOpponentSettings(ensureLocalPlayer().id),
+    cadangan,
+  );
+
+  return jsonOk({ ...settings, degraded: settings === cadangan });
 }
 
 /**
@@ -42,6 +54,8 @@ export async function PUT(request: Request): Promise<Response> {
     return jsonError(400, parsed.message);
   }
 
-  const player = ensureLocalPlayer();
-  return jsonOk(saveOpponentSettings(player.id, parsed.value));
+  return guardWrite("PUT /api/pengaturan-lawan", () => {
+    const player = ensureLocalPlayer();
+    return jsonOk(saveOpponentSettings(player.id, parsed.value));
+  });
 }

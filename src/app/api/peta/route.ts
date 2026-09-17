@@ -1,5 +1,6 @@
 import { jsonOk } from "@/server/api/json";
-import { listPlayableMaps } from "@/server/maps/map-store";
+import { readOr } from "@/server/api/fallback";
+import { catalogueFromCode, listPlayableMaps } from "@/server/maps/map-store";
 
 /**
  * Daftar peta yang bisa dimainkan.
@@ -19,5 +20,17 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export function GET(): Response {
-  return jsonOk({ maps: listPlayableMaps() });
+  /*
+    Cadangannya katalog di kode itu sendiri, bukan daftar kosong. Barisnya di
+    database memang hanya salinan — aslinya ada di kode — jadi inilah satu-
+    satunya bacaan yang cadangannya selengkap aslinya, dan database yang tidak
+    bisa dibaca tidak perlu menghalangi siapa pun memilih peta.
+
+    Yang hilang hanya penandaan "sudah ditarik dari katalog", dan peta yang
+    ditarik toh sudah tidak ada di kode juga.
+  */
+  const fromCode = catalogueFromCode();
+  const maps = readOr("GET /api/peta", listPlayableMaps, fromCode);
+
+  return jsonOk({ maps, degraded: maps === fromCode });
 }
