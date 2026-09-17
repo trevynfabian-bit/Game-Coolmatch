@@ -125,6 +125,43 @@ export interface ArenaBounds {
   maxZ: number;
 }
 
+/**
+ * Pencahayaan khas sebuah peta.
+ *
+ * Ditaruh pada datanya, bukan pada kanvas, karena cahaya itulah yang paling
+ * menentukan sebuah arena terasa di mana. Ketiga peta punya bentuk yang jelas
+ * berbeda, tetapi dengan satu matahari senja yang sama untuk semuanya, pabrik
+ * tertutup dan atap gedung malam hari sama-sama terlihat seperti gudang.
+ */
+export interface MapLighting {
+  /** Cahaya langit-ke-tanah: warna atas, warna pantulan bawah, lalu kuatnya. */
+  skyLight: string;
+  groundLight: string;
+  hemisphereIntensity: number;
+  /** Cahaya rata tanpa arah. Naik di ruang tertutup, turun di luar saat malam. */
+  ambientIntensity: number;
+  /** Sumber utama — matahari, bulan, atau lampu langit-langit — yang berbayang. */
+  key: {
+    color: string;
+    intensity: number;
+    position: Vec3;
+    /**
+     * Kotak dunia yang dicakup peta bayangan. Mengikuti bentuk peta: arena
+     * persegi butuh kotak seimbang, lorong panjang butuh kotak yang memanjang
+     * ke satu arah, dan yang kesempitan membuat bayangan terpotong.
+     */
+    shadowBox: {
+      left: number;
+      right: number;
+      top: number;
+      bottom: number;
+      far: number;
+    };
+  };
+  /** Isian dari arah berlawanan, tanpa bayangan: sisi gelap tidak jadi hitam pekat. */
+  fill: { color: string; intensity: number; position: Vec3 };
+}
+
 export interface ArenaMapInfo {
   id: string;
   name: string;
@@ -136,7 +173,17 @@ export interface ArenaMapInfo {
   playableBounds: ArenaBounds;
   skyColor: string;
   fogColor: string;
+  /**
+   * Jarak kabut mulai menebal dan jarak ia menutup penuh, dalam satuan dunia.
+   *
+   * Ikut peta karena ukurannya berbeda jauh: nilai tetap yang pas di arena 45
+   * satuan hampir tidak terlihat di lorong 37 satuan, dan memotong pandangan
+   * di atap 53 satuan yang justru dijual sebagai peta berjarak pandang
+   * terjauh.
+   */
+  fogRange: [near: number, far: number];
   floorColor: string;
+  lighting: MapLighting;
   blocks: MapBlock[];
   spawnPoints: Vec3[];
 }

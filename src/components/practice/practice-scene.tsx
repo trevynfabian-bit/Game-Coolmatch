@@ -4,6 +4,7 @@ import { useCallback, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import type { MeshStandardMaterial } from "three";
 import { ArenaMap } from "@/components/arena/arena-map";
+import { MapLights } from "@/components/arena/map-lights";
 import { PlayerController } from "@/components/arena/player-controller";
 import { WeaponSystem } from "@/components/arena/weapon-system";
 import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
@@ -76,30 +77,6 @@ function TargetFlashes() {
   );
 }
 
-/** Pencahayaan lorong latihan: terang dan rata supaya sasaran mudah dibaca. */
-function RangeLights() {
-  return (
-    <>
-      <hemisphereLight args={["#aebfd6", "#3a3f4a", 1.3]} />
-      <ambientLight intensity={0.55} />
-      <directionalLight
-        position={[6, 18, 10]}
-        intensity={1.6}
-        color="#ffe9cc"
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-20}
-        shadow-camera-right={20}
-        shadow-camera-top={20}
-        shadow-camera-bottom={-40}
-        shadow-camera-near={1}
-        shadow-camera-far={90}
-      />
-      <directionalLight position={[-8, 6, -20]} intensity={0.55} color="#8fb3e0" />
-    </>
-  );
-}
-
 /**
  * Tempat latihan menembak: lorong berisi empat sasaran di jarak berbeda, tanpa
  * lawan, tanpa nyawa, dan tanpa batas waktu.
@@ -145,9 +122,9 @@ export function PracticeScene({
       gl={{ antialias: true }}
     >
       <color attach="background" args={[RANGE_MAP.skyColor]} />
-      <fog attach="fog" args={[RANGE_MAP.fogColor, 45, 130]} />
+      <fog attach="fog" args={[RANGE_MAP.fogColor, ...RANGE_MAP.fogRange]} />
 
-      <RangeLights />
+      <MapLights lighting={RANGE_MAP.lighting} />
       <PlayerController map={RANGE_MAP} spawn={RANGE_SPAWN} />
       <WeaponSystem match={snapshot} weapon={weapon} onShot={handleShot} />
       <ArenaMap map={RANGE_MAP} />

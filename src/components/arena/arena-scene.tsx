@@ -4,6 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { ArenaMap } from "@/components/arena/arena-map";
 import { BotDriver } from "@/components/arena/bot-driver";
 import { FighterMarker } from "@/components/arena/fighter-marker";
+import { MapLights } from "@/components/arena/map-lights";
 import { PlayerController } from "@/components/arena/player-controller";
 import { RespawnTicker } from "@/components/arena/respawn-ticker";
 import { RoundTicker } from "@/components/arena/round-ticker";
@@ -15,34 +16,6 @@ import { getLocalFighter } from "@/lib/mock/match";
 import { findWeapon } from "@/lib/mock/weapons";
 import { useMatchStore } from "@/lib/store/match-store";
 import type { MatchSnapshot } from "@/types/game";
-
-/** Pencahayaan arena: matahari senja yang menghasilkan bayangan + isian lembut. */
-function ArenaLights() {
-  return (
-    <>
-      <hemisphereLight args={["#9db4d2", "#3a332b", 1.15]} />
-      <ambientLight intensity={0.45} />
-      <directionalLight
-        position={[18, 26, 10]}
-        intensity={1.9}
-        color="#ffd9ad"
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-30}
-        shadow-camera-right={30}
-        shadow-camera-top={30}
-        shadow-camera-bottom={-30}
-        shadow-camera-near={1}
-        shadow-camera-far={70}
-      />
-      <directionalLight
-        position={[-14, 10, -12]}
-        intensity={0.5}
-        color="#7aa2d6"
-      />
-    </>
-  );
-}
 
 /**
  * Kanvas 3D arena. Seluruh isinya digambar dari `MatchSnapshot` yang dioper,
@@ -77,9 +50,9 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
       gl={{ antialias: true }}
     >
       <color attach="background" args={[match.map.skyColor]} />
-      <fog attach="fog" args={[match.map.fogColor, 34, 110]} />
+      <fog attach="fog" args={[match.map.fogColor, ...match.map.fogRange]} />
 
-      <ArenaLights />
+      <MapLights lighting={match.map.lighting} />
       <PlayerController map={match.map} spawn={spawnFighter.position} />
       <RespawnTicker map={match.map} />
       <RoundTicker map={match.map} />
@@ -94,7 +67,11 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
           <FighterMarker key={fighter.id} fighter={fighter} />
         ))}
 
-      <WeaponViewmodel color={spawnFighter.color === "#38bdf8" ? "#39424d" : spawnFighter.color} />
+      <WeaponViewmodel
+        color={
+          spawnFighter.color === "#38bdf8" ? "#39424d" : spawnFighter.color
+        }
+      />
     </Canvas>
   );
 }

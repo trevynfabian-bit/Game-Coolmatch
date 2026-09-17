@@ -1,4 +1,9 @@
-import type { ArenaBounds, ArenaMapInfo, MapBlock } from "@/types/game";
+import type {
+  ArenaBounds,
+  ArenaMapInfo,
+  MapBlock,
+  MapLighting,
+} from "@/types/game";
 
 const WALL_COLOR = "#6b6053";
 const CRATE_COLOR = "#9c7440";
@@ -22,10 +27,34 @@ function perimeterWalls(
   const span = half * 2 + 1;
   const y = height / 2;
   return [
-    { id: "wall-utara", kind: "wall", position: [0, y, -half], size: [span, height, 1], color },
-    { id: "wall-selatan", kind: "wall", position: [0, y, half], size: [span, height, 1], color },
-    { id: "wall-barat", kind: "wall", position: [-half, y, 0], size: [1, height, span], color },
-    { id: "wall-timur", kind: "wall", position: [half, y, 0], size: [1, height, span], color },
+    {
+      id: "wall-utara",
+      kind: "wall",
+      position: [0, y, -half],
+      size: [span, height, 1],
+      color,
+    },
+    {
+      id: "wall-selatan",
+      kind: "wall",
+      position: [0, y, half],
+      size: [span, height, 1],
+      color,
+    },
+    {
+      id: "wall-barat",
+      kind: "wall",
+      position: [-half, y, 0],
+      size: [1, height, span],
+      color,
+    },
+    {
+      id: "wall-timur",
+      kind: "wall",
+      position: [half, y, 0],
+      size: [1, height, span],
+      color,
+    },
   ];
 }
 
@@ -230,7 +259,11 @@ const pabrikMachines: MapBlock[] = [
 ].map(([id, x, z, h]) => ({
   id: id as string,
   kind: "crate" as const,
-  position: [x as number, (h as number) / 2, z as number] as [number, number, number],
+  position: [x as number, (h as number) / 2, z as number] as [
+    number,
+    number,
+    number,
+  ],
   size: [3, h as number, 3] as [number, number, number],
   color: PABRIK_MESIN,
 }));
@@ -313,6 +346,73 @@ const atapParapets: MapBlock[] = [
   color: ATAP_PARAPET,
 }));
 
+/**
+ * Matahari senja rendah yang masuk lewat jendela atas gudang.
+ *
+ * Hangat dan miring, jadi tumpukan krat melempar bayangan panjang melintasi
+ * lantai — itulah yang membuat ruangan terbaca sebagai sore hari, bukan sekadar
+ * ruangan gelap.
+ */
+const GUDANG_LIGHTING: MapLighting = {
+  skyLight: "#9db4d2",
+  groundLight: "#3a332b",
+  hemisphereIntensity: 1.15,
+  ambientIntensity: 0.45,
+  key: {
+    color: "#ffd9ad",
+    intensity: 1.9,
+    position: [18, 26, 10],
+    shadowBox: { left: -30, right: 30, top: 30, bottom: -30, far: 70 },
+  },
+  fill: { color: "#7aa2d6", intensity: 0.5, position: [-14, 10, -12] },
+};
+
+/**
+ * Lampu langit-langit pabrik: dingin, hampir tegak lurus, tidak ada matahari.
+ *
+ * Sengaja jauh lebih lemah daripada peta lain, dengan cahaya rata yang justru
+ * dinaikkan. Begitulah ruang tertutup bekerja — tidak ada sumber kuat dari satu
+ * arah, tetapi tembok yang rapat memantulkan apa pun yang ada, sehingga sudut
+ * gelap tidak pernah benar-benar hitam. Bayangan yang nyaris lurus ke bawah
+ * membuat jalur-jalur sempitnya terbaca sebagai lorong, bukan sebagai
+ * penghalang di lapangan terbuka.
+ */
+const PABRIK_LIGHTING: MapLighting = {
+  skyLight: "#8f9bab",
+  groundLight: "#2b2d33",
+  hemisphereIntensity: 0.9,
+  ambientIntensity: 0.62,
+  key: {
+    color: "#cfe0ef",
+    intensity: 1.15,
+    position: [5, 30, 3],
+    shadowBox: { left: -24, right: 24, top: 24, bottom: -24, far: 62 },
+  },
+  fill: { color: "#5f7f94", intensity: 0.35, position: [-10, 8, 14] },
+};
+
+/**
+ * Malam di atap: bulan dari satu sisi, lampu kota dari sisi lain.
+ *
+ * Isiannya hangat dan ditaruh RENDAH, setinggi dada — cahaya kota datang dari
+ * bawah, dari jalanan, bukan dari langit. Itu satu-satunya hal yang membuat
+ * atap terasa berada di atas sesuatu. Cahaya ratanya paling redup di antara
+ * ketiga peta karena memang malam hari; yang menerangi hanyalah dua sumber itu.
+ */
+const ATAP_LIGHTING: MapLighting = {
+  skyLight: "#6f6a9c",
+  groundLight: "#2a2333",
+  hemisphereIntensity: 1,
+  ambientIntensity: 0.34,
+  key: {
+    color: "#cdd6ff",
+    intensity: 1.5,
+    position: [-20, 30, -16],
+    shadowBox: { left: -34, right: 34, top: 34, bottom: -34, far: 80 },
+  },
+  fill: { color: "#ff9d5c", intensity: 0.55, position: [14, 4, 18] },
+};
+
 export const MOCK_MAPS: ArenaMapInfo[] = [
   {
     id: "map-gudang-senja",
@@ -324,7 +424,9 @@ export const MOCK_MAPS: ArenaMapInfo[] = [
     playableBounds: boundsInside(22),
     skyColor: "#0e1219",
     fogColor: "#2a3039",
+    fogRange: [30, 95],
     floorColor: "#554d42",
+    lighting: GUDANG_LIGHTING,
     blocks: [
       ...perimeterWalls(22, 7),
       ...centerStructure,
@@ -356,7 +458,9 @@ export const MOCK_MAPS: ArenaMapInfo[] = [
     playableBounds: boundsInside(18),
     skyColor: "#0b0f14",
     fogColor: "#1f262e",
+    fogRange: [16, 58],
     floorColor: "#3f4148",
+    lighting: PABRIK_LIGHTING,
     blocks: [
       ...perimeterWalls(18, 7, PABRIK_WALL),
       ...pabrikLanes,
@@ -385,7 +489,9 @@ export const MOCK_MAPS: ArenaMapInfo[] = [
     playableBounds: boundsInside(26),
     skyColor: "#1a1622",
     fogColor: "#3b3348",
+    fogRange: [46, 150],
     floorColor: "#4a4d55",
+    lighting: ATAP_LIGHTING,
     blocks: [
       ...perimeterWalls(26, 4, ATAP_PARAPET),
       ...atapHelipad,

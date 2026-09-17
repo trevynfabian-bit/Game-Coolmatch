@@ -29,16 +29,18 @@ const targetBlocks: MapBlock[] = LANE_X.map((x, index) => ({
   color: TARGET_COLORS[index],
 }));
 
-export const RANGE_TARGETS: RangeTarget[] = targetBlocks.map((block, index) => ({
-  id: block.id,
-  distance: Math.round(
-    Math.hypot(
-      block.position[0] - RANGE_SPAWN[0],
-      block.position[2] - RANGE_SPAWN[2],
+export const RANGE_TARGETS: RangeTarget[] = targetBlocks.map(
+  (block, index) => ({
+    id: block.id,
+    distance: Math.round(
+      Math.hypot(
+        block.position[0] - RANGE_SPAWN[0],
+        block.position[2] - RANGE_SPAWN[2],
+      ),
     ),
-  ),
-  color: TARGET_COLORS[index],
-}));
+    color: TARGET_COLORS[index],
+  }),
+);
 
 /** Tiang penyangga di bawah tiap pelat, murni hiasan. */
 const standBlocks: MapBlock[] = targetBlocks.map((block, index) => ({
@@ -100,7 +102,29 @@ export const RANGE_MAP: ArenaMapInfo = {
   playableBounds: { minX: -13.5, maxX: 13.5, minZ: -51.5, maxZ: 8.5 },
   skyColor: "#0c1017",
   fogColor: "#222a35",
+  fogRange: [45, 130],
   floorColor: "#4b5260",
+  /**
+   * Terang dan rata, tidak seperti peta bertanding.
+   *
+   * Lorong ini bukan tempat yang harus terasa di mana pun; satu-satunya
+   * tugasnya adalah membuat keempat sasaran terbaca sama jelasnya di jarak
+   * yang berbeda-beda. Kotak bayangannya memanjang jauh ke belakang mengikuti
+   * bentuk lorongnya — kotak seimbang akan memotong bayangan sasaran terjauh.
+   */
+  lighting: {
+    skyLight: "#aebfd6",
+    groundLight: "#3a3f4a",
+    hemisphereIntensity: 1.3,
+    ambientIntensity: 0.55,
+    key: {
+      color: "#ffe9cc",
+      intensity: 1.6,
+      position: [6, 18, 10],
+      shadowBox: { left: -20, right: 20, top: 20, bottom: -40, far: 90 },
+    },
+    fill: { color: "#8fb3e0", intensity: 0.55, position: [-8, 6, -20] },
+  },
   blocks: [...walls, ...distanceMarkers, ...standBlocks, ...targetBlocks],
   spawnPoints: [RANGE_SPAWN],
 };
@@ -112,6 +136,8 @@ export const RANGE_MAP: ArenaMapInfo = {
  */
 export const TARGET_INDEX_BY_BLOCK = new Map<number, string>(
   RANGE_MAP.blocks.flatMap((block, index) =>
-    block.id.startsWith(TARGET_PREFIX) ? [[index, block.id] as [number, string]] : [],
+    block.id.startsWith(TARGET_PREFIX)
+      ? [[index, block.id] as [number, string]]
+      : [],
   ),
 );
