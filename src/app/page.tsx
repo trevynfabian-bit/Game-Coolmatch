@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MenuProgress } from "@/components/menu/menu-progress";
 import { PlayerStatus } from "@/components/menu/player-status";
 
 /** Tujuan sekunder menu, diurutkan mengikuti urutan pemain menyiapkannya. */
@@ -66,6 +67,14 @@ export default function Home() {
             ))}
           </ul>
         </nav>
+
+        {/*
+          Di KAKI menu, bukan di atas tombol Main Cepat. Tempat ini bukan
+          keputusan yang harus diambil pemain sebelum bertanding — ia catatan
+          penutup, dan menaruhnya lebih tinggi hanya mendorong tombol utama
+          turun demi angka yang tidak menghalangi siapa pun.
+        */}
+        <MenuProgress />
       </div>
     </main>
   );

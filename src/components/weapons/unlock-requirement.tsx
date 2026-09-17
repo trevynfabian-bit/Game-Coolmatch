@@ -1,3 +1,4 @@
+import { UnlockBar } from "@/components/weapons/unlock-bar";
 import { unlockFacts, type UnlockRequirement } from "@/lib/game/unlock";
 
 /**
@@ -30,21 +31,7 @@ export function UnlockRequirementNote({
       <span className="block text-[11px] text-amber-300/80">{facts.label}</span>
 
       <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span
-          className={`h-1 overflow-hidden rounded-full bg-white/10 ${barWidth}`}
-          role="progressbar"
-          aria-valuenow={Math.round(facts.progress * 100)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={facts.label}
-        >
-          <span
-            className="block h-full rounded-full bg-amber-400/70"
-            // Lebar minimum dua persen supaya kemajuan yang baru sedikit tetap
-            // terlihat sebagai garis, bukan bar yang seolah kosong sama sekali.
-            style={{ width: `${Math.max(2, facts.progress * 100)}%` }}
-          />
-        </span>
+        <UnlockBar facts={facts} className={barWidth} />
 
         <span className="font-mono text-[10px] text-slate-500 tabular-nums">
           {facts.countText}

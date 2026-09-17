@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { CollectionEntryRow } from "@/components/collection/collection-entry-row";
-import { StatTile } from "@/components/scoreboard/stat-tile";
+import { NextUnlockPanel } from "@/components/progress/next-unlock";
+import { ProgressSummary } from "@/components/progress/progress-summary";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
-import { collectionFacts, progressFacts } from "@/lib/game/collection";
-import { unlockFacts } from "@/lib/game/unlock";
+import { collectionFacts } from "@/lib/game/collection";
 import {
   MOCK_PLAYER_PROGRESS,
   weaponOwnership,
@@ -31,7 +31,6 @@ export function CollectionScreen() {
   const router = useRouter();
   const selectWeapon = useLoadoutStore((state) => state.selectWeapon);
 
-  const progress = useMemo(() => progressFacts(MOCK_PLAYER_PROGRESS), []);
   const collection = useMemo(
     () => collectionFacts(MOCK_WEAPONS, weaponOwnership),
     [],
@@ -55,11 +54,6 @@ export function CollectionScreen() {
 
   const persen = Math.round(collection.completion * 100);
 
-  /** Sisa syarat senjata yang paling dekat terbuka; null bila semua terbuka. */
-  const berikutnya = collection.nextUnlock?.ownership.requirement
-    ? unlockFacts(collection.nextUnlock.ownership.requirement)
-    : null;
-
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8">
       <header className="mb-8">
@@ -80,31 +74,23 @@ export function CollectionScreen() {
         <h2 className="mb-3 text-[11px] tracking-[0.2em] text-slate-400 uppercase">
           Progres main
         </h2>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <StatTile label="Pertandingan" value={progress.matchesPlayed} />
-          <StatTile
-            label="Menang"
-            value={progress.wins}
-            accent="text-emerald-300"
-          />
-          <StatTile
-            label="Tingkat menang"
-            value={`${progress.winRate}%`}
-            accent="text-amber-300"
-          />
-          <StatTile
-            label="Total kill"
-            value={progress.totalKills}
-            accent="text-sky-300"
-          />
-        </div>
-        <p className="mt-2 text-[11px] text-slate-500">
-          Rata-rata{" "}
-          <span className="font-mono text-slate-400">
-            {progress.killsPerMatch}
-          </span>{" "}
-          kill per pertandingan.
-        </p>
+        <ProgressSummary progress={MOCK_PLAYER_PROGRESS} />
+
+        {/*
+          Sasaran terdekat ikut bagian PROGRES, bukan bagian koleksi, dan itu
+          bukan sekadar penempatan. Di bawah daftar koleksi ia berdiri tepat di
+          atas baris senjatanya sendiri — nama, syarat, batang, dan sisa yang
+          sama persis dua kali berturut-turut, terbaca seperti halaman yang
+          tergagap. Di sini ia menjawab pertanyaan lanjutan yang wajar dari
+          angka di atasnya: sudah sejauh ini, lalu apa yang dibelinya?
+        */}
+        {collection.nextUnlock ? (
+          <NextUnlockPanel entry={collection.nextUnlock} className="mt-4" />
+        ) : (
+          <p className="mt-3 text-[11px] text-emerald-300/80">
+            Seluruh senjata sudah terbuka. Tidak ada lagi yang perlu dikejar.
+          </p>
+        )}
       </section>
 
       <section className="mb-8">
@@ -135,24 +121,6 @@ export function CollectionScreen() {
             style={{ width: `${persen}%` }}
           />
         </div>
-
-        {berikutnya ? (
-          <p className="mt-3 text-[11px] leading-relaxed text-amber-200/80">
-            Paling dekat terbuka:{" "}
-            <span className="font-medium text-amber-200">
-              {collection.nextUnlock?.weapon.name}
-            </span>{" "}
-            — tinggal{" "}
-            <span className="font-medium text-amber-200">
-              {berikutnya.remainingText}
-            </span>{" "}
-            ({berikutnya.countText}).
-          </p>
-        ) : (
-          <p className="mt-3 text-[11px] text-emerald-300/80">
-            Seluruh senjata sudah terbuka. Tidak ada lagi yang perlu dikejar.
-          </p>
-        )}
 
         <ul className="mt-4 space-y-2">
           {collection.entries.map((entry) => (
