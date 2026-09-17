@@ -9,6 +9,7 @@ import { PlayerController } from "@/components/arena/player-controller";
 import { WeaponSystem } from "@/components/arena/weapon-system";
 import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
 import { EYE_HEIGHT } from "@/lib/game/controls";
+import { useRenderQuality } from "@/lib/game/render-quality";
 import type { ShotHit } from "@/lib/game/shooting";
 import {
   RANGE_MAP,
@@ -93,6 +94,7 @@ export function PracticeScene({
   weapon: Weapon;
 }) {
   const recordShot = usePracticeStore((state) => state.recordShot);
+  const quality = useRenderQuality();
 
   const handleShot = useCallback(
     (hit: ShotHit | null) => {
@@ -111,15 +113,15 @@ export function PracticeScene({
 
   return (
     <Canvas
-      shadows
-      dpr={[1, 1.75]}
+      shadows={quality.shadows}
+      dpr={quality.dpr}
       camera={{
         fov: 75,
         near: 0.1,
         far: 220,
         position: [RANGE_SPAWN[0], RANGE_SPAWN[1] + EYE_HEIGHT, RANGE_SPAWN[2]],
       }}
-      gl={{ antialias: true }}
+      gl={{ antialias: quality.antialias }}
     >
       <color attach="background" args={[RANGE_MAP.skyColor]} />
       <fog attach="fog" args={[RANGE_MAP.fogColor, ...RANGE_MAP.fogRange]} />

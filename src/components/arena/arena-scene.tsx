@@ -12,6 +12,7 @@ import { WeaponSwap } from "@/components/arena/weapon-swap";
 import { WeaponSystem } from "@/components/arena/weapon-system";
 import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
 import { EYE_HEIGHT } from "@/lib/game/controls";
+import { useRenderQuality } from "@/lib/game/render-quality";
 import { getLocalFighter } from "@/lib/mock/match";
 import { findWeapon } from "@/lib/mock/weapons";
 import { useMatchStore } from "@/lib/store/match-store";
@@ -23,6 +24,7 @@ import type { MatchSnapshot } from "@/types/game";
  */
 export function ArenaScene({ match }: { match: MatchSnapshot }) {
   const spawnFighter = getLocalFighter(match);
+  const quality = useRenderQuality();
   // Petarung dibaca dari state yang hidup supaya nyawa, kematian, dan skor
   // langsung terlihat di arena.
   const fighters = useMatchStore((state) => state.fighters);
@@ -35,8 +37,8 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
 
   return (
     <Canvas
-      shadows
-      dpr={[1, 1.75]}
+      shadows={quality.shadows}
+      dpr={quality.dpr}
       camera={{
         fov: 75,
         near: 0.1,
@@ -47,7 +49,7 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
           spawnFighter.position[2],
         ],
       }}
-      gl={{ antialias: true }}
+      gl={{ antialias: quality.antialias }}
     >
       <color attach="background" args={[match.map.skyColor]} />
       <fog attach="fog" args={[match.map.fogColor, ...match.map.fogRange]} />
