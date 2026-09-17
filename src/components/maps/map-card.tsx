@@ -1,5 +1,6 @@
 "use client";
 
+import { MapThumbnail } from "@/components/maps/map-thumbnail";
 import { mapFeel, sightWord, sizeWord, type MapFacts } from "@/lib/game/map-info";
 import type { ArenaMapInfo } from "@/types/game";
 
@@ -20,34 +21,6 @@ function Fact({ label, value }: { label: string; value: string | number }) {
       <span className="text-right text-[13px] font-medium text-slate-200">
         {value}
       </span>
-    </span>
-  );
-}
-
-/**
- * Tiga warna yang menentukan suasana sebuah peta — langit, kabut, dan lantai.
- *
- * Ditampilkan apa adanya sebagai pita warna, bukan diterjemahkan jadi kata.
- * Inilah yang paling cepat membedakan gudang senja yang kecokelatan dari atap
- * kota yang keunguan, jauh sebelum pemain sempat membaca deskripsinya.
- */
-function MoodStrip({ map }: { map: ArenaMapInfo }) {
-  const warna = [
-    { id: "langit", value: map.skyColor, label: "Langit" },
-    { id: "kabut", value: map.fogColor, label: "Kabut" },
-    { id: "lantai", value: map.floorColor, label: "Lantai" },
-  ];
-
-  return (
-    <span className="flex h-1.5 overflow-hidden rounded-full" aria-hidden>
-      {warna.map((w) => (
-        <span
-          key={w.id}
-          className="flex-1"
-          style={{ backgroundColor: w.value }}
-          title={`${w.label} ${w.value}`}
-        />
-      ))}
     </span>
   );
 }
@@ -93,8 +66,16 @@ export function MapCard({
         ) : null}
       </span>
 
-      <span className="mt-2 block">
-        <MoodStrip map={map} />
+      {/*
+        Denahnya diberi bingkai dan sudut membulat sendiri supaya terbaca
+        sebagai gambar peta, bukan sebagai latar kartunya.
+      */}
+      <span
+        className={`mt-3 block overflow-hidden rounded-lg border ${
+          selected ? "border-emerald-400/30" : "border-white/10"
+        }`}
+      >
+        <MapThumbnail map={map} />
       </span>
 
       <span className="mt-3 block flex-1 text-[11px] leading-relaxed text-slate-400">
