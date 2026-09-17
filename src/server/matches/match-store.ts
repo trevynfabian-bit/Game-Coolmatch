@@ -12,7 +12,12 @@ import {
   MAX_BOTS,
   MIN_BOTS,
 } from "@/lib/game/difficulty";
-import type { Difficulty, MatchResult, MatchScoreLine } from "@/types/game";
+import type {
+  Difficulty,
+  MatchResult,
+  MatchRoundResult,
+  MatchScoreLine,
+} from "@/types/game";
 import { db } from "@/server/db/client";
 import { matchRounds, matchScores, matches } from "@/server/db/schema";
 import { ensureMapRow, findMapName } from "@/server/maps/map-store";
@@ -345,6 +350,8 @@ export interface LiveScoreboard {
   endedAt: number | null;
   /** Ronde yang sudah selesai; diturunkan dari catatan ronde, bukan disimpan. */
   roundsPlayed: number;
+  /** Hasil tiap ronde, urut dari ronde pertama. */
+  rounds: MatchRoundResult[];
   /** Sudah TERURUT sebagai klasemen; klien tinggal menampilkannya. */
   scoreboard: MatchScoreLine[];
 }
@@ -378,10 +385,11 @@ export function loadLiveScoreboard(matchId: number): LiveScoreboard | null {
     .orderBy(asc(matchScores.id))
     .all();
 
-  const [{ jumlah }] = db
-    .select({ jumlah: sql<number>`COUNT(*)` })
+  const rounds = db
+    .select()
     .from(matchRounds)
     .where(eq(matchRounds.matchId, matchId))
+    .orderBy(asc(matchRounds.roundNumber))
     .all();
 
   const scoreboard = rankScores(
@@ -418,7 +426,13 @@ export function loadLiveScoreboard(matchId: number): LiveScoreboard | null {
     winnerName: match.winnerName,
     startedAt: match.startedAt,
     endedAt: match.endedAt,
-    roundsPlayed: Number(jumlah),
+    roundsPlayed: rounds.length,
+    rounds: rounds.map((row) => ({
+      roundNumber: row.roundNumber,
+      winnerName: row.winnerName,
+      endedReason: row.endedReason,
+      playerKills: row.playerKills,
+    })),
     scoreboard,
   };
 }
@@ -660,5 +674,220 @@ export function finishRound(
       result,
       scoreboard: loadLiveScoreboard(matchId)!.scoreboard,
     };
+  });
+}
+
+/** Perolehan akhir satu peserta, dihitung arena sepanjang pertandingan. */
+export interface FinalScoreInput {
+  participantName: string;
+  kills: number;
+  deaths: number;
+  score: number;
+  roundWins: number;
+}
+
+export interface FinishMatchInput {
+  /**
+   * "selesai" berarti pertandingan berakhir wajar dan juaranya ditentukan.
+   * "ditinggal" berarti pemain keluar di tengah jalan — perolehan sejauh itu
+   * tetap disimpan, tetapi tidak ada yang berhak disebut juara.
+   */
+  reason: "selesai" | "ditinggal";
+  /** Total akhir dari arena; boleh kosong, lihat catatan pada finishMatch. */
+  scores?: FinalScoreInput[];
+}
+
+/** Memeriksa badan permintaan "tutup pertandingan". */
+export function parseFinishMatch(body: unknown): Parsed<FinishMatchInput> {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return { ok: false, message: "Badan permintaan harus berupa objek JSON." };
+  }
+  const b = body as Record<string, unknown>;
+
+  if (b.reason !== "selesai" && b.reason !== "ditinggal") {
+    return {
+      ok: false,
+      message: 'Sebab berakhir harus "selesai" atau "ditinggal".',
+    };
+  }
+
+  if (b.scores === undefined) {
+    return { ok: true, value: { reason: b.reason } };
+  }
+  if (!Array.isArray(b.scores)) {
+    return { ok: false, message: "Perolehan akhir harus berupa daftar." };
+  }
+
+  const scores: FinalScoreInput[] = [];
+  for (const raw of b.scores) {
+    if (typeof raw !== "object" || raw === null) {
+      return { ok: false, message: "Tiap perolehan akhir harus berupa objek." };
+    }
+    const r = raw as Record<string, unknown>;
+    if (!nonEmptyString(r.participantName)) {
+      return { ok: false, message: "Tiap perolehan akhir harus menyebut nama peserta." };
+    }
+    for (const field of ["kills", "deaths", "score", "roundWins"] as const) {
+      const value = r[field];
+      if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+        return {
+          ok: false,
+          message: `${field} milik "${r.participantName}" harus bilangan bulat tidak negatif.`,
+        };
+      }
+    }
+    scores.push({
+      participantName: r.participantName,
+      kills: r.kills as number,
+      deaths: r.deaths as number,
+      score: r.score as number,
+      roundWins: r.roundWins as number,
+    });
+  }
+
+  if (new Set(scores.map((s) => s.participantName)).size !== scores.length) {
+    return { ok: false, message: "Nama peserta tidak boleh disebut dua kali." };
+  }
+
+  return { ok: true, value: { reason: b.reason, scores } };
+}
+
+export type FinishMatchResult =
+  | { ok: true; summary: LiveScoreboard }
+  | { ok: false; status: 404 | 409; message: string };
+
+/**
+ * Menutup sebuah pertandingan dan menetapkan hasil akhirnya.
+ *
+ * Ada dua cara pertandingan berakhir, dan keduanya perlu jalur ini:
+ *
+ * Yang WAJAR — syarat kemenangan tercapai — biasanya sudah ditutup endpoint
+ * ronde. Jalur ini tetap dibutuhkan untuk menyerahkan TOTAL AKHIR dari arena.
+ * Arena-lah yang benar-benar menghitung pertarungannya; catatan bertahap di
+ * server hanya penyelamat, dan permintaan yang sempat terkirim dua kali bisa
+ * membuatnya menyimpang. Menimpanya dengan total arena menyelesaikan selisih
+ * itu sekaligus.
+ *
+ * Yang DITINGGAL — pemain keluar di tengah jalan. Perolehan sejauh itu tetap
+ * disimpan supaya pertandingannya tidak hilang tanpa jejak, tetapi tidak ada
+ * yang berhak disebut juara: syarat kemenangannya memang tidak pernah diuji.
+ *
+ * Juara dihitung `findMatchWinner`, aturan yang sama dengan arena. Server tidak
+ * menerima klaim juara dari klien — hanya angkanya.
+ */
+export function finishMatch(
+  matchId: number,
+  input: FinishMatchInput,
+): FinishMatchResult {
+  return db.transaction((tx) => {
+    const [match] = tx
+      .select()
+      .from(matches)
+      .where(eq(matches.id, matchId))
+      .limit(1)
+      .all();
+
+    if (!match) {
+      return { ok: false, status: 404, message: "Pertandingan tidak ditemukan." };
+    }
+    if (match.endedAt !== null) {
+      return {
+        ok: false,
+        status: 409,
+        message: "Pertandingan sudah ditutup.",
+      };
+    }
+
+    const lines = tx
+      .select()
+      .from(matchScores)
+      .where(eq(matchScores.matchId, matchId))
+      .all();
+    const known = new Set(lines.map((line) => line.participantName));
+
+    for (const s of input.scores ?? []) {
+      if (!known.has(s.participantName)) {
+        return {
+          ok: false,
+          status: 404,
+          message: `"${s.participantName}" bukan peserta pertandingan ini.`,
+        };
+      }
+    }
+
+    for (const s of input.scores ?? []) {
+      tx.update(matchScores)
+        .set({
+          kills: s.kills,
+          deaths: s.deaths,
+          score: s.score,
+          roundWins: s.roundWins,
+        })
+        .where(
+          and(
+            eq(matchScores.matchId, matchId),
+            eq(matchScores.participantName, s.participantName),
+          ),
+        )
+        .run();
+    }
+
+    const akhir = tx
+      .select()
+      .from(matchScores)
+      .where(eq(matchScores.matchId, matchId))
+      .all()
+      .map((line) => ({
+        name: line.participantName,
+        isBot: line.isBot,
+        roundWins: line.roundWins,
+        kills: line.kills,
+        deaths: line.deaths,
+      }));
+
+    // Pertandingan yang ditinggal tidak punya juara: syarat kemenangannya tidak
+    // pernah diuji, dan menobatkan yang kebetulan unggul saat pemain keluar
+    // akan mencatat kemenangan yang tidak pernah diperjuangkan siapa pun.
+    const matchWinner =
+      input.reason === "ditinggal" ? null : (findMatchWinner(akhir)?.name ?? null);
+    const local = akhir.find((s) => !s.isBot);
+    const result: MatchResult =
+      input.reason === "ditinggal"
+        ? "ditinggal"
+        : !matchWinner
+          ? "seri"
+          : local && matchWinner === local.name
+            ? "menang"
+            : "kalah";
+
+    tx.update(matches)
+      .set({
+        endedAt: sql`(unixepoch() * 1000)`,
+        result,
+        winnerName: matchWinner,
+      })
+      .where(eq(matches.id, matchId))
+      .run();
+
+    // Penanda juara disetel ulang dari nol: total akhir bisa memindahkan juara
+    // dari orang yang tadinya unggul menurut catatan bertahap.
+    tx.update(matchScores)
+      .set({ isWinner: false })
+      .where(eq(matchScores.matchId, matchId))
+      .run();
+
+    if (matchWinner) {
+      tx.update(matchScores)
+        .set({ isWinner: true })
+        .where(
+          and(
+            eq(matchScores.matchId, matchId),
+            eq(matchScores.participantName, matchWinner),
+          ),
+        )
+        .run();
+    }
+
+    return { ok: true, summary: loadLiveScoreboard(matchId)! };
   });
 }
