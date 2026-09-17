@@ -1,14 +1,15 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { killScore } from "@/lib/game/damage";
+import { rankScores } from "@/lib/game/scoreboard";
 import {
   DIFFICULTY_PROFILES,
   MAX_BOTS,
   MIN_BOTS,
 } from "@/lib/game/difficulty";
-import type { Difficulty } from "@/types/game";
+import type { Difficulty, MatchScoreLine } from "@/types/game";
 import { db } from "@/server/db/client";
-import { matchScores, matches } from "@/server/db/schema";
-import { ensureMapRow } from "@/server/maps/map-store";
+import { matchRounds, matchScores, matches } from "@/server/db/schema";
+import { ensureMapRow, findMapName } from "@/server/maps/map-store";
 
 /** Satu peserta pertandingan saat pertandingan dimulai. */
 export interface ParticipantInput {
@@ -311,4 +312,107 @@ export function recordKill(matchId: number, input: KillInput): RecordKillResult 
 
     return { ok: true, killer: ringkas(killer), victim: ringkas(victim) };
   });
+}
+
+/**
+ * Keadaan sebuah pertandingan beserta papan skornya saat ini.
+ *
+ * Bentuk baris skornya sengaja `MatchScoreLine` — tipe yang SAMA dengan yang
+ * sudah dipakai halaman skor dan komponen barisnya — supaya klien tidak perlu
+ * menerjemahkan apa pun, dan supaya penambahan kolom baru nanti tidak bisa
+ * lolos hanya di salah satu sisi.
+ */
+export interface LiveScoreboard {
+  matchId: number;
+  mapId: string;
+  mapName: string;
+  difficulty: Difficulty;
+  botCount: number;
+  totalRounds: number;
+  scoreLimit: number;
+  roundSeconds: number;
+  /** "berjalan" selama `endedAt` masih kosong. */
+  status: "berjalan" | "selesai";
+  result: string | null;
+  winnerName: string | null;
+  startedAt: number;
+  endedAt: number | null;
+  /** Ronde yang sudah selesai; diturunkan dari catatan ronde, bukan disimpan. */
+  roundsPlayed: number;
+  /** Sudah TERURUT sebagai klasemen; klien tinggal menampilkannya. */
+  scoreboard: MatchScoreLine[];
+}
+
+/**
+ * Papan skor sebuah pertandingan apa adanya saat ini.
+ *
+ * Urutannya ditentukan `rankScores` — fungsi yang sama dengan yang dipakai
+ * klasemen di klien — jadi papan skor yang datang dari server tidak mungkin
+ * berurutan berbeda dari yang tampil di arena. Mengurutkannya di sini juga
+ * berarti klien tidak perlu tahu bahwa juara ditentukan kemenangan ronde lebih
+ * dulu, baru skor.
+ *
+ * Mengembalikan null bila pertandingannya tidak ada, supaya pemanggil yang
+ * memutuskan itu 404 — modul ini tidak tahu apa-apa soal HTTP.
+ */
+export function loadLiveScoreboard(matchId: number): LiveScoreboard | null {
+  const [match] = db
+    .select()
+    .from(matches)
+    .where(eq(matches.id, matchId))
+    .limit(1)
+    .all();
+
+  if (!match) return null;
+
+  const lines = db
+    .select()
+    .from(matchScores)
+    .where(eq(matchScores.matchId, matchId))
+    .orderBy(asc(matchScores.id))
+    .all();
+
+  const [{ jumlah }] = db
+    .select({ jumlah: sql<number>`COUNT(*)` })
+    .from(matchRounds)
+    .where(eq(matchRounds.matchId, matchId))
+    .all();
+
+  const scoreboard = rankScores(
+    lines.map((line): MatchScoreLine => ({
+      id: String(line.id),
+      participantName: line.participantName,
+      isBot: line.isBot,
+      // Satu-satunya peserta yang bukan bot adalah pemain di perangkat ini;
+      // itu dijamin saat pertandingan dibuka.
+      isLocal: !line.isBot,
+      kills: line.kills,
+      deaths: line.deaths,
+      score: line.score,
+      roundWins: line.roundWins,
+      isWinner: line.isWinner,
+      color: line.color,
+    })),
+  );
+
+  return {
+    matchId: match.id,
+    mapId: match.mapId,
+    // Nama peta diambil dari tabelnya, bukan disalin ke baris pertandingan:
+    // satu peta dipakai banyak pertandingan, dan menyalinnya berarti mengubah
+    // nama peta harus menyentuh seluruh riwayat.
+    mapName: findMapName(match.mapId) ?? match.mapId,
+    difficulty: match.difficulty,
+    botCount: match.botCount,
+    totalRounds: match.totalRounds,
+    scoreLimit: match.scoreLimit,
+    roundSeconds: match.roundSeconds,
+    status: match.endedAt === null ? "berjalan" : "selesai",
+    result: match.result,
+    winnerName: match.winnerName,
+    startedAt: match.startedAt,
+    endedAt: match.endedAt,
+    roundsPlayed: Number(jumlah),
+    scoreboard,
+  };
 }
