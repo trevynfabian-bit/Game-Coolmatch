@@ -1,16 +1,31 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
+import { Vector3 } from "three";
 import { stepBot } from "@/lib/game/bot-ai";
+import {
+  HEADSHOT_SHARE,
+  hitChance,
+  nextFireDelay,
+} from "@/lib/game/bot-combat";
 import { getBot, syncBots } from "@/lib/game/bot-runtime";
 import { buildColliders } from "@/lib/game/collision";
 import { PLAYER_BOUNDS } from "@/lib/game/controls";
+import { resolveShotDamage } from "@/lib/game/damage";
 import { difficultyProfile } from "@/lib/game/difficulty";
+import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { raycastArena } from "@/lib/game/shooting";
+import { findWeapon } from "@/lib/mock/weapons";
+import { useCombatStore } from "@/lib/store/combat-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { ArenaMapInfo, Difficulty, Vec3 } from "@/types/game";
+
+/** Sudut terpendek antara dua arah, dinormalkan ke rentang -PI..PI. */
+function shortestAngle(from: number, to: number) {
+  return Math.atan2(Math.sin(from - to), Math.cos(from - to));
+}
 
 /** Batas delta agar tab yang sempat tidak aktif tidak melontarkan musuh. */
 const MAX_DELTA = 1 / 15;
@@ -21,16 +36,21 @@ const BOT_EYE = 1.55;
 const PLAYER_CHEST = 1.15;
 
 /**
- * Menggerakkan semua musuh otomatis tiap frame.
+ * Menjalankan semua musuh otomatis tiap frame: berjalan, membidik, menembak.
  *
- * Keputusannya ada di `stepBot`; komponen ini hanya menyiapkan bahan — siapa
- * yang hidup, di mana pemain, dan apakah garis pandangnya terbuka — lalu
- * menyimpan hasilnya ke runtime musuh. Tidak ada state React yang disentuh per
- * frame, jadi penanda petarung tidak ikut dirender ulang; penanda itu membaca
- * posisi terbaru sendiri di dalam `useFrame` miliknya.
+ * Keputusan geraknya ada di `stepBot` dan aturan tembaknya di `bot-combat`;
+ * komponen ini menyiapkan bahan — siapa yang hidup, di mana pemain, dan apakah
+ * garis pandangnya terbuka — lalu menyimpan hasilnya ke runtime musuh. Tidak
+ * ada state React yang disentuh per frame untuk gerak, jadi penanda petarung
+ * tidak ikut dirender ulang; penanda itu membaca posisi terbaru sendiri di
+ * dalam `useFrame` miliknya.
  *
- * Musuh hanya bergerak saat ronde berjalan dan pemain benar-benar bermain,
- * sama seperti bagian arena lain yang berdetak.
+ * Tiap musuh punya JAM TEMBAKNYA SENDIRI. Itu bedanya dengan sumber tembakan
+ * tiruan yang digantikan komponen ini, yang hanya punya satu jam untuk seluruh
+ * arena dan karena itu perlu meregangkan angka pada profil kesulitan.
+ *
+ * Musuh hanya hidup saat ronde berjalan dan pemain benar-benar bermain, sama
+ * seperti bagian arena lain yang berdetak.
  */
 export function BotDriver({
   map,
@@ -41,6 +61,7 @@ export function BotDriver({
 }) {
   const camera = useThree((state) => state.camera);
   const colliders = useMemo(() => buildColliders(map), [map]);
+  const forward = useRef(new Vector3());
 
   useFrame((_state, rawDelta) => {
     const delta = Math.min(rawDelta, MAX_DELTA);
@@ -55,6 +76,7 @@ export function BotDriver({
     if (!local) return;
 
     const profile = difficultyProfile(difficulty);
+    const now = performance.now() / 1000;
     // Pemain diikuti dari kamera, karena di situlah posisi hidupnya berada.
     const target: Vec3 = [
       camera.position.x,
@@ -94,6 +116,50 @@ export function BotDriver({
       state.verticalVelocity = next.verticalVelocity;
       state.brain = next.brain;
       state.engaged = next.engaged;
+
+      // Membidik dan menembak. Memburu saja tidak cukup: garis pandang harus
+      // terbuka SAAT INI JUGA, jadi berlindung tetap memutus tembakan
+      // sepenuhnya walau musuh masih ingat di mana pemain terakhir terlihat.
+      if (!next.engaged || !canSeeTarget || !local.isAlive) {
+        state.nextShotAt = 0;
+        continue;
+      }
+      const weapon = findWeapon(fighter.weaponId);
+      if (state.nextShotAt === 0) {
+        state.nextShotAt = now + nextFireDelay(profile, weapon.damage);
+        continue;
+      }
+      if (now < state.nextShotAt) continue;
+      state.nextShotAt = now + nextFireDelay(profile, weapon.damage);
+
+      const distance = Math.hypot(target[0] - state.x, target[2] - state.z);
+      if (Math.random() > hitChance(profile, distance)) continue;
+
+      const isHeadshot = Math.random() < HEADSHOT_SHARE;
+      const report = match.damageFighter({
+        attackerId: fighter.id,
+        targetId: local.id,
+        damage: resolveShotDamage(weapon.damage, isHeadshot),
+        isHeadshot,
+        weaponName: weapon.name,
+      });
+      if (!report) continue;
+
+      markFighterHit(local.id);
+
+      // Sudut penyerang relatif arah pandang, supaya busur menunjuk ke arah
+      // yang benar.
+      camera.getWorldDirection(forward.current);
+      const facing = Math.atan2(forward.current.x, forward.current.z);
+      const toShooter = Math.atan2(
+        state.x - camera.position.x,
+        state.z - camera.position.z,
+      );
+      useCombatStore.getState().pushIncomingHit({
+        angleRad: shortestAngle(facing, toShooter),
+        severity: (report.healthLost + report.armorLost) / local.maxHealth,
+        attackerName: fighter.name,
+      });
     }
 
     function hasLineOfSight(origin: Vec3, to: Vec3): boolean {

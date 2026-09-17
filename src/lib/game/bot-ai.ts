@@ -34,9 +34,25 @@ const ROAM_SPEED = MOVEMENT.walkSpeed * 0.55;
  * gelisah tepat di garis batas — ia baru mendekat lagi setelah pemain menjauh
  * melewati pita itu.
  */
-const FAR_RANGE = 17;
-const NEAR_RANGE = 7;
+const FAR_RANGE = 14;
+const NEAR_RANGE = 6;
 const RANGE_BAND = 2.5;
+
+/**
+ * Lama musuh tetap memburu pemain setelah kehilangan garis pandang, dalam
+ * detik.
+ *
+ * Tanpa ingatan ini, kesadaran musuh kembali nol setiap kali pemain lewat di
+ * balik pilar atau krat — dan di gudang sepadat ini itu terjadi terus-menerus.
+ * Akibatnya paling terasa pada Santai, yang butuh 1,1 detik penglihatan
+ * beruntun: dalam percobaan satu menit ia tidak pernah sekali pun sempat
+ * mengunci sasaran, sehingga arena terasa mati justru di tingkat yang paling
+ * sering dipilih pemain baru.
+ *
+ * Ingatan ini hanya membuat musuh terus MEMBURU. Ia tetap tidak boleh menembak
+ * tanpa garis pandang; syarat itu diperiksa terpisah saat menarik pelatuk.
+ */
+const MEMORY_SECONDS = 2.5;
 
 /** Lama satu simpangan jelajah dipertahankan sebelum diganti, dalam detik. */
 const ROAM_MIN_SECONDS = 1.4;
@@ -61,9 +77,10 @@ const TURN_RATE = 6.5;
 /** Ingatan sesaat tiap musuh; hanya berarti selama satu ronde berjalan. */
 export interface BotBrain {
   /**
-   * Lama pemain berada dalam garis pandang tanpa putus, dalam detik. Musuh
-   * baru bertindak setelah angka ini melewati `reactionSeconds` profilnya —
-   * itulah yang membuat Santai terasa lamban dan Susah terasa sigap.
+   * Seberapa yakin musuh tahu di mana pemain, dalam detik. Naik selama pemain
+   * terlihat dan turun saat tidak, bukan langsung nol — lihat MEMORY_SECONDS.
+   * Musuh baru bertindak setelah angka ini melewati `reactionSeconds`
+   * profilnya; itulah yang membuat Santai terasa lamban dan Susah terasa sigap.
    */
   seenSeconds: number;
   /** Sisa waktu simpangan jelajah sekarang, dalam detik. */
@@ -148,10 +165,15 @@ export function stepBot(input: BotStepInput): BotStepResult {
     random = Math.random,
   } = input;
 
-  // Garis pandang yang putus menghapus ingatan: musuh harus melihat ulang
-  // sebelum kembali mengejar, persis seperti saat pertama kali menyadari.
-  const seenSeconds = canSeeTarget ? input.brain.seenSeconds + delta : 0;
-  const engaged = canSeeTarget && seenSeconds >= profile.reactionSeconds;
+  // Kesadaran naik selama pemain terlihat dan luruh saat tidak. Batas atasnya
+  // menentukan berapa lama ingatan itu bertahan setelah pemain menghilang:
+  // musuh yang sempat menatap penuh masih memburu selama MEMORY_SECONDS, lalu
+  // menyerah dan kembali menjelajah.
+  const awarenessCap = profile.reactionSeconds + MEMORY_SECONDS;
+  const seenSeconds = canSeeTarget
+    ? Math.min(awarenessCap, input.brain.seenSeconds + delta)
+    : Math.max(0, input.brain.seenSeconds - delta);
+  const engaged = seenSeconds >= profile.reactionSeconds;
 
   const toTargetX = target[0] - position.x;
   const toTargetZ = target[2] - position.z;

@@ -7,7 +7,6 @@ import { FighterMarker } from "@/components/arena/fighter-marker";
 import { PlayerController } from "@/components/arena/player-controller";
 import { RespawnTicker } from "@/components/arena/respawn-ticker";
 import { RoundTicker } from "@/components/arena/round-ticker";
-import { StubIncomingFire } from "@/components/arena/stub-incoming-fire";
 import { WeaponSwap } from "@/components/arena/weapon-swap";
 import { WeaponSystem } from "@/components/arena/weapon-system";
 import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
@@ -87,8 +86,6 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
       <WeaponSystem match={match} weapon={weapon} />
       <WeaponSwap />
       <BotDriver map={match.map} difficulty={match.difficulty} />
-      {/* Sementara sampai musuh bisa menembak sendiri di task berikutnya. */}
-      <StubIncomingFire map={match.map} difficulty={match.difficulty} />
       <ArenaMap map={match.map} />
 
       {fighters
