@@ -1,13 +1,13 @@
 "use client";
 
 import { ChoiceSetting } from "@/components/settings/choice-setting";
+import { KeybindSection } from "@/components/settings/keybind-section";
 import {
   SettingsRow,
   SettingsSection,
 } from "@/components/settings/settings-section";
 import { VolumeSetting } from "@/components/settings/volume-setting";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
-import { CONTROL_HINTS } from "@/lib/game/controls";
 import { QUALITY_ORDER, QUALITY_PROFILES } from "@/lib/game/settings";
 import { useSettingsStore } from "@/lib/store/settings-store";
 
@@ -126,27 +126,9 @@ export function SettingsScreen() {
           id="tombol"
           eyebrow="Bagian dua"
           title="Atur Tombol"
-          description="Tombol gerak, tembak, dan layar yang dipakai di arena maupun tempat latihan."
+          description="Tombol gerak dan aksi yang dipakai di arena maupun tempat latihan. Tekan Ubah, lalu tekan tombol yang kamu mau; perubahannya langsung berlaku."
         >
-          {/*
-            Daftar ini dibaca dari pemetaan tombol yang benar-benar dipasang
-            arena, bukan ditulis ulang di sini. Daftar tombol yang disalin
-            tangan adalah daftar yang cepat atau lambat menyebut tombol yang
-            sudah tidak berlaku.
-          */}
-          <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
-            {CONTROL_HINTS.map((hint) => (
-              <div
-                key={hint.keys}
-                className="flex items-center justify-between gap-3 border-b border-white/5 py-1.5"
-              >
-                <dt className="text-[13px] text-slate-300">{hint.label}</dt>
-                <dd className="shrink-0 rounded border border-white/15 bg-white/5 px-2 py-0.5 text-center font-mono text-[11px] whitespace-nowrap text-slate-200">
-                  {hint.keys}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <KeybindSection />
         </SettingsSection>
 
         <SettingsSection

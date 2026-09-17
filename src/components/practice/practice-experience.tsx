@@ -4,7 +4,8 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo } from "react";
 import { KeyboardControls } from "@react-three/drei";
 import { PracticeHud } from "@/components/practice/practice-hud";
-import { KEYBOARD_MAP } from "@/lib/game/controls";
+import { buildKeyboardMap } from "@/lib/game/keybinds";
+import { useKeybindStore } from "@/lib/store/keybind-store";
 import { armPlayerFrom } from "@/lib/game/arm-player";
 import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
@@ -44,8 +45,15 @@ const PracticeScene = dynamic(
  */
 export function PracticeExperience() {
   const selectedWeaponId = useLoadoutStore((state) => state.selectedWeaponId);
-  const weapon = useMemo(() => findWeapon(selectedWeaponId), [selectedWeaponId]);
+  const weapon = useMemo(
+    () => findWeapon(selectedWeaponId),
+    [selectedWeaponId],
+  );
   const snapshot = useMemo(() => practiceMatch(weapon), [weapon]);
+  // Tombol yang sama dengan arena, disusun dari satu fungsi supaya keduanya
+  // mustahil berjalan dengan pemetaan yang berbeda.
+  const bindings = useKeybindStore((state) => state.bindings);
+  const keyboardMap = useMemo(() => buildKeyboardMap(bindings), [bindings]);
 
   useEffect(() => {
     resetFighterHits();
@@ -56,7 +64,7 @@ export function PracticeExperience() {
   }, [snapshot]);
 
   return (
-    <KeyboardControls map={KEYBOARD_MAP}>
+    <KeyboardControls map={keyboardMap}>
       <div className="relative h-full w-full overflow-hidden bg-slate-950">
         <PracticeScene snapshot={snapshot} weapon={weapon} />
         <PracticeHud weapon={weapon} />

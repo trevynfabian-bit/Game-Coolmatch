@@ -4,7 +4,8 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
-import { KEYBOARD_MAP } from "@/lib/game/controls";
+import { buildKeyboardMap } from "@/lib/game/keybinds";
+import { useKeybindStore } from "@/lib/store/keybind-store";
 import { armPlayerFrom } from "@/lib/game/arm-player";
 import { resetBotRuntime } from "@/lib/game/bot-runtime";
 import { resetFighterHits } from "@/lib/game/fighter-runtime";
@@ -150,6 +151,16 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
   const hydrated = useHydrated();
 
   /**
+   * Pemetaan tombol disusun dari pilihan pemain dan ikut berubah saat ia
+   * mengaturnya — berbeda dengan pengaturan lain di layar ini, yang dibaca
+   * sekali supaya pertandingan tidak tersusun ulang. Tombol aman dilanggani:
+   * drei hanya mengganti pendengar papan ketiknya, tanpa menyentuh
+   * pertandingan yang sedang berjalan.
+   */
+  const bindings = useKeybindStore((state) => state.bindings);
+  const keyboardMap = useMemo(() => buildKeyboardMap(bindings), [bindings]);
+
+  /**
    * Pertandingan disusun dari pengaturan tadi. Prop `match` tetap dibuka supaya
    * pemanggil bisa memberi potret siap pakai — nanti dipakai layer backend
    * untuk mengoper pertandingan yang dibuat server.
@@ -209,7 +220,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
   }
 
   return (
-    <KeyboardControls map={KEYBOARD_MAP}>
+    <KeyboardControls map={keyboardMap}>
       <div className="relative h-full w-full overflow-hidden bg-slate-950">
         <ArenaScene match={armedMatch} />
         <ArenaHud match={armedMatch} isTrial={isTrial} />

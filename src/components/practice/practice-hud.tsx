@@ -3,7 +3,8 @@
 import { AmmoPanel } from "@/components/arena/hud/ammo-panel";
 import { Crosshair } from "@/components/arena/hud/crosshair";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
-import { CONTROL_HINTS } from "@/lib/game/controls";
+import { controlHints } from "@/lib/game/keybinds";
+import { useKeybindStore } from "@/lib/store/keybind-store";
 import { RANGE_TARGETS } from "@/lib/practice/range-map";
 import { accuracyPercent, usePracticeStore } from "@/lib/store/practice-store";
 import { usePlayerStore } from "@/lib/store/player-store";
@@ -91,6 +92,7 @@ function StartOverlay({ weapon }: { weapon: Weapon }) {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const hasEngaged = usePlayerStore((state) => state.hasEngaged);
   const shots = usePracticeStore((state) => state.shots);
+  const hints = controlHints(useKeybindStore((state) => state.bindings));
   const hits = usePracticeStore((state) => state.hits);
 
   if (isLocked) return null;
@@ -149,16 +151,18 @@ function StartOverlay({ weapon }: { weapon: Weapon }) {
         </ActionRow>
 
         <dl className="mx-auto mt-7 grid max-w-[18rem] grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-left">
-          {CONTROL_HINTS.filter((hint) => hint.keys !== "Tab").map((hint) => (
-            <div key={hint.keys} className="contents">
-              <dt className="rounded border border-white/15 bg-white/5 px-2 py-0.5 text-center font-mono text-[11px] whitespace-nowrap text-slate-200">
-                {hint.keys}
-              </dt>
-              <dd className="self-center text-xs text-slate-400">
-                {hint.label}
-              </dd>
-            </div>
-          ))}
+          {hints
+            .filter((hint) => hint.label !== "Papan skor")
+            .map((hint) => (
+              <div key={hint.keys} className="contents">
+                <dt className="rounded border border-white/15 bg-white/5 px-2 py-0.5 text-center font-mono text-[11px] whitespace-nowrap text-slate-200">
+                  {hint.keys}
+                </dt>
+                <dd className="self-center text-xs text-slate-400">
+                  {hint.label}
+                </dd>
+              </div>
+            ))}
         </dl>
 
         <p className="mt-6 text-[11px] text-slate-500">

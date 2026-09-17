@@ -1,7 +1,8 @@
 "use client";
 
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
-import { CONTROL_HINTS } from "@/lib/game/controls";
+import { controlHints } from "@/lib/game/keybinds";
+import { useKeybindStore } from "@/lib/store/keybind-store";
 import { difficultyProfile } from "@/lib/game/difficulty";
 import { restartMatch } from "@/lib/game/match-reset";
 import { usePlayerStore } from "@/lib/store/player-store";
@@ -39,6 +40,7 @@ export function EngageOverlay({
   match: MatchSnapshot;
 }) {
   const isLocked = usePlayerStore((state) => state.isLocked);
+  const hints = controlHints(useKeybindStore((state) => state.bindings));
 
   // Pertandingan usai punya layarnya sendiri; jangan tumpuk dengan ajakan main.
   if (isLocked || round.status === "ended") return null;
@@ -100,7 +102,7 @@ export function EngageOverlay({
         </button>
 
         <dl className="mx-auto mt-7 grid max-w-[18rem] grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-left">
-          {CONTROL_HINTS.map((hint) => (
+          {hints.map((hint) => (
             <div key={hint.keys} className="contents">
               <dt className="rounded border border-white/15 bg-white/5 px-2 py-0.5 text-center font-mono text-[11px] whitespace-nowrap text-slate-200">
                 {hint.keys}

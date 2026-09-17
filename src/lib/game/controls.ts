@@ -1,4 +1,3 @@
-import type { KeyboardControlsEntry } from "@react-three/drei";
 import type { PlayerBounds } from "@/lib/game/collision";
 
 /** Nama aksi gerak. Dipakai bersama oleh drei KeyboardControls dan controller. */
@@ -17,26 +16,11 @@ export type MoveAction =
   | "slot4"
   | "slot5";
 
-/**
- * Pemetaan tombol bawaan. Menyertakan huruf kecil dan besar supaya tetap jalan
- * saat Caps Lock aktif, plus tombol panah sebagai alternatif WASD.
+/*
+ * Pemetaan tombol dan daftar petunjuknya TIDAK lagi tinggal di sini. Keduanya
+ * sekarang disusun dari tombol pilihan pemain di `keybinds.ts` — daftar tetap
+ * di sini akan menyebut tombol bawaan kepada pemain yang sudah mengubahnya.
  */
-export const KEYBOARD_MAP: KeyboardControlsEntry<MoveAction>[] = [
-  { name: "forward", keys: ["KeyW", "ArrowUp"] },
-  { name: "backward", keys: ["KeyS", "ArrowDown"] },
-  { name: "left", keys: ["KeyA", "ArrowLeft"] },
-  { name: "right", keys: ["KeyD", "ArrowRight"] },
-  { name: "jump", keys: ["Space"] },
-  { name: "sprint", keys: ["ShiftLeft", "ShiftRight"] },
-  { name: "reload", keys: ["KeyR"] },
-  { name: "help", keys: ["KeyH"] },
-  // Slot senjata. Angka baris atas maupun papan angka sama-sama diterima.
-  { name: "slot1", keys: ["Digit1", "Numpad1"] },
-  { name: "slot2", keys: ["Digit2", "Numpad2"] },
-  { name: "slot3", keys: ["Digit3", "Numpad3"] },
-  { name: "slot4", keys: ["Digit4", "Numpad4"] },
-  { name: "slot5", keys: ["Digit5", "Numpad5"] },
-];
 
 /** Nama aksi slot senjata, urut dari slot pertama. */
 export const SLOT_ACTIONS = [
@@ -46,20 +30,6 @@ export const SLOT_ACTIONS = [
   "slot4",
   "slot5",
 ] as const satisfies readonly MoveAction[];
-
-/** Keterangan tombol untuk panel bantuan di HUD. */
-export const CONTROL_HINTS: { keys: string; label: string }[] = [
-  { keys: "W A S D", label: "Jalan" },
-  { keys: "Mouse", label: "Lihat sekitar" },
-  { keys: "Spasi", label: "Lompat" },
-  { keys: "Shift", label: "Lari" },
-  { keys: "Klik", label: "Tembak" },
-  { keys: "R", label: "Isi ulang" },
-  { keys: "1-5", label: "Tukar senjata" },
-  { keys: "Tab", label: "Papan skor" },
-  { keys: "H", label: "Petunjuk kontrol" },
-  { keys: "Esc", label: "Lepas kursor" },
-];
 
 /** Ukuran badan pemain yang dipakai penyelesai tabrakan. */
 export const PLAYER_BOUNDS: PlayerBounds = {

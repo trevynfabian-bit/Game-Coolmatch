@@ -1,6 +1,7 @@
 "use client";
 
-import { CONTROL_HINTS } from "@/lib/game/controls";
+import { controlHints } from "@/lib/game/keybinds";
+import { useKeybindStore } from "@/lib/store/keybind-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 
 /**
@@ -11,6 +12,9 @@ import { usePlayerStore } from "@/lib/store/player-store";
 export function ControlHints() {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const hintsVisible = usePlayerStore((state) => state.hintsVisible);
+  // Dibaca dari tombol pilihan pemain: panel yang membacakan tombol bawaan
+  // kepada pemain yang sudah mengubahnya justru menyesatkan.
+  const hints = controlHints(useKeybindStore((state) => state.bindings));
 
   if (!isLocked || !hintsVisible) return null;
 
@@ -21,7 +25,7 @@ export function ControlHints() {
           Kontrol
         </p>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
-          {CONTROL_HINTS.map((hint) => (
+          {hints.map((hint) => (
             <div key={hint.keys} className="contents">
               <dt className="rounded border border-white/15 bg-white/5 px-1.5 py-0.5 text-center font-mono text-[10px] whitespace-nowrap text-slate-200">
                 {hint.keys}
