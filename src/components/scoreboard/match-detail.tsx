@@ -9,6 +9,7 @@ import {
   rankScores,
 } from "@/lib/game/scoreboard";
 import { RoundResultStrip } from "@/components/scoreboard/round-result-strip";
+import { PlayerStatTiles } from "@/components/scoreboard/stat-tile";
 import {
   ScoreRow,
   ScoreTableHead,
@@ -16,28 +17,6 @@ import {
 } from "@/components/scoreboard/score-row";
 import { WinnerIndicator } from "@/components/scoreboard/winner-indicator";
 import type { MatchRecord } from "@/types/game";
-
-/** Satu angka besar pada ringkasan perolehan pemain. */
-function Stat({
-  label,
-  value,
-  accent = "text-slate-100",
-}: {
-  label: string;
-  value: string | number;
-  accent?: string;
-}) {
-  return (
-    <div className="rounded-lg border border-white/10 bg-slate-900/50 px-3 py-2.5">
-      <p className="text-[9px] tracking-[0.15em] text-slate-500 uppercase">
-        {label}
-      </p>
-      <p className={`mt-1 font-mono text-xl font-bold tabular-nums ${accent}`}>
-        {value}
-      </p>
-    </div>
-  );
-}
 
 /**
  * Kalimat yang menjelaskan kenapa pertandingan berhenti di ronde tertentu.
@@ -131,12 +110,14 @@ export function MatchDetail({ record }: { record: MatchRecord }) {
       ) : null}
 
       {local ? (
-        <div className="grid grid-cols-2 gap-2 border-b border-white/10 px-5 py-4 sm:grid-cols-5">
-          <Stat label="Ronde" value={local.roundWins} accent="text-amber-300" />
-          <Stat label="Kill" value={local.kills} />
-          <Stat label="Mati" value={local.deaths} accent="text-slate-400" />
-          <Stat label="K/M" value={killRatio(local.kills, local.deaths)} />
-          <Stat label="Skor" value={local.score} accent="text-sky-300" />
+        <div className="border-b border-white/10 px-5 py-4">
+          <PlayerStatTiles
+            roundWins={local.roundWins}
+            kills={local.kills}
+            deaths={local.deaths}
+            ratio={killRatio(local.kills, local.deaths)}
+            score={local.score}
+          />
         </div>
       ) : null}
 

@@ -61,6 +61,9 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
   const fighters = useMatchStore((state) => state.fighters);
   const killFeed = useMatchStore((state) => state.killFeed);
   const round = useMatchStore((state) => state.round);
+  const roundResults = useMatchStore((state) => state.roundResults);
+  const startedAt = useMatchStore((state) => state.startedAt);
+  const endedAt = useMatchStore((state) => state.endedAt);
 
   // Sebelum store terisi pada render pertama, jatuh ke potret pertandingan
   // supaya HUD tidak pernah kosong sekejap.
@@ -107,6 +110,9 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
         fighters={fighters.length > 0 ? fighters : match.fighters}
         map={match.map}
         snapshot={match}
+        roundResults={roundResults}
+        startedAt={startedAt}
+        endedAt={endedAt}
       />
 
       <EngageOverlay round={activeRound} match={match} />

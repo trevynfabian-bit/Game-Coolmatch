@@ -13,6 +13,7 @@ import {
 import type {
   Fighter,
   KillFeedEntry,
+  MatchRoundResult,
   MatchSnapshot,
   RoundState,
   Vec3,
@@ -42,6 +43,19 @@ interface MatchState {
   fighters: Fighter[];
   killFeed: KillFeedEntry[];
   round: RoundState;
+
+  /**
+   * Hasil tiap ronde yang sudah selesai, urut dari ronde pertama. Dikumpulkan
+   * selama pertandingan berjalan karena `round` hanya menyimpan ronde yang
+   * SEDANG berlangsung — tanpa catatan ini, ringkasan akhir tidak punya cara
+   * menunjukkan jalannya pertandingan, hanya angka akhirnya.
+   */
+  roundResults: MatchRoundResult[];
+
+  /** Epoch milidetik saat pertandingan disiapkan; dipakai menghitung durasinya. */
+  startedAt: number;
+  /** Terisi saat pertandingan ditutup; null selama masih berjalan. */
+  endedAt: number | null;
 
   /** Mengisi state dari potret pertandingan; dipanggil saat arena dibuka. */
   init: (snapshot: MatchSnapshot) => void;
@@ -115,6 +129,9 @@ export const useMatchStore = create<MatchState>((set, get) => ({
   generation: 0,
   fighters: [],
   killFeed: [],
+  roundResults: [],
+  startedAt: 0,
+  endedAt: null,
   round: {
     current: 1,
     total: 1,
@@ -135,6 +152,9 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       fighters: snapshot.fighters.map((fighter) => ({ ...fighter })),
       killFeed: [...snapshot.killFeed],
       round: { ...snapshot.round },
+      roundResults: [],
+      startedAt: Date.now(),
+      endedAt: null,
     })),
 
   startFreshMatch: (snapshot, spawns) =>
@@ -142,6 +162,9 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       generation: state.generation + 1,
       matchId: snapshot.matchId,
       killFeed: [],
+      roundResults: [],
+      startedAt: Date.now(),
+      endedAt: null,
       fighters: snapshot.fighters.map((fighter) => ({
         ...fighter,
         health: fighter.maxHealth,
@@ -292,8 +315,25 @@ export const useMatchStore = create<MatchState>((set, get) => ({
         isLastRound ||
         hasClinchedMatch(fighters, state.round.current, state.round.total);
 
+      /**
+       * Sebab ronde ini berakhir. Diperiksa pada keadaan SEBELUM ronde ditutup
+       * — `fighters` di atas sudah menerima kemenangan rondenya, tetapi kill
+       * rondenya belum dinolkan, jadi batas kill masih terbaca apa adanya.
+       */
+      const roundResult: MatchRoundResult = {
+        roundNumber: state.round.current,
+        winnerName: winner?.name ?? null,
+        endedReason: hasReachedScoreLimit(state.fighters, state.round.scoreLimit)
+          ? "batas_kill"
+          : "waktu_habis",
+        playerKills:
+          state.fighters.find((fighter) => fighter.isLocal)?.roundKills ?? 0,
+      };
+
       return {
         fighters,
+        roundResults: [...state.roundResults, roundResult],
+        endedAt: isDecided ? Date.now() : state.endedAt,
         round: {
           ...state.round,
           secondsLeft: isDecided ? 0 : state.round.intermissionSeconds,
