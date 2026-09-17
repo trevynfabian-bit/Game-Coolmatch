@@ -1,5 +1,6 @@
 import { freshBrain } from "@/lib/game/bot-ai";
 import type { BotBrain } from "@/lib/game/bot-ai";
+import { playerRuntime } from "@/lib/game/player-runtime";
 import type { Fighter, Vec3 } from "@/types/game";
 
 /**
@@ -62,12 +63,16 @@ export function getBot(id: string): BotRuntimeState | undefined {
 }
 
 /**
- * Posisi musuh saat ini, atau posisi dari store bila ia belum pernah bergerak.
+ * Posisi seorang petarung SAAT INI, siapa pun dia.
  *
- * Pemanggil tidak perlu tahu mana yang lebih baru — inilah satu-satunya jawaban
- * yang benar untuk "di mana dia sekarang".
+ * Pemain lokal dan musuh sama-sama menyimpan posisi jalannya di luar store,
+ * masing-masing di runtime-nya sendiri; yang di store adalah tempat mereka
+ * terakhir DILETAKKAN. Fungsi ini menyatukan ketiganya supaya pemanggil tidak
+ * perlu tahu harus melihat ke mana — inilah satu-satunya jawaban yang benar
+ * untuk "di mana dia sekarang".
  */
 export function livePosition(fighter: Fighter): Vec3 {
+  if (fighter.isLocal) return playerRuntime.position;
   const state = bots.get(fighter.id);
   return state ? [state.x, state.y, state.z] : fighter.position;
 }

@@ -2,6 +2,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { refillActiveWeapon } from "@/lib/game/arm-player";
+import { livePosition } from "@/lib/game/bot-runtime";
 import {
   clearRespawnTimer,
   ensureRespawnTimer,
@@ -46,16 +47,22 @@ export function RespawnTicker({ map }: { map: ArenaMapInfo }) {
 
       // Muncul sejauh mungkin dari lawan yang masih hidup.
       //
-      // Daftar lawannya dibaca dari state TERKINI, bukan dari potret `match`
-      // di atas. `respawnFighter` membuat array petarung baru, jadi potret itu
-      // tidak pernah ikut berubah: kalau dipakai, beberapa petarung yang
-      // tumbang pada frame yang sama akan melihat keadaan yang persis sama,
-      // dan karena pemilihan titiknya pasti, mereka semua mendapat titik yang
-      // sama lalu muncul bertumpuk di satu tempat.
+      // Dua hal penting di sini. Pertama, daftar lawannya dibaca dari state
+      // TERKINI, bukan dari potret `match` di atas: `respawnFighter` membuat
+      // array petarung baru, jadi potret itu tidak pernah ikut berubah, dan
+      // memakainya membuat beberapa petarung yang tumbang pada frame yang sama
+      // melihat keadaan identik lalu muncul bertumpuk di satu titik.
+      //
+      // Kedua, yang dipakai adalah posisi HIDUP tiap orang, bukan posisi di
+      // store. Posisi di store adalah tempat mereka terakhir diletakkan, dan
+      // sejak musuh berjalan sendiri hampir tidak ada yang masih berdiri di
+      // titik spawn-nya. Dengan posisi basi, seorang pemain yang sudah pindah
+      // ke titik spawn lain justru mengundang musuh muncul tepat di depan
+      // hidungnya — pada peta ini jaraknya bisa nol unit.
       const enemies = useMatchStore
         .getState()
         .fighters.filter((other) => other.id !== fighter.id && other.isAlive)
-        .map((other) => other.position);
+        .map((other) => livePosition(other));
       const spawn: Vec3 = pickSpawnPoint(map.spawnPoints, enemies);
 
       clearRespawnTimer(fighter.id);
