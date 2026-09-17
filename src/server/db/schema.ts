@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   sqliteTable,
@@ -48,6 +49,63 @@ export const DIFFICULTIES = ["santai", "normal", "susah"] as const;
 
 /** Hasil akhir sebuah pertandingan dari sudut pandang pemain. */
 export const MATCH_RESULTS = ["menang", "kalah", "seri", "ditinggal"] as const;
+
+/**
+ * Batas jumlah musuh yang boleh tersimpan.
+ *
+ * Angkanya ditulis di sini, BUKAN diimpor dari `MIN_BOTS`/`MAX_BOTS` di
+ * lib/game/difficulty. Batasan CHECK ikut tercetak ke berkas migrasi dan
+ * membeku di sana; mengambilnya dari konstanta yang bisa berubah akan membuat
+ * skema yang dijalankan database diam-diam berbeda dari yang terbaca di kode
+ * begitu konstanta itu digeser. Kalau batasnya memang perlu berubah, itu
+ * perubahan skema dan harus punya migrasinya sendiri.
+ */
+const MIN_BOT_COUNT = 1;
+const MAX_BOT_COUNT = 8;
+
+/**
+ * Pengaturan lawan otomatis pilihan pemain: seberapa pintar musuhnya dan
+ * berapa banyak yang muncul di arena.
+ *
+ * Satu baris per pemain, bukan riwayat — yang disimpan adalah pilihan TERAKHIR,
+ * supaya membuka game besok langsung memakai pengaturan yang sama. Riwayat
+ * pengaturan tiap pertandingan sudah tersimpan di kolom `difficulty` dan
+ * `bot_count` milik `matches`.
+ *
+ * Kedua kolomnya diberi batasan CHECK, berbeda dengan tabel lain di berkas ini.
+ * Sebabnya: isi tabel ini datang langsung dari badan permintaan yang dikirim
+ * klien, sementara baris `matches` ditulis server dari keadaan pertandingan
+ * yang sudah berjalan. Untuk yang pertama, database adalah tempat terakhir yang
+ * masih bisa menolak nilai ngawur.
+ */
+export const opponentSettings = sqliteTable(
+  "opponent_settings",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+
+    difficulty: text("difficulty", { enum: DIFFICULTIES }).notNull(),
+    botCount: integer("bot_count").notNull(),
+
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (table) => [
+    // Satu pemain hanya punya satu pengaturan lawan yang berlaku. Indeks unik
+    // ini juga yang membuat penyimpanan bisa ditulis sebagai satu upsert alih-
+    // alih "cek dulu, baru insert atau update" yang bisa berlomba.
+    uniqueIndex("opponent_settings_pemain_unik").on(table.playerId),
+    check(
+      "opponent_settings_bot_count_wajar",
+      sql`${table.botCount} BETWEEN ${sql.raw(String(MIN_BOT_COUNT))} AND ${sql.raw(String(MAX_BOT_COUNT))}`,
+    ),
+    check(
+      "opponent_settings_difficulty_dikenal",
+      sql`${table.difficulty} IN ('santai', 'normal', 'susah')`,
+    ),
+  ],
+);
 
 /**
  * Satu pertandingan. Barisnya dibuat saat pertandingan dimulai dengan
@@ -160,3 +218,5 @@ export type MatchRoundRow = typeof matchRounds.$inferSelect;
 export type NewMatchRoundRow = typeof matchRounds.$inferInsert;
 export type MatchScoreRow = typeof matchScores.$inferSelect;
 export type NewMatchScoreRow = typeof matchScores.$inferInsert;
+export type OpponentSettingsRow = typeof opponentSettings.$inferSelect;
+export type NewOpponentSettingsRow = typeof opponentSettings.$inferInsert;
