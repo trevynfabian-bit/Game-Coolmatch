@@ -6,7 +6,8 @@ import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { MatchDetail } from "@/components/scoreboard/match-detail";
 import { MatchHistory } from "@/components/scoreboard/match-history";
 import { killRatio, summarizeHistory } from "@/lib/game/scoreboard";
-import { MOCK_MATCH_HISTORY } from "@/lib/mock/scoreboard";
+import { buildMatchHistory } from "@/lib/mock/scoreboard";
+import { useLocalPlayerName } from "@/lib/hooks/use-local-player-name";
 import type { MatchRecord } from "@/types/game";
 
 /** Satu angka pada ikhtisar di bagian atas halaman. */
@@ -68,19 +69,27 @@ function EmptyState() {
  * task backend nanti tinggal mengoper hasil pengambilan tabel `matches` dan
  * `match_scores` tanpa mengubah satu pun komponen di bawahnya.
  */
-export function ScoreboardScreen({
-  records = MOCK_MATCH_HISTORY,
-}: {
-  records?: MatchRecord[];
-}) {
+export function ScoreboardScreen({ records }: { records?: MatchRecord[] }) {
+  /*
+    Riwayat tiruan memakai nama pemain yang berlaku sekarang. Inilah satu-satunya
+    tempat pada alur papan skor yang membaca nama tersimpan; seluruh komponen di
+    bawahnya mengambilnya dari data yang dioper, sehingga tidak ada satu pun yang
+    bisa berselisih dengan angka yang sedang ia tampilkan.
+  */
+  const localName = useLocalPlayerName();
+  const history = useMemo(
+    () => records ?? buildMatchHistory(localName),
+    [records, localName],
+  );
+
   // Pertandingan terbaru yang dibuka lebih dulu: itu yang paling mungkin ingin
   // dilihat pemain begitu halaman ini terbuka.
-  const [selectedId, setSelectedId] = useState(() => records[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState(() => history[0]?.id ?? "");
 
-  const summary = useMemo(() => summarizeHistory(records), [records]);
+  const summary = useMemo(() => summarizeHistory(history), [history]);
   const selected = useMemo(
-    () => records.find((record) => record.id === selectedId) ?? records[0],
-    [records, selectedId],
+    () => history.find((record) => record.id === selectedId) ?? history[0],
+    [history, selectedId],
   );
 
   return (
@@ -93,12 +102,13 @@ export function ScoreboardScreen({
           Skor Pertandingan
         </h1>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
-          Hasil akhir tiap pertandingan yang pernah kamu mainkan: siapa juaranya,
-          berapa ronde yang dimenangkan, dan perolehan lengkap semua peserta.
+          Hasil akhir tiap pertandingan yang pernah kamu mainkan: siapa
+          juaranya, berapa ronde yang dimenangkan, dan perolehan lengkap semua
+          peserta.
         </p>
       </header>
 
-      {records.length === 0 ? (
+      {history.length === 0 ? (
         <EmptyState />
       ) : (
         <>
@@ -129,11 +139,12 @@ export function ScoreboardScreen({
             selisihnya perlu dijelaskan — kalau tidak, "6 pertandingan" di
             sebelah "menang 2 dari 5" terbaca seperti salah hitung.
           */}
-          {summary.matchesPlayed > summary.wins + summary.losses + summary.draws ? (
+          {summary.matchesPlayed >
+          summary.wins + summary.losses + summary.draws ? (
             <p className="-mt-5 mb-8 text-[11px] text-slate-600">
-              Pertandingan yang ditinggal di tengah jalan tetap dihitung kill dan
-              matinya, tetapi tidak masuk hitungan menang-kalah karena juaranya
-              tidak pernah ditentukan.
+              Pertandingan yang ditinggal di tengah jalan tetap dihitung kill
+              dan matinya, tetapi tidak masuk hitungan menang-kalah karena
+              juaranya tidak pernah ditentukan.
             </p>
           ) : null}
 
@@ -150,7 +161,7 @@ export function ScoreboardScreen({
                 Riwayat pertandingan
               </h2>
               <MatchHistory
-                records={records}
+                records={history}
                 selectedId={selected?.id ?? ""}
                 onSelect={setSelectedId}
               />

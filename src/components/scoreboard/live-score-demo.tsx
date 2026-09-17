@@ -8,6 +8,7 @@ import {
   type ScoreRowEntry,
 } from "@/components/scoreboard/score-row";
 import { WinnerIndicator } from "@/components/scoreboard/winner-indicator";
+import { DEFAULT_PLAYER_NAME } from "@/lib/game/player-name";
 import { difficultyProfile } from "@/lib/game/difficulty";
 import { findTiedLeaders } from "@/lib/game/scoreboard";
 import {
@@ -79,6 +80,16 @@ export function LiveScoreDemo() {
   const [running, setRunning] = useState(true);
 
   const isEnded = state.status === "ended";
+  /*
+    Dari peserta simulasinya sendiri, bukan dari nama pemain yang tersimpan.
+    Simulasi ini sengaja dibangun dari benih tetap supaya hasil render server
+    dan hidrasi pertama sama persis; menyuntikkan nama tersimpan ke dalamnya
+    akan merusak justru sifat itu, dan membandingkan pemenangnya dengan nama
+    lain akan bilang pemain kalah pada simulasi yang ia menangkan.
+  */
+  const localName =
+    state.participants.find((participant) => participant.isLocal)?.name ??
+    DEFAULT_PLAYER_NAME;
 
   useEffect(() => {
     if (!running || isEnded) return;
@@ -118,6 +129,7 @@ export function LiveScoreDemo() {
           {isEnded ? (
             <div className="mt-1.5">
               <WinnerIndicator
+                localName={localName}
                 winnerName={state.winnerName}
                 tiedNames={tiedLeaders}
                 subject="simulasi"
@@ -136,9 +148,7 @@ export function LiveScoreDemo() {
             <span>·</span>
             <span>batas {state.round.scoreLimit} kill per ronde</span>
             <span>·</span>
-            <span className="font-mono tabular-nums">
-              {totals.kills} kill
-            </span>
+            <span className="font-mono tabular-nums">{totals.kills} kill</span>
             <span>·</span>
             <span className="font-mono tabular-nums">
               {totals.headshots} headshot
@@ -200,7 +210,7 @@ export function LiveScoreDemo() {
               Menunggu tembakan pertama…
             </p>
           ) : (
-            <KillFeedList entries={state.feed} />
+            <KillFeedList entries={state.feed} localName={localName} />
           )}
         </div>
       </div>

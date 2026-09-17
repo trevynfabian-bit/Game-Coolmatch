@@ -83,7 +83,10 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
       <div className="pointer-events-none absolute inset-0 z-10 select-none">
         <LiveScore scoreboard={scoreboard} />
         <RoundHeader round={activeRound} />
-        <KillFeed entries={killFeed.length > 0 ? killFeed : match.killFeed} />
+        <KillFeed
+          entries={killFeed.length > 0 ? killFeed : match.killFeed}
+          localName={local.name}
+        />
         {isLocked && local.isAlive ? <Crosshair /> : null}
         <DamageNumbers />
         <ControlHints />

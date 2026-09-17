@@ -1,8 +1,5 @@
 import type { ReactNode } from "react";
 
-/** Nama pemain lokal di seluruh permainan; dipakai untuk menyapanya langsung. */
-const LOCAL_NAME = "Kamu";
-
 const SIZE_CLASS = {
   sm: "text-lg",
   md: "text-2xl",
@@ -12,6 +9,15 @@ const SIZE_CLASS = {
 export interface WinnerIndicatorProps {
   /** Nama juara. Kosong berarti tidak ada juara — seri atau belum selesai. */
   winnerName: string | null;
+  /**
+   * Nama pemain di perangkat ini, dipakai untuk mengenali bahwa dialah yang
+   * juara sehingga bisa disapa langsung.
+   *
+   * Dioper, bukan dibaca sendiri dari penyimpanan: komponen ini murni tampilan
+   * dan dipakai tiga layar yang berbeda, dan yang membaca nama tersimpan harus
+   * ikut menjaga aturan hidrasinya.
+   */
+  localName: string;
   /**
    * Benar bila pertandingan berhenti sebelum selesai, misalnya ditinggal di
    * tengah jalan. Bedanya dengan seri penting: seri berarti kedudukan benar-
@@ -46,13 +52,14 @@ export interface WinnerIndicatorProps {
  */
 export function WinnerIndicator({
   winnerName,
+  localName,
   unfinished = false,
   tiedNames = [],
   size = "md",
   subject,
   children,
 }: WinnerIndicatorProps) {
-  const playerWon = winnerName === LOCAL_NAME;
+  const playerWon = winnerName === localName;
   const suffix = subject ? ` ${subject}` : "";
 
   const headline = winnerName

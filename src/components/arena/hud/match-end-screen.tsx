@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { RoundResultStrip } from "@/components/scoreboard/round-result-strip";
+import { DEFAULT_PLAYER_NAME } from "@/lib/game/player-name";
 import {
   ScoreRow,
   ScoreTableHead,
@@ -98,7 +99,10 @@ export function MatchEndScreen({
   if (round.status !== "ended") return null;
 
   const local = fighters.find((fighter) => fighter.isLocal);
-  const playerWon = Boolean(local && round.matchWinner === local.name);
+  // Potret pertandingan sudah membawa nama pemain, jadi tidak ada yang perlu
+  // dibaca lagi dari penyimpanan di sini.
+  const localName = local?.name ?? DEFAULT_PLAYER_NAME;
+  const playerWon = Boolean(local && round.matchWinner === localName);
 
   /**
    * Pertandingan bisa ditutup sebelum ronde terakhir, yaitu saat keunggulan
@@ -106,7 +110,8 @@ export function MatchEndScreen({
    * melihat pertandingan lima ronde yang tiba-tiba berhenti di ronde ketiga
    * dan mengira ada yang rusak.
    */
-  const clinchedEarly = Boolean(round.matchWinner) && round.current < round.total;
+  const clinchedEarly =
+    Boolean(round.matchWinner) && round.current < round.total;
 
   /**
    * Durasi hanya ditampilkan bila jamnya memang terisi dan menghasilkan angka
@@ -136,6 +141,7 @@ export function MatchEndScreen({
           </p>
           <div className="mt-3">
             <WinnerIndicator
+              localName={localName}
               winnerName={round.matchWinner}
               tiedNames={tiedLeaders}
               size="lg"
@@ -181,7 +187,7 @@ export function MatchEndScreen({
 
         {roundResults.length > 0 ? (
           <div className="mt-6">
-            <RoundResultStrip rounds={roundResults} />
+            <RoundResultStrip rounds={roundResults} localName={localName} />
           </div>
         ) : null}
 

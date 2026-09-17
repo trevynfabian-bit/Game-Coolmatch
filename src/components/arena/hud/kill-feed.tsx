@@ -18,9 +18,19 @@ import type { KillFeedEntry } from "@/types/game";
 export function KillFeedList({
   entries,
   className = "flex",
+  localName,
 }: {
   entries: KillFeedEntry[];
   className?: string;
+  /**
+   * Nama pemain di perangkat ini, dipakai menyorot kill miliknya.
+   *
+   * Dioper, bukan dicocokkan dengan nama bawaan: sejak pemain bisa menamai
+   * dirinya sendiri, pencocokan dengan nama bawaan berarti tidak pernah
+   * menyorot kill siapa pun yang sudah berganti nama — dan justru menyorot
+   * kill bot bila ada yang kebetulan bernama begitu.
+   */
+  localName: string;
 }) {
   // Store menyisipkan entri baru di depan, jadi urutan array sudah terbaru
   // dulu. Jangan urutkan ulang memakai atSecond: nilainya dibaca dari jam ronde
@@ -32,7 +42,7 @@ export function KillFeedList({
   return (
     <ul className={`flex-col gap-1 ${className}`}>
       {latest.map((entry, index) => {
-        const byPlayer = entry.killerName === "Kamu";
+        const byPlayer = entry.killerName === localName;
         return (
           <li
             key={entry.id}
@@ -70,10 +80,17 @@ export function KillFeedList({
 }
 
 /** Penempatan kill feed di arena: melayang di pojok kanan-atas, hanya di layar lebar. */
-export function KillFeed({ entries }: { entries: KillFeedEntry[] }) {
+export function KillFeed({
+  entries,
+  localName,
+}: {
+  entries: KillFeedEntry[];
+  localName: string;
+}) {
   return (
     <KillFeedList
       entries={entries}
+      localName={localName}
       className="pointer-events-none absolute top-4 right-5 hidden w-64 lg:flex"
     />
   );

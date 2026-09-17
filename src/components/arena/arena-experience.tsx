@@ -15,6 +15,7 @@ import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { findMap } from "@/lib/mock/maps";
 import { buildMatchSnapshot } from "@/lib/mock/match";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
+import { useProfileStore } from "@/lib/store/profile-store";
 import { useMapStore } from "@/lib/store/map-store";
 import { useMatchSetupStore } from "@/lib/store/match-setup-store";
 import type { Difficulty, MatchSnapshot } from "@/types/game";
@@ -25,6 +26,8 @@ interface MatchEntry {
   botCount: number;
   weaponId: string;
   mapId: string;
+  /** Nama pemain saat pertandingan disusun; ikut ke HUD, kill feed, dan klasemen. */
+  playerName: string;
 }
 
 /**
@@ -104,6 +107,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
       botCount: setup.botCount,
       weaponId: useLoadoutStore.getState().selectedWeaponId,
       mapId: useMapStore.getState().selectedMapId,
+      playerName: useProfileStore.getState().playerName,
     };
   });
 

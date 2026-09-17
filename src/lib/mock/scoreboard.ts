@@ -15,6 +15,16 @@ import type {
  * dua tabel itu tanpa menyentuh satu pun komponen.
  */
 
+/**
+ * Nama pemain lokal SEBAGAIMANA DITULIS di dalam fixture ini.
+ *
+ * Bukan nama yang dilihat pemain: `buildMatchHistory` menggantinya dengan nama
+ * yang ia pilih. Fixture-nya sendiri tetap memakai satu nama tetap supaya
+ * tetap terbaca sebagai data contoh, dan supaya warnanya bisa dicari seperti
+ * peserta lain.
+ */
+const LOCAL_IN_FIXTURE = "Kamu";
+
 /** Warna penanda tiap peserta, disamakan dengan warnanya di arena. */
 const COLORS: Record<string, string> = {
   Kamu: "#38bdf8",
@@ -59,7 +69,7 @@ function line(
     isWinner?: boolean;
   },
 ): MatchScoreLine {
-  const isLocal = participantName === "Kamu";
+  const isLocal = participantName === LOCAL_IN_FIXTURE;
   return {
     id: `${matchId}-${participantName.toLowerCase().replace(/\s+/g, "-")}`,
     participantName,
@@ -140,10 +150,31 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
       endedAt: wib(2026, 9, 17, 14, 31),
     },
     [
-      line("mtc-006", "Kamu", { kills: 24, deaths: 9, score: 2550, roundWins: 3, isWinner: true }),
-      line("mtc-006", "Bot Rangga", { kills: 8, deaths: 11, score: 800, roundWins: 0 }),
-      line("mtc-006", "Bot Ayu", { kills: 6, deaths: 10, score: 600, roundWins: 0 }),
-      line("mtc-006", "Bot Dimas", { kills: 5, deaths: 9, score: 500, roundWins: 0 }),
+      line("mtc-006", "Kamu", {
+        kills: 24,
+        deaths: 9,
+        score: 2550,
+        roundWins: 3,
+        isWinner: true,
+      }),
+      line("mtc-006", "Bot Rangga", {
+        kills: 8,
+        deaths: 11,
+        score: 800,
+        roundWins: 0,
+      }),
+      line("mtc-006", "Bot Ayu", {
+        kills: 6,
+        deaths: 10,
+        score: 600,
+        roundWins: 0,
+      }),
+      line("mtc-006", "Bot Dimas", {
+        kills: 5,
+        deaths: 9,
+        score: 500,
+        roundWins: 0,
+      }),
     ],
     rounds([
       ["Kamu", 8],
@@ -163,10 +194,31 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
       endedAt: wib(2026, 9, 16, 22, 13),
     },
     [
-      line("mtc-005", "Bot Dimas", { kills: 31, deaths: 18, score: 3225, roundWins: 3, isWinner: true }),
-      line("mtc-005", "Kamu", { kills: 22, deaths: 24, score: 2300, roundWins: 1 }),
-      line("mtc-005", "Bot Bima", { kills: 19, deaths: 21, score: 1950, roundWins: 1 }),
-      line("mtc-005", "Bot Sari", { kills: 14, deaths: 23, score: 1400, roundWins: 0 }),
+      line("mtc-005", "Bot Dimas", {
+        kills: 31,
+        deaths: 18,
+        score: 3225,
+        roundWins: 3,
+        isWinner: true,
+      }),
+      line("mtc-005", "Kamu", {
+        kills: 22,
+        deaths: 24,
+        score: 2300,
+        roundWins: 1,
+      }),
+      line("mtc-005", "Bot Bima", {
+        kills: 19,
+        deaths: 21,
+        score: 1950,
+        roundWins: 1,
+      }),
+      line("mtc-005", "Bot Sari", {
+        kills: 14,
+        deaths: 23,
+        score: 1400,
+        roundWins: 0,
+      }),
     ],
     rounds([
       ["Bot Dimas", 4],
@@ -188,9 +240,25 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
       endedAt: wib(2026, 9, 16, 19, 36),
     },
     [
-      line("mtc-004", "Kamu", { kills: 28, deaths: 19, score: 2925, roundWins: 3, isWinner: true }),
-      line("mtc-004", "Bot Ayu", { kills: 25, deaths: 21, score: 2575, roundWins: 2 }),
-      line("mtc-004", "Bot Nadia", { kills: 17, deaths: 22, score: 1700, roundWins: 0 }),
+      line("mtc-004", "Kamu", {
+        kills: 28,
+        deaths: 19,
+        score: 2925,
+        roundWins: 3,
+        isWinner: true,
+      }),
+      line("mtc-004", "Bot Ayu", {
+        kills: 25,
+        deaths: 21,
+        score: 2575,
+        roundWins: 2,
+      }),
+      line("mtc-004", "Bot Nadia", {
+        kills: 17,
+        deaths: 22,
+        score: 1700,
+        roundWins: 0,
+      }),
     ],
     rounds([
       ["Kamu", 6],
@@ -212,9 +280,24 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
       endedAt: wib(2026, 9, 15, 20, 52),
     },
     [
-      line("mtc-003", "Kamu", { kills: 20, deaths: 20, score: 2050, roundWins: 2 }),
-      line("mtc-003", "Bot Bima", { kills: 20, deaths: 20, score: 2050, roundWins: 2 }),
-      line("mtc-003", "Bot Wulan", { kills: 12, deaths: 18, score: 1200, roundWins: 0 }),
+      line("mtc-003", "Kamu", {
+        kills: 20,
+        deaths: 20,
+        score: 2050,
+        roundWins: 2,
+      }),
+      line("mtc-003", "Bot Bima", {
+        kills: 20,
+        deaths: 20,
+        score: 2050,
+        roundWins: 2,
+      }),
+      line("mtc-003", "Bot Wulan", {
+        kills: 12,
+        deaths: 18,
+        score: 1200,
+        roundWins: 0,
+      }),
     ],
     rounds([
       ["Kamu", 4],
@@ -238,9 +321,24 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
       endedAt: wib(2026, 9, 14, 16, 14),
     },
     [
-      line("mtc-002", "Bot Reza", { kills: 11, deaths: 9, score: 1125, roundWins: 1 }),
-      line("mtc-002", "Kamu", { kills: 9, deaths: 8, score: 950, roundWins: 1 }),
-      line("mtc-002", "Bot Sari", { kills: 6, deaths: 9, score: 600, roundWins: 0 }),
+      line("mtc-002", "Bot Reza", {
+        kills: 11,
+        deaths: 9,
+        score: 1125,
+        roundWins: 1,
+      }),
+      line("mtc-002", "Kamu", {
+        kills: 9,
+        deaths: 8,
+        score: 950,
+        roundWins: 1,
+      }),
+      line("mtc-002", "Bot Sari", {
+        kills: 6,
+        deaths: 9,
+        score: 600,
+        roundWins: 0,
+      }),
     ],
     rounds([
       ["Kamu", 5],
@@ -259,10 +357,31 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
       endedAt: wib(2026, 9, 13, 11, 1),
     },
     [
-      line("mtc-001", "Bot Wulan", { kills: 26, deaths: 20, score: 2700, roundWins: 3, isWinner: true }),
-      line("mtc-001", "Bot Rangga", { kills: 22, deaths: 19, score: 2275, roundWins: 1 }),
-      line("mtc-001", "Kamu", { kills: 18, deaths: 27, score: 1875, roundWins: 1 }),
-      line("mtc-001", "Bot Dimas", { kills: 15, deaths: 22, score: 1500, roundWins: 0 }),
+      line("mtc-001", "Bot Wulan", {
+        kills: 26,
+        deaths: 20,
+        score: 2700,
+        roundWins: 3,
+        isWinner: true,
+      }),
+      line("mtc-001", "Bot Rangga", {
+        kills: 22,
+        deaths: 19,
+        score: 2275,
+        roundWins: 1,
+      }),
+      line("mtc-001", "Kamu", {
+        kills: 18,
+        deaths: 27,
+        score: 1875,
+        roundWins: 1,
+      }),
+      line("mtc-001", "Bot Dimas", {
+        kills: 15,
+        deaths: 22,
+        score: 1500,
+        roundWins: 0,
+      }),
     ],
     rounds([
       ["Bot Wulan", 3],
@@ -276,3 +395,35 @@ export const MOCK_MATCH_HISTORY: MatchRecord[] = [
 
 /** Pertandingan paling akhir, atau undefined bila pemain belum pernah bertanding. */
 export const MOCK_LATEST_MATCH: MatchRecord | undefined = MOCK_MATCH_HISTORY[0];
+
+/**
+ * Riwayat tiruan dengan nama pemain lokal diganti nama yang ia pilih.
+ *
+ * Penggantian dilakukan saat dibaca, bukan dengan menulis ulang fixture-nya:
+ * nama itu muncul di tiga tempat berbeda pada tiap catatan — baris perolehan,
+ * nama juara, dan pemenang tiap ronde — dan menuliskannya sebagai parameter di
+ * ketiga puluhan tempat itu membuat data contohnya jauh lebih sulit dibaca
+ * daripada nilainya.
+ *
+ * Baris lokal dikenali lewat `isLocal`, bukan lewat namanya. Itu bedanya:
+ * begitu pemain menamai dirinya "Bot Ayu", pencocokan nama akan menyorot baris
+ * yang salah.
+ */
+export function buildMatchHistory(playerName: string): MatchRecord[] {
+  if (playerName === LOCAL_IN_FIXTURE) return MOCK_MATCH_HISTORY;
+
+  const rename = (name: string | null): string | null =>
+    name === LOCAL_IN_FIXTURE ? playerName : name;
+
+  return MOCK_MATCH_HISTORY.map((entry) => ({
+    ...entry,
+    winnerName: rename(entry.winnerName),
+    scores: entry.scores.map((score) =>
+      score.isLocal ? { ...score, participantName: playerName } : score,
+    ),
+    rounds: entry.rounds.map((round) => ({
+      ...round,
+      winnerName: rename(round.winnerName),
+    })),
+  }));
+}

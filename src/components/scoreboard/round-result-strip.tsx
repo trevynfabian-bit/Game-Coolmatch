@@ -1,8 +1,5 @@
 import type { MatchRoundResult, RoundEndReason } from "@/types/game";
 
-/** Nama pemain lokal, dipakai untuk menyorot ronde yang ia menangkan. */
-const LOCAL_NAME = "Kamu";
-
 const REASON_LABEL: Record<RoundEndReason, string> = {
   batas_kill: "batas kill tercapai",
   waktu_habis: "waktu ronde habis",
@@ -18,7 +15,14 @@ const REASON_LABEL: Record<RoundEndReason, string> = {
  * sendiri supaya jelas bahwa rondenya memang dimainkan, hanya saja tidak ada
  * yang unggul sehingga tidak diberikan kepada siapa pun.
  */
-export function RoundResultStrip({ rounds }: { rounds: MatchRoundResult[] }) {
+export function RoundResultStrip({
+  rounds,
+  localName,
+}: {
+  rounds: MatchRoundResult[];
+  /** Nama pemain di perangkat ini, dipakai menyorot ronde yang ia menangkan. */
+  localName: string;
+}) {
   if (rounds.length === 0) return null;
 
   const drawn = rounds.filter((round) => round.winnerName === null).length;
@@ -32,7 +36,7 @@ export function RoundResultStrip({ rounds }: { rounds: MatchRoundResult[] }) {
       <ol className="flex flex-wrap gap-1.5">
         {rounds.map((round) => {
           const isDraw = round.winnerName === null;
-          const wonByPlayer = round.winnerName === LOCAL_NAME;
+          const wonByPlayer = round.winnerName === localName;
 
           return (
             <li

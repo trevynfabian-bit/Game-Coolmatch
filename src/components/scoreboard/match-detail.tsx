@@ -9,6 +9,7 @@ import {
   rankScores,
 } from "@/lib/game/scoreboard";
 import { RoundResultStrip } from "@/components/scoreboard/round-result-strip";
+import { DEFAULT_PLAYER_NAME } from "@/lib/game/player-name";
 import { PlayerStatTiles } from "@/components/scoreboard/stat-tile";
 import {
   ScoreRow,
@@ -47,6 +48,13 @@ function endingNote(record: MatchRecord): string | null {
 export function MatchDetail({ record }: { record: MatchRecord }) {
   const ranked = rankScores(record.scores);
   const local = findLocalScore(record);
+  /*
+    Diambil dari catatan yang sedang ditampilkan, bukan dari penyimpanan. Nama
+    juara pada catatan lama adalah nama yang berlaku SAAT ITU; membandingkannya
+    dengan nama pemain sekarang akan bilang ia kalah pada pertandingan yang
+    justru ia menangkan sebelum berganti nama.
+  */
+  const localName = local?.participantName ?? DEFAULT_PLAYER_NAME;
   const profile = difficultyProfile(record.difficulty);
   const note = endingNote(record);
   // Hanya perlu saat tidak ada juara; di luar itu indikator mengabaikannya.
@@ -70,6 +78,7 @@ export function MatchDetail({ record }: { record: MatchRecord }) {
         </p>
         <div className="mt-2">
           <WinnerIndicator
+            localName={localName}
             winnerName={record.winnerName}
             unfinished={record.result === "ditinggal"}
             tiedNames={tiedLeaders}
@@ -105,7 +114,7 @@ export function MatchDetail({ record }: { record: MatchRecord }) {
 
       {record.rounds.length > 0 ? (
         <div className="border-b border-white/10 px-5 py-4">
-          <RoundResultStrip rounds={record.rounds} />
+          <RoundResultStrip rounds={record.rounds} localName={localName} />
         </div>
       ) : null}
 

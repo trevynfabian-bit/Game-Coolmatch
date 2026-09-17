@@ -2,6 +2,7 @@ import { STARTING_ARMOR } from "@/lib/game/damage";
 import { DEFAULT_MATCH_SETUP, clampBotCount } from "@/lib/game/difficulty";
 import { buildBotRoster, maxBotsForMap } from "@/lib/mock/bots";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
+import { DEFAULT_PLAYER_NAME } from "@/lib/game/player-name";
 import { findWeapon } from "@/lib/mock/weapons";
 import type {
   ArenaMapInfo,
@@ -49,6 +50,11 @@ export interface MatchSetup {
   /** Senjata yang dibawa pemain; bawaan mengikuti senjata pemain lokal. */
   weaponId?: string;
   map?: ArenaMapInfo;
+  /**
+   * Nama pemain lokal. Bawaannya dipakai bila pemanggil belum tahu — layar
+   * yang belum terhidrasi tidak boleh menyebut nama tersimpan.
+   */
+  playerName?: string;
 }
 
 /**
@@ -65,6 +71,7 @@ export function buildMatchSnapshot({
   botCount,
   weaponId,
   map = DEFAULT_MAP,
+  playerName = DEFAULT_PLAYER_NAME,
 }: MatchSetup): MatchSnapshot {
   // Dijepit dua kali: ke rentang yang masuk akal, lalu ke apa yang muat di
   // peta ini. Angka kedua yang dilaporkan potret pertandingan, supaya HUD dan
@@ -74,6 +81,9 @@ export function buildMatchSnapshot({
 
   const local: Fighter = {
     ...LOCAL_FIGHTER,
+    // Namanya ikut ke seluruh potret: HUD, kill feed, dan papan skor semuanya
+    // membacanya dari sini, jadi satu penggantian di sini sudah cukup.
+    name: playerName,
     weaponId: weapon.id,
     position: map.spawnPoints[0] ?? LOCAL_FIGHTER.position,
   };
@@ -107,7 +117,8 @@ export function buildMatchSnapshot({
 }
 
 /** Potret pertandingan bawaan. */
-export const MOCK_MATCH: MatchSnapshot = buildMatchSnapshot(DEFAULT_MATCH_SETUP);
+export const MOCK_MATCH: MatchSnapshot =
+  buildMatchSnapshot(DEFAULT_MATCH_SETUP);
 
 /** Pemain lokal dari sebuah potret pertandingan. */
 export function getLocalFighter(match: MatchSnapshot): Fighter {
