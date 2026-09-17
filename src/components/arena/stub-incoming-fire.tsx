@@ -3,6 +3,7 @@
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Vector3 } from "three";
+import { livePosition } from "@/lib/game/bot-runtime";
 import { buildColliders } from "@/lib/game/collision";
 import { difficultyProfile } from "@/lib/game/difficulty";
 import { resolveShotDamage } from "@/lib/game/damage";
@@ -19,9 +20,9 @@ import type { ArenaMapInfo, Difficulty, Fighter, Vec3 } from "@/types/game";
  *
  * Musuh otomatis baru dibangun pada fase berikutnya, padahal HUD nyawa pemain
  * perlu bisa dicoba sekarang. Komponen ini menirukan tembakan masuk: memilih
- * bot hidup yang punya garis pandang ke pemain — atau lawan terdekat bila tidak
- * ada, lihat REPOSITION_ACCURACY — lalu menerapkan kerusakan lewat jalur yang
- * sama persis dengan yang nanti dipakai AI (`useMatchStore.damageFighter`).
+ * bot hidup yang punya garis pandang ke pemain, lalu menerapkan kerusakan lewat
+ * jalur yang sama persis dengan yang nanti dipakai AI
+ * (`useMatchStore.damageFighter`).
  *
  * Laju dan ketepatannya mengikuti profil tingkat kesulitan yang dipilih pemain,
  * jadi Santai dan Susah benar-benar terasa berbeda di arena.
@@ -47,46 +48,11 @@ const BOT_EYE = 1.55;
 const PLAYER_CHEST = 1.15;
 /** Bagian dari tembakan yang kena dan mengarah ke kepala. */
 const HEADSHOT_SHARE = 0.18;
-/**
- * Potongan ketepatan untuk lawan yang harus berpindah dulu supaya dapat sudut.
- *
- * Pada permainan sungguhan, lawan yang kehilangan garis pandang TIDAK berdiri
- * diam — ia bergeser mencari sudut. Stub ini belum menggerakkan siapa pun, dan
- * tanpa penyesuaian itu sebagian arena jadi kebal sama sekali: di Gudang Senja
- * dengan empat lawan, tidak ada satu pun titik dalam radius delapan unit dari
- * titik spawn pemain yang terlihat oleh mereka, sehingga pemain yang bertahan
- * di dekat spawn tidak pernah tertembak dan pilihan tingkat kesulitan tidak
- * terasa apa-apa.
- *
- * Karena itu, saat tidak ada yang punya garis pandang, lawan TERDEKAT dianggap
- * baru bergeser dan tetap menembak — dengan ketepatan separuh, karena menembak
- * sambil berpindah memang lebih sering meleset. Berlindung tetap menguntungkan
- * (peluang kena turun setengah) tanpa membuat sudut peta jadi tempat aman
- * permanen. Perbandingan antar tingkat kesulitan tidak berubah karena potongan
- * ini dikenakan sama rata.
- */
-const REPOSITION_ACCURACY = 0.5;
 
 /** Jeda menuju tembakan musuh berikutnya, mengikuti tingkat kesulitan. */
 function nextGap(difficulty: Difficulty): number {
   const [min, max] = difficultyProfile(difficulty).fireIntervalSeconds;
   return (min + Math.random() * (max - min)) * STUB_FIRE_MULTIPLIER;
-}
-
-/** Lawan hidup yang paling dekat ke sebuah titik, diukur pada bidang XZ. */
-function nearestTo(fighters: Fighter[], point: Vec3): Fighter {
-  let best = fighters[0];
-  let bestDistance = Infinity;
-  for (const fighter of fighters) {
-    const dx = fighter.position[0] - point[0];
-    const dz = fighter.position[2] - point[2];
-    const distance = dx * dx + dz * dz;
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      best = fighter;
-    }
-  }
-  return best;
 }
 
 /** Sudut terpendek antara dua arah, dinormalkan ke rentang -PI..PI. */
@@ -133,11 +99,10 @@ export function StubIncomingFire({
     ];
 
     const seesPlayer = (shooter: Fighter) => {
-      const origin: Vec3 = [
-        shooter.position[0],
-        shooter.position[1] + BOT_EYE,
-        shooter.position[2],
-      ];
+      // Musuh sudah berjalan sendiri, jadi titik tembaknya diambil dari posisi
+      // hidupnya — bukan titik spawn yang tersimpan di store.
+      const here = livePosition(shooter);
+      const origin: Vec3 = [here[0], here[1] + BOT_EYE, here[2]];
       const dx = target[0] - origin[0];
       const dy = target[1] - origin[1];
       const dz = target[2] - origin[2];
@@ -154,18 +119,19 @@ export function StubIncomingFire({
     );
     if (alive.length === 0) return;
 
-    const exposed = alive.filter(seesPlayer);
-    const repositioning = exposed.length === 0;
-    const pool = repositioning ? [nearestTo(alive, target)] : exposed;
-    const shooter = pool[Math.floor(Math.random() * pool.length)];
+    // Hanya yang punya garis pandang yang boleh menembak. Musuh kini berjalan
+    // sendiri dan mendatangi pemain, jadi garis pandang itu terbuka karena
+    // mereka benar-benar bergerak ke sana — berlindung pun kembali berarti
+    // sepenuhnya: selama tidak ada yang melihat, tidak ada yang menembak.
+    const shooters = alive.filter(seesPlayer);
+    if (shooters.length === 0) return;
+
+    const shooter = shooters[Math.floor(Math.random() * shooters.length)];
 
     // Tidak setiap tembakan kena. Inilah yang paling terasa membedakan tingkat
     // kesulitan: pada Santai sebagian besar peluru meleset.
     const profile = difficultyProfile(difficulty);
-    const accuracy = repositioning
-      ? profile.accuracy * REPOSITION_ACCURACY
-      : profile.accuracy;
-    if (Math.random() > accuracy) return;
+    if (Math.random() > profile.accuracy) return;
 
     const weapon = findWeapon(shooter.weaponId);
     const isHeadshot = Math.random() < HEADSHOT_SHARE;
@@ -184,9 +150,10 @@ export function StubIncomingFire({
     // Sudut penyerang relatif arah pandang, supaya busur menunjuk ke arah benar.
     camera.getWorldDirection(forward.current);
     const facing = Math.atan2(forward.current.x, forward.current.z);
+    const shooterAt = livePosition(shooter);
     const toShooter = Math.atan2(
-      shooter.position[0] - camera.position.x,
-      shooter.position[2] - camera.position.z,
+      shooterAt[0] - camera.position.x,
+      shooterAt[2] - camera.position.z,
     );
 
     useCombatStore.getState().pushIncomingHit({

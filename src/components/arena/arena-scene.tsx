@@ -2,6 +2,7 @@
 
 import { Canvas } from "@react-three/fiber";
 import { ArenaMap } from "@/components/arena/arena-map";
+import { BotDriver } from "@/components/arena/bot-driver";
 import { FighterMarker } from "@/components/arena/fighter-marker";
 import { PlayerController } from "@/components/arena/player-controller";
 import { RespawnTicker } from "@/components/arena/respawn-ticker";
@@ -85,7 +86,8 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
       <RoundTicker map={match.map} />
       <WeaponSystem match={match} weapon={weapon} />
       <WeaponSwap />
-      {/* Sementara sampai AI musuh dibangun di fase berikutnya. */}
+      <BotDriver map={match.map} difficulty={match.difficulty} />
+      {/* Sementara sampai musuh bisa menembak sendiri di task berikutnya. */}
       <StubIncomingFire map={match.map} difficulty={match.difficulty} />
       <ArenaMap map={match.map} />
 

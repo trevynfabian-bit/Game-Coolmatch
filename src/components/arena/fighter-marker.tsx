@@ -3,7 +3,8 @@
 import { useRef } from "react";
 import { Billboard, Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import type { MeshStandardMaterial } from "three";
+import type { Group, MeshStandardMaterial } from "three";
+import { livePosition, liveYaw } from "@/lib/game/bot-runtime";
 import { secondsSinceHit } from "@/lib/game/fighter-runtime";
 import type { Fighter } from "@/types/game";
 
@@ -25,12 +26,21 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
   );
   const dimmed = !fighter.isAlive;
 
+  const group = useRef<Group>(null);
   const bodyMaterial = useRef<MeshStandardMaterial>(null);
   const headMaterial = useRef<MeshStandardMaterial>(null);
 
-  // Kedipan kena tembak dijalankan langsung di material, bukan lewat state
-  // React, supaya rentetan tembakan tidak memicu render ulang berturut-turut.
+  // Dua hal dikerjakan langsung di objek Three, bukan lewat state React, supaya
+  // musuh yang bergerak dan rentetan tembakan tidak memicu render ulang tiap
+  // frame: posisi beserta arah hadap diambil dari runtime musuh, dan kedipan
+  // kena tembak ditulis ke material.
   useFrame(() => {
+    if (group.current) {
+      const [x, y, z] = livePosition(fighter);
+      group.current.position.set(x, y, z);
+      group.current.rotation.y = liveYaw(fighter);
+    }
+
     const since = secondsSinceHit(fighter.id);
     const strength =
       since >= HIT_FLASH_SECONDS ? 0 : 1 - since / HIT_FLASH_SECONDS;
@@ -41,7 +51,11 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
   });
 
   return (
-    <group position={fighter.position} rotation={[0, fighter.rotationY, 0]}>
+    <group
+      ref={group}
+      position={fighter.position}
+      rotation={[0, fighter.rotationY, 0]}
+    >
       <mesh position={[0, 0.8, 0]} castShadow>
         <capsuleGeometry args={[0.35, 0.9, 4, 12]} />
         <meshStandardMaterial

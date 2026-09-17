@@ -6,6 +6,7 @@ import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
 import { KEYBOARD_MAP } from "@/lib/game/controls";
 import { armPlayerFrom } from "@/lib/game/arm-player";
+import { resetBotRuntime } from "@/lib/game/bot-runtime";
 import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
@@ -114,6 +115,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
     if (!armedMatch) return;
     resetFighterHits();
     resetRespawnTimers();
+    resetBotRuntime();
     setRoundClock(armedMatch.round.secondsLeft);
     useMatchStore.getState().init(armedMatch);
     armPlayerFrom(armedMatch);
