@@ -145,6 +145,19 @@ export function MatchEndScreen({
           >
             Main lagi
           </button>
+          {/*
+            Menutup lingkaran: dari hasil pertandingan langsung kembali ke
+            layar yang menentukan lawannya. Tanpa ini, pemain yang baru saja
+            kewalahan melawan enam musuh Susah harus lewat menu utama dulu
+            hanya untuk menurunkan tingkat kesulitan.
+          */}
+          <Link
+            href="/lawan"
+            onClick={(event) => event.stopPropagation()}
+            className="rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+          >
+            Ganti lawan
+          </Link>
           <Link
             href="/"
             onClick={(event) => event.stopPropagation()}
@@ -155,7 +168,8 @@ export function MatchEndScreen({
         </div>
 
         <p className="mt-4 text-center text-[11px] text-slate-600">
-          Pilih peta dan senjata lain lewat menu utama.
+          &ldquo;Main lagi&rdquo; memakai pengaturan yang sama; &ldquo;Ganti
+          lawan&rdquo; membuka lagi pilihan tingkat kesulitan dan jumlah musuh.
         </p>
       </div>
     </div>
