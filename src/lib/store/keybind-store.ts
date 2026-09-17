@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { STORAGE_KEYS } from "@/lib/store/storage";
 import {
   BINDABLE_ACTIONS,
   DEFAULT_BINDINGS,
@@ -8,7 +9,7 @@ import {
 } from "@/lib/game/keybinds";
 
 /** Kunci penyimpanan; diawali nama game supaya tidak bentrok di domain yang sama. */
-const STORAGE_KEY = "coolmatch:tombol";
+const STORAGE_KEY = STORAGE_KEYS.keybinds;
 const STORAGE_VERSION = 1;
 
 /**

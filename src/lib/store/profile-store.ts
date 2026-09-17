@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { STORAGE_KEYS } from "@/lib/store/storage";
 import {
   DEFAULT_PLAYER_NAME,
   isValidPlayerName,
@@ -8,7 +9,7 @@ import {
 import { BOT_NAMES } from "@/lib/mock/bots";
 
 /** Kunci penyimpanan; diawali nama game supaya tidak bentrok di domain yang sama. */
-const STORAGE_KEY = "coolmatch:profil-pemain";
+const STORAGE_KEY = STORAGE_KEYS.profile;
 const STORAGE_VERSION = 1;
 
 interface StoredProfile {

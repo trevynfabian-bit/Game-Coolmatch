@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { STORAGE_KEYS } from "@/lib/store/storage";
 import {
   DEFAULT_SETTINGS,
   clampScale,
@@ -14,7 +15,7 @@ import {
 } from "@/lib/game/settings";
 
 /** Kunci penyimpanan; diawali nama game supaya tidak bentrok di domain yang sama. */
-const STORAGE_KEY = "coolmatch:pengaturan";
+const STORAGE_KEY = STORAGE_KEYS.settings;
 const STORAGE_VERSION = 1;
 
 /**

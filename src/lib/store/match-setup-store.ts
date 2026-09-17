@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { STORAGE_KEYS } from "@/lib/store/storage";
 import {
   DEFAULT_MATCH_SETUP,
   DIFFICULTY_PROFILES,
@@ -12,7 +13,7 @@ import type { Difficulty } from "@/types/game";
  * dengan kunci lain pada domain yang sama, dan dipakai apa adanya oleh
  * `persist` untuk membaca maupun menulis.
  */
-const STORAGE_KEY = "coolmatch:pengaturan-lawan";
+const STORAGE_KEY = STORAGE_KEYS.matchSetup;
 
 /**
  * Versi bentuk data yang disimpan. Naikkan bila isi `partialize` berubah

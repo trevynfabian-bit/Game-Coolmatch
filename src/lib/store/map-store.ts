@@ -1,9 +1,10 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { STORAGE_KEYS } from "@/lib/store/storage";
 import { DEFAULT_MAP, MOCK_MAPS } from "@/lib/mock/maps";
 
 /** Kunci penyimpanan; diawali nama game supaya tidak bentrok di domain yang sama. */
-const STORAGE_KEY = "coolmatch:peta-terpilih";
+const STORAGE_KEY = STORAGE_KEYS.map;
 const STORAGE_VERSION = 1;
 
 interface StoredMap {
@@ -46,10 +47,14 @@ export const useMapStore = create<MapState>()(
       name: STORAGE_KEY,
       version: STORAGE_VERSION,
       storage: createJSONStorage(() => localStorage),
-      partialize: (state): StoredMap => ({ selectedMapId: state.selectedMapId }),
+      partialize: (state): StoredMap => ({
+        selectedMapId: state.selectedMapId,
+      }),
       merge: (persisted, current): MapState => ({
         ...current,
-        selectedMapId: sanitizeMapId((persisted as Partial<StoredMap>)?.selectedMapId),
+        selectedMapId: sanitizeMapId(
+          (persisted as Partial<StoredMap>)?.selectedMapId,
+        ),
       }),
     },
   ),

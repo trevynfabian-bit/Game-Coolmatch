@@ -19,6 +19,8 @@ import {
   SCALE_MIN,
 } from "@/lib/game/settings";
 import { useSettingsStore } from "@/lib/store/settings-store";
+import { canPersist } from "@/lib/store/storage";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useAudioSettings } from "@/lib/audio/use-audio-settings";
 
 /** Ketiga bagian halaman ini, dipakai judul sekaligus tautan lompatnya. */
@@ -64,6 +66,15 @@ export function SettingsScreen() {
   const setShowFps = useSettingsStore((state) => state.setShowFps);
   const resetSettings = useSettingsStore((state) => state.resetSettings);
 
+  /*
+    Apakah perangkat ini benar-benar mau menyimpan hanya bisa diketahui di
+    browser, dan hanya dengan mencoba menulis — pada jendela penyamaran
+    objek localStorage tetap ada tetapi menolak diisi. Sebelum hidrasi,
+    kalimat yang ditampilkan adalah yang berlaku untuk hampir semua orang.
+  */
+  const hydrated = useHydrated();
+  const tersimpan = !hydrated || canPersist();
+
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8">
       <header className="mb-6">
@@ -73,10 +84,25 @@ export function SettingsScreen() {
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">
           Atur Kenyamananmu
         </h1>
+        {/*
+          Janjinya hanya dibuat kalau memang bisa ditepati. Membiarkan kalimat
+          "langsung tersimpan" berdiri tepat di atas peringatan yang
+          membantahnya membuat pemain membaca dua pernyataan yang bertolak
+          belakang dan tidak tahu mana yang berlaku baginya.
+        */}
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
-          Suara, tombol, dan tampilan. Semua yang kamu ubah di sini langsung
-          tersimpan di perangkat ini, jadi tidak ada yang perlu dikonfirmasi.
+          {tersimpan
+            ? "Suara, tombol, dan tampilan. Semua yang kamu ubah di sini langsung tersimpan di perangkat ini, jadi tidak ada yang perlu dikonfirmasi."
+            : "Suara, tombol, dan tampilan. Semua yang kamu ubah di sini langsung berlaku, tanpa perlu dikonfirmasi."}
         </p>
+
+        {tersimpan ? null : (
+          <p className="mt-2 max-w-xl rounded-lg border border-amber-400/30 bg-amber-500/5 px-3 py-2 text-[11px] leading-relaxed text-amber-200/90">
+            Peramban ini sedang menolak menyimpan data situs, jadi pengaturan di
+            bawah hanya berlaku sampai halaman ditutup. Biasanya karena jendela
+            penyamaran atau setelan privasi yang memblokir penyimpanan situs.
+          </p>
+        )}
 
         <nav
           aria-label="Bagian pengaturan"
