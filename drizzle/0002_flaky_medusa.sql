@@ -1,0 +1,1 @@
+ALTER TABLE `match_scores` ADD `color` text DEFAULT '#94a3b8' NOT NULL;

@@ -35,7 +35,14 @@ export const players = sqliteTable(
   (table) => [uniqueIndex("players_name_unik").on(table.name)],
 );
 
-/** Peta yang bisa dimainkan. Diperluas fase "Pilih Peta". */
+/**
+ * Peta yang bisa dimainkan.
+ *
+ * Isinya berasal dari katalog peta di kode klien, bukan dari masukan pemain —
+ * tabel ini ada supaya `matches.map_id` punya acuan yang sah dan nama peta
+ * yang dipakai sebuah pertandingan tetap terbaca walau katalognya berubah.
+ * Diperluas fase "Pilih Peta".
+ */
 export const maps = sqliteTable("maps", {
   /** Memakai id peta dari kode, misalnya "map-gudang-senja". */
   id: text("id").primaryKey(),
@@ -142,6 +149,30 @@ export const matches = sqliteTable(
     // Riwayat pertandingan selalu dibaca per pemain dan urut dari yang terbaru.
     index("matches_pemain_waktu_idx").on(table.playerId, table.startedAt),
     index("matches_peta_idx").on(table.mapId),
+
+    /*
+      Isi kolom-kolom ini datang dari klien saat pertandingan usai, dan pilihan
+      `enum` pada text() hanyalah tipe TypeScript — database menerima apa pun.
+      Satu salah ketik karena itu cukup untuk menanam riwayat yang tidak bisa
+      dibaca ulang oleh kode yang mengandalkan tipenya. Batasan di bawah ini
+      yang menolaknya.
+
+      `result` boleh kosong selama pertandingan masih berjalan; CHECK yang
+      bernilai NULL dianggap terpenuhi oleh SQLite, jadi itu tidak perlu
+      ditulis terpisah.
+    */
+    check(
+      "matches_difficulty_dikenal",
+      sql`${table.difficulty} IN ('santai', 'normal', 'susah')`,
+    ),
+    check(
+      "matches_result_dikenal",
+      sql`${table.result} IN ('menang', 'kalah', 'seri', 'ditinggal')`,
+    ),
+    check(
+      "matches_aturan_wajar",
+      sql`${table.botCount} > 0 AND ${table.totalRounds} > 0 AND ${table.scoreLimit} > 0 AND ${table.roundSeconds} > 0`,
+    ),
   ],
 );
 
@@ -175,6 +206,14 @@ export const matchRounds = sqliteTable(
   },
   (table) => [
     uniqueIndex("match_rounds_nomor_unik").on(table.matchId, table.roundNumber),
+    check(
+      "match_rounds_sebab_dikenal",
+      sql`${table.endedReason} IN ('batas_kill', 'waktu_habis', 'ditinggal')`,
+    ),
+    check(
+      "match_rounds_angka_wajar",
+      sql`${table.roundNumber} > 0 AND ${table.playerKills} >= 0`,
+    ),
   ],
 );
 
@@ -196,6 +235,16 @@ export const matchScores = sqliteTable(
     participantName: text("participant_name").notNull(),
     isBot: integer("is_bot", { mode: "boolean" }).notNull().default(true),
 
+    /**
+     * Warna penanda peserta, disimpan apa adanya dengan alasan yang sama
+     * seperti namanya: catatan pertandingan harus berdiri sendiri. Warna bot
+     * berasal dari daftar template di kode klien, dan daftar itu boleh berubah
+     * urutannya kapan saja — tanpa kolom ini, pertandingan yang dimainkan hari
+     * ini akan berganti warna sendiri begitu ada lawan baru disisipkan di
+     * tengah daftar.
+     */
+    color: text("color").notNull().default("#94a3b8"),
+
     kills: integer("kills").notNull().default(0),
     deaths: integer("deaths").notNull().default(0),
     score: integer("score").notNull().default(0),
@@ -206,6 +255,13 @@ export const matchScores = sqliteTable(
     uniqueIndex("match_scores_peserta_unik").on(
       table.matchId,
       table.participantName,
+    ),
+    // Perolehan hanya bisa bertambah; angka negatif selalu berarti ada yang
+    // salah hitung di pemanggil, dan lebih baik ketahuan saat menyimpan
+    // daripada muncul sebagai papan skor yang mustahil.
+    check(
+      "match_scores_perolehan_wajar",
+      sql`${table.kills} >= 0 AND ${table.deaths} >= 0 AND ${table.score} >= 0 AND ${table.roundWins} >= 0`,
     ),
   ],
 );
