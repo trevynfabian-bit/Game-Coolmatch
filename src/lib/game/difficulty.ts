@@ -113,3 +113,16 @@ export function clampBotCount(count: number): number {
   if (!Number.isFinite(count)) return MIN_BOTS;
   return Math.min(MAX_BOTS, Math.max(MIN_BOTS, Math.round(count)));
 }
+
+/**
+ * Pengaturan lawan bawaan, dipakai saat pemain belum pernah memilih sendiri.
+ *
+ * Tinggal di sini, bukan di lib/mock, karena ini ATURAN permainan dan bukan
+ * data tiruan: layar pengaturan, penyimpanan lokal, dan endpoint di server
+ * sama-sama membacanya, dan tidak satu pun dari ketiganya boleh ikut menarik
+ * data tiruan beserta seluruh peta dan roster lawannya.
+ */
+export const DEFAULT_MATCH_SETUP: { difficulty: Difficulty; botCount: number } = {
+  difficulty: "normal",
+  botCount: 4,
+};

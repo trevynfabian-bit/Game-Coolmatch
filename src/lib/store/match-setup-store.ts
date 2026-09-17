@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { DIFFICULTY_PROFILES, clampBotCount } from "@/lib/game/difficulty";
-import { DEFAULT_MATCH_SETUP } from "@/lib/mock/match";
+import {
+  DEFAULT_MATCH_SETUP,
+  DIFFICULTY_PROFILES,
+  clampBotCount,
+} from "@/lib/game/difficulty";
 import type { Difficulty } from "@/types/game";
 
 /**

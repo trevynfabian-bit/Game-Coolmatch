@@ -1,5 +1,5 @@
 import { STARTING_ARMOR } from "@/lib/game/damage";
-import { clampBotCount } from "@/lib/game/difficulty";
+import { DEFAULT_MATCH_SETUP, clampBotCount } from "@/lib/game/difficulty";
 import { buildBotRoster, maxBotsForMap } from "@/lib/mock/bots";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
 import { findWeapon } from "@/lib/mock/weapons";
@@ -105,13 +105,6 @@ export function buildMatchSnapshot({
     pingMs: 0,
   };
 }
-
-/** Pengaturan lawan bawaan, dipakai saat pemain langsung masuk arena. */
-export const DEFAULT_MATCH_SETUP: Required<Pick<MatchSetup, "difficulty" | "botCount">> =
-  {
-    difficulty: "normal",
-    botCount: 4,
-  };
 
 /** Potret pertandingan bawaan. */
 export const MOCK_MATCH: MatchSnapshot = buildMatchSnapshot(DEFAULT_MATCH_SETUP);
