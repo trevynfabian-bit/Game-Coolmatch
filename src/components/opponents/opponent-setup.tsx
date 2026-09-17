@@ -10,9 +10,10 @@ import {
   difficultyTraits,
 } from "@/lib/game/difficulty";
 import { buildBotRoster, maxBotsForMap } from "@/lib/mock/bots";
-import { DEFAULT_MAP } from "@/lib/mock/maps";
+import { findMap } from "@/lib/mock/maps";
 import { findWeapon } from "@/lib/mock/weapons";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
+import { useMapStore } from "@/lib/store/map-store";
 import { useMatchSetupStore } from "@/lib/store/match-setup-store";
 import { WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
 
@@ -37,12 +38,21 @@ export function OpponentSetup() {
   const setDifficulty = useMatchSetupStore((state) => state.setDifficulty);
   const setBotCount = useMatchSetupStore((state) => state.setBotCount);
   const selectedWeaponId = useLoadoutStore((state) => state.selectedWeaponId);
+  const selectedMapId = useMapStore((state) => state.selectedMapId);
+
+  /**
+   * Peta yang benar-benar akan dimainkan, bukan peta bawaan. Seluruh layar ini
+   * bergantung padanya: berapa lawan yang muat, siapa saja lawannya, dan nama
+   * arena yang disebut — ketiganya akan salah bila peta pilihan pemain
+   * diabaikan di sini.
+   */
+  const map = findMap(selectedMapId);
 
   /**
    * Batas atas penggeser mengikuti peta, bukan angka tetap: peta yang titik
    * spawn-nya lebih sedikit menampung lebih sedikit lawan.
    */
-  const maxBots = maxBotsForMap(DEFAULT_MAP);
+  const maxBots = maxBotsForMap(map);
 
   // Pilihan yang tersimpan bisa berasal dari peta lain yang lebih lapang, jadi
   // dirapikan begitu layar ini dibuka — penggeser tidak boleh menampilkan
@@ -52,10 +62,7 @@ export function OpponentSetup() {
   }, [botCount, maxBots, setBotCount]);
 
   const profile = difficultyProfile(difficulty);
-  const roster = useMemo(
-    () => buildBotRoster(botCount, DEFAULT_MAP),
-    [botCount],
-  );
+  const roster = useMemo(() => buildBotRoster(botCount, map), [botCount, map]);
   const weapon = findWeapon(selectedWeaponId);
 
   return (
@@ -147,7 +154,7 @@ export function OpponentSetup() {
               {botCount}
             </span>
             <span className="text-sm text-slate-400">
-              musuh di arena {DEFAULT_MAP.name}
+              musuh di arena {map.name}
             </span>
           </div>
 

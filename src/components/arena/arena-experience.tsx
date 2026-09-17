@@ -11,9 +11,10 @@ import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
-import { DEFAULT_MAP } from "@/lib/mock/maps";
+import { findMap } from "@/lib/mock/maps";
 import { buildMatchSnapshot } from "@/lib/mock/match";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
+import { useMapStore } from "@/lib/store/map-store";
 import { useMatchSetupStore } from "@/lib/store/match-setup-store";
 import type { Difficulty, MatchSnapshot } from "@/types/game";
 
@@ -22,6 +23,7 @@ interface MatchEntry {
   difficulty: Difficulty;
   botCount: number;
   weaponId: string;
+  mapId: string;
 }
 
 /**
@@ -35,8 +37,16 @@ const subscribeNever = () => () => {};
 const onClient = () => true;
 const onServer = () => false;
 
-/** Placeholder selagi bundel 3D diunduh dan konteks WebGL disiapkan. */
-function SceneFallback({ mapName }: { mapName: string }) {
+/**
+ * Placeholder selagi bundel 3D diunduh dan konteks WebGL disiapkan.
+ *
+ * `mapName` boleh kosong, dan itu bukan kemalasan. Layar ini juga dipakai
+ * SEBELUM hidrasi, saat pilihan peta yang tersimpan belum terbaca: server
+ * selalu merender keadaan awal store, sedangkan browser sudah memegang peta
+ * pilihan pemain. Menyebut nama peta pada saat itu membuat kedua hasil render
+ * berselisih dan React menolak halamannya.
+ */
+function SceneFallback({ mapName }: { mapName?: string }) {
   return (
     <div className="absolute inset-0 grid place-items-center bg-slate-950">
       <div className="text-center">
@@ -45,7 +55,9 @@ function SceneFallback({ mapName }: { mapName: string }) {
           role="status"
           aria-label="Memuat arena"
         />
-        <p className="text-sm text-slate-300">Memuat arena {mapName}…</p>
+        <p className="text-sm text-slate-300">
+          {mapName ? `Memuat arena ${mapName}…` : "Memuat arena…"}
+        </p>
         <p className="mt-1 text-xs text-slate-500">Menyiapkan mesin 3D</p>
       </div>
     </div>
@@ -60,7 +72,12 @@ const ArenaScene = dynamic(
   () => import("@/components/arena/arena-scene").then((mod) => mod.ArenaScene),
   {
     ssr: false,
-    loading: () => <SceneFallback mapName={DEFAULT_MAP.name} />,
+    // Nama peta dibaca saat bundel diunduh, di luar render komponen, jadi
+    // diambil langsung dari store alih-alih lewat prop. Yang penting layar
+    // tunggu menyebut arena yang benar-benar akan dimuat.
+    loading: () => (
+      <SceneFallback mapName={findMap(useMapStore.getState().selectedMapId).name} />
+    ),
   },
 );
 
@@ -94,6 +111,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
       difficulty: setup.difficulty,
       botCount: setup.botCount,
       weaponId: useLoadoutStore.getState().selectedWeaponId,
+      mapId: useMapStore.getState().selectedMapId,
     };
   });
 
@@ -105,7 +123,11 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
    * untuk mengoper pertandingan yang dibuat server.
    */
   const armedMatch = useMemo<MatchSnapshot | null>(
-    () => match ?? (hydrated ? buildMatchSnapshot(entry) : null),
+    () =>
+      match ??
+      (hydrated
+        ? buildMatchSnapshot({ ...entry, map: findMap(entry.mapId) })
+        : null),
     [match, hydrated, entry],
   );
 
@@ -127,7 +149,9 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
   if (!armedMatch) {
     return (
       <div className="relative h-full w-full overflow-hidden bg-slate-950">
-        <SceneFallback mapName={DEFAULT_MAP.name} />
+        {/* Tanpa nama peta: cabang ini hanya tercapai sebelum hidrasi, dan
+            pada saat itu pilihan pemain belum boleh ikut dibaca. */}
+        <SceneFallback />
       </div>
     );
   }
