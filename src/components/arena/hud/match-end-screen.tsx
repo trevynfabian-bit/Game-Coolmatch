@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { killRatio } from "@/lib/game/scoreboard";
+import {
+  ScoreRow,
+  ScoreTableHead,
+  scoreRowFromFighter,
+} from "@/components/scoreboard/score-row";
 import { restartMatch } from "@/lib/game/match-reset";
 import type { ArenaMapInfo, Fighter, MatchSnapshot, RoundState } from "@/types/game";
 
@@ -87,61 +91,18 @@ export function MatchEndScreen({
 
         <div className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-slate-950/70">
           <table className="w-full text-left">
-            <thead>
-              <tr className="text-[10px] tracking-[0.15em] text-slate-500 uppercase">
-                <th className="px-4 py-2 font-medium">Peringkat</th>
-                <th className="w-14 px-2 py-2 text-right font-medium">Ronde</th>
-                <th className="w-12 px-2 py-2 text-right font-medium">Kill</th>
-                <th className="w-12 px-2 py-2 text-right font-medium">Mati</th>
-                <th className="w-14 px-2 py-2 text-right font-medium">K/M</th>
-                <th className="w-16 px-4 py-2 text-right font-medium">Skor</th>
-              </tr>
-            </thead>
+            <ScoreTableHead rank />
             <tbody>
               {ranked.map((fighter, index) => (
-                <tr
+                <ScoreRow
                   key={fighter.id}
-                  className={`border-t border-white/5 ${
-                    fighter.isLocal ? "bg-sky-500/10" : ""
-                  }`}
-                >
-                  <td className="px-4 py-2">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="w-4 font-mono text-xs text-slate-500 tabular-nums">
-                        {index + 1}
-                      </span>
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: fighter.color }}
-                        aria-hidden
-                      />
-                      <span
-                        className={`truncate text-sm ${
-                          fighter.isLocal
-                            ? "font-semibold text-sky-200"
-                            : "text-slate-200"
-                        }`}
-                      >
-                        {fighter.name}
-                      </span>
-                    </span>
-                  </td>
-                  <td className="px-2 py-2 text-right font-mono text-sm font-semibold text-amber-300 tabular-nums">
-                    {fighter.roundWins}
-                  </td>
-                  <td className="px-2 py-2 text-right font-mono text-sm text-slate-100 tabular-nums">
-                    {fighter.kills}
-                  </td>
-                  <td className="px-2 py-2 text-right font-mono text-sm text-slate-500 tabular-nums">
-                    {fighter.deaths}
-                  </td>
-                  <td className="px-2 py-2 text-right font-mono text-sm text-slate-400 tabular-nums">
-                    {killRatio(fighter.kills, fighter.deaths)}
-                  </td>
-                  <td className="px-4 py-2 text-right font-mono text-sm text-slate-100 tabular-nums">
-                    {fighter.score}
-                  </td>
-                </tr>
+                  rank={index + 1}
+                  entry={scoreRowFromFighter(fighter, {
+                    matchEnded: true,
+                    starTitle:
+                      round.matchWinner === fighter.name ? "Juara" : null,
+                  })}
+                />
               ))}
             </tbody>
           </table>

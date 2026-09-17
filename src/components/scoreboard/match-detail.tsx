@@ -8,6 +8,11 @@ import {
   rankScores,
 } from "@/lib/game/scoreboard";
 import { RESULT_STYLE } from "@/components/scoreboard/result-badge";
+import {
+  ScoreRow,
+  ScoreTableHead,
+  scoreRowFromLine,
+} from "@/components/scoreboard/score-row";
 import type { MatchRecord } from "@/types/game";
 
 /** Satu angka besar pada ringkasan perolehan pemain. */
@@ -117,66 +122,14 @@ export function MatchDetail({ record }: { record: MatchRecord }) {
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[30rem] text-left">
-          <thead>
-            <tr className="text-[10px] tracking-[0.15em] text-slate-500 uppercase">
-              <th className="px-5 py-2 font-medium">Peringkat</th>
-              <th className="w-14 px-2 py-2 text-right font-medium">Ronde</th>
-              <th className="w-12 px-2 py-2 text-right font-medium">Kill</th>
-              <th className="w-12 px-2 py-2 text-right font-medium">Mati</th>
-              <th className="w-14 px-2 py-2 text-right font-medium">K/M</th>
-              <th className="w-16 px-5 py-2 text-right font-medium">Skor</th>
-            </tr>
-          </thead>
+          <ScoreTableHead rank />
           <tbody>
             {ranked.map((score, index) => (
-              <tr
+              <ScoreRow
                 key={score.id}
-                className={`border-t border-white/5 ${
-                  score.isLocal ? "bg-sky-500/10" : ""
-                }`}
-              >
-                <td className="px-5 py-2">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="w-4 font-mono text-xs text-slate-500 tabular-nums">
-                      {index + 1}
-                    </span>
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: score.color }}
-                      aria-hidden
-                    />
-                    <span
-                      className={`truncate text-sm ${
-                        score.isLocal
-                          ? "font-semibold text-sky-200"
-                          : "text-slate-200"
-                      }`}
-                    >
-                      {score.participantName}
-                    </span>
-                    {score.isWinner ? (
-                      <span className="text-[10px] text-amber-300" title="Juara">
-                        ★
-                      </span>
-                    ) : null}
-                  </span>
-                </td>
-                <td className="px-2 py-2 text-right font-mono text-sm font-semibold text-amber-300 tabular-nums">
-                  {score.roundWins}
-                </td>
-                <td className="px-2 py-2 text-right font-mono text-sm text-slate-100 tabular-nums">
-                  {score.kills}
-                </td>
-                <td className="px-2 py-2 text-right font-mono text-sm text-slate-500 tabular-nums">
-                  {score.deaths}
-                </td>
-                <td className="px-2 py-2 text-right font-mono text-sm text-slate-400 tabular-nums">
-                  {killRatio(score.kills, score.deaths)}
-                </td>
-                <td className="px-5 py-2 text-right font-mono text-sm text-slate-100 tabular-nums">
-                  {score.score}
-                </td>
-              </tr>
+                rank={index + 1}
+                entry={scoreRowFromLine(score)}
+              />
             ))}
           </tbody>
         </table>
