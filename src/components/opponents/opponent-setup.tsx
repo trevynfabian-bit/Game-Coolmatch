@@ -213,6 +213,10 @@ export function OpponentSetup() {
           </span>
           .
         </p>
+        <p className="mt-1 text-[11px] text-slate-500">
+          Pengaturan ini tersimpan otomatis di perangkat ini, jadi pertandingan
+          berikutnya langsung memakai pilihan yang sama.
+        </p>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
           <Link

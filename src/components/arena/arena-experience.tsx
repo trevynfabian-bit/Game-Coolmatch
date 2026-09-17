@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
 import { KEYBOARD_MAP } from "@/lib/game/controls";
@@ -14,7 +14,25 @@ import { DEFAULT_MAP } from "@/lib/mock/maps";
 import { buildMatchSnapshot } from "@/lib/mock/match";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useMatchSetupStore } from "@/lib/store/match-setup-store";
-import type { MatchSnapshot } from "@/types/game";
+import type { Difficulty, MatchSnapshot } from "@/types/game";
+
+/** Pilihan pemain yang dipakai menyusun pertandingan saat arena dibuka. */
+interface MatchEntry {
+  difficulty: Difficulty;
+  botCount: number;
+  weaponId: string;
+}
+
+/**
+ * Penanda "render ini sudah di browser". Nilainya tidak pernah berubah setelah
+ * terpasang, jadi tidak ada yang perlu dilanggani; yang penting adalah potret
+ * server-nya berbeda, sehingga React memakai `false` saat hidrasi lalu langsung
+ * merender ulang dengan `true`. Ini cara memakai nilai yang hanya ada di
+ * browser tanpa membuat hasil prerender dan hasil hidrasi berselisih.
+ */
+const subscribeNever = () => () => {};
+const onClient = () => true;
+const onServer = () => false;
 
 /** Placeholder selagi bundel 3D diunduh dan konteks WebGL disiapkan. */
 function SceneFallback({ mapName }: { mapName: string }) {
@@ -61,8 +79,15 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
    * pertandingan, dan pergantian itu ikut memperbarui pilihan di loadout store;
    * kalau nilainya dilanggani, potret pertandingan akan disusun ulang dan
    * seluruh pertandingan ikut dimulai dari awal.
+   *
+   * Nilainya baru DIPAKAI setelah hidrasi. Pengaturan lawan dipulihkan dari
+   * localStorage yang hanya ada di browser, sehingga hasil prerender — yang
+   * selalu memakai nilai bawaan — bisa berbeda dari render hidrasi, dan React
+   * menolak halaman yang tidak cocok itu. Render pertama di browser karena itu
+   * menampilkan layar tunggu yang sama persis dengan hasil prerender, lalu
+   * arena disusun pada render berikutnya.
    */
-  const [entry] = useState(() => {
+  const [entry] = useState<MatchEntry>(() => {
     const setup = useMatchSetupStore.getState();
     return {
       difficulty: setup.difficulty,
@@ -71,25 +96,39 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
     };
   });
 
+  const hydrated = useSyncExternalStore(subscribeNever, onClient, onServer);
+
   /**
    * Pertandingan disusun dari pengaturan tadi. Prop `match` tetap dibuka supaya
    * pemanggil bisa memberi potret siap pakai — nanti dipakai layer backend
    * untuk mengoper pertandingan yang dibuat server.
    */
-  const armedMatch = useMemo<MatchSnapshot>(
-    () => match ?? buildMatchSnapshot(entry),
-    [match, entry],
+  const armedMatch = useMemo<MatchSnapshot | null>(
+    () => match ?? (hydrated ? buildMatchSnapshot(entry) : null),
+    [match, hydrated, entry],
   );
 
   // Potret pertandingan menjadi keadaan awal store; sejak itu seluruh HUD dan
   // arena membaca state yang hidup, bukan data tiruan yang statis.
   useEffect(() => {
+    if (!armedMatch) return;
     resetFighterHits();
     resetRespawnTimers();
     setRoundClock(armedMatch.round.secondsLeft);
     useMatchStore.getState().init(armedMatch);
     armPlayerFrom(armedMatch);
   }, [armedMatch]);
+
+  // Selagi pengaturan dibaca, tampilkan layar tunggu yang sama dengan yang
+  // dipakai saat bundel 3D diunduh — buat pemain tidak ada kedipan tambahan,
+  // karena kanvas memang belum bisa tampil pada tahap ini.
+  if (!armedMatch) {
+    return (
+      <div className="relative h-full w-full overflow-hidden bg-slate-950">
+        <SceneFallback mapName={DEFAULT_MAP.name} />
+      </div>
+    );
+  }
 
   return (
     <KeyboardControls map={KEYBOARD_MAP}>
