@@ -45,8 +45,16 @@ export function RespawnTicker({ map }: { map: ArenaMapInfo }) {
       }
 
       // Muncul sejauh mungkin dari lawan yang masih hidup.
-      const enemies = match.fighters
-        .filter((other) => other.id !== fighter.id && other.isAlive)
+      //
+      // Daftar lawannya dibaca dari state TERKINI, bukan dari potret `match`
+      // di atas. `respawnFighter` membuat array petarung baru, jadi potret itu
+      // tidak pernah ikut berubah: kalau dipakai, beberapa petarung yang
+      // tumbang pada frame yang sama akan melihat keadaan yang persis sama,
+      // dan karena pemilihan titiknya pasti, mereka semua mendapat titik yang
+      // sama lalu muncul bertumpuk di satu tempat.
+      const enemies = useMatchStore
+        .getState()
+        .fighters.filter((other) => other.id !== fighter.id && other.isAlive)
         .map((other) => other.position);
       const spawn: Vec3 = pickSpawnPoint(map.spawnPoints, enemies);
 
