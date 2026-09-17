@@ -63,15 +63,30 @@ function positiveInt(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value > 0;
 }
 
+/**
+ * Badan permintaan "mulai pertandingan" sebagaimana dikirim klien.
+ *
+ * `mapId` boleh tidak ada: pemain sudah punya peta pilihan yang tersimpan di
+ * server, dan itulah jawaban yang benar untuk "main di peta mana". Klien yang
+ * menyebutkannya tetap dilayani — arena bisa saja dibuka langsung pada sebuah
+ * peta — tetapi menyebutkannya bukan syarat.
+ */
+export type StartMatchRequest = Omit<StartMatchInput, "mapId"> & {
+  mapId?: string;
+};
+
 /** Memeriksa badan permintaan "mulai pertandingan". */
-export function parseStartMatch(body: unknown): Parsed<StartMatchInput> {
+export function parseStartMatch(body: unknown): Parsed<StartMatchRequest> {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return { ok: false, message: "Badan permintaan harus berupa objek JSON." };
   }
   const b = body as Record<string, unknown>;
 
-  if (!nonEmptyString(b.mapId)) {
-    return { ok: false, message: "Peta harus punya id." };
+  // Boleh tidak ada — peta pilihan pemain yang dipakai. Kalau ada, harus
+  // berupa teks yang berisi: `{ mapId: "" }` adalah permintaan yang salah,
+  // bukan permintaan tanpa peta.
+  if (b.mapId !== undefined && !nonEmptyString(b.mapId)) {
+    return { ok: false, message: "Id peta tidak boleh kosong." };
   }
   if (
     typeof b.difficulty !== "string" ||
@@ -146,7 +161,7 @@ export function parseStartMatch(body: unknown): Parsed<StartMatchInput> {
   return {
     ok: true,
     value: {
-      mapId: b.mapId,
+      ...(b.mapId === undefined ? {} : { mapId: b.mapId as string }),
       difficulty: b.difficulty as Difficulty,
       botCount: b.botCount,
       totalRounds: b.totalRounds,

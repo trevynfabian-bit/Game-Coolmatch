@@ -1,6 +1,7 @@
 import { jsonError, jsonOk, readJsonBody } from "@/server/api/json";
 import { parseStartMatch, startMatch } from "@/server/matches/match-store";
-import { isPlayableMap } from "@/server/maps/map-store";
+import { isPlayableMap, maxBotsForStoredMap } from "@/server/maps/map-store";
+import { loadSelectedMap } from "@/server/maps/selection-store";
 import { ensureLocalPlayer } from "@/server/players/local-player";
 
 /**
@@ -25,19 +26,41 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError(400, parsed.message);
   }
 
+  const player = ensureLocalPlayer();
+
   /*
-    Peta diperiksa di sini, bukan di dalam `parseStartMatch`, karena yang ini
-    butuh membaca database sedangkan parser sengaja murni. Tanpa pemeriksaan
-    ini, id peta yang tidak dikenal akan ditolak kunci asing jauh di dalam
-    transaksi dan keluar sebagai kegagalan server — padahal penyebabnya ada di
-    permintaannya.
+    Peta pilihan pemain yang dipakai bila permintaannya tidak menyebutkan satu.
+    Itu yang membuat "mulai bertanding" berarti "mulai di peta yang tadi
+    kupilih" tanpa klien harus mengingatkannya setiap kali.
   */
-  if (!isPlayableMap(parsed.value.mapId)) {
+  const mapId = parsed.value.mapId ?? loadSelectedMap(player.id).mapId;
+
+  /*
+    Diperiksa di sini, bukan di dalam `parseStartMatch`, karena keduanya butuh
+    membaca database sedangkan parser sengaja murni. Tanpa pemeriksaan ini, id
+    peta yang tidak dikenal akan ditolak kunci asing jauh di dalam transaksi dan
+    keluar sebagai kegagalan server — padahal penyebabnya ada di permintaannya.
+  */
+  if (!isPlayableMap(mapId)) {
     return jsonError(400, "Peta itu tidak ada di katalog.");
   }
 
-  const player = ensureLocalPlayer();
-  const matchId = startMatch(player.id, parsed.value);
+  /*
+    Tata letak petalah yang membatasi jumlah lawan, bukan sebaliknya. Titik
+    spawn sebuah peta terbatas, dan begitu habis, dua petarung terpaksa muncul
+    bertumpuk di titik yang sama — pertandingan yang rusak sejak detik pertama.
+    Angkanya dibaca dari baris peta, jadi peta baru yang lebih sempit langsung
+    berlaku tanpa satu pun batas tertulis di sini perlu diubah.
+  */
+  const muat = maxBotsForStoredMap(mapId);
+  if (parsed.value.botCount > muat) {
+    return jsonError(
+      400,
+      `Peta itu hanya muat ${muat} lawan; diminta ${parsed.value.botCount}.`,
+    );
+  }
+
+  const matchId = startMatch(player.id, { ...parsed.value, mapId });
 
   // 201 beserta lokasi sumbernya: pemanggil memakai id ini untuk mencatat
   // kejadian dan, nanti, menutup pertandingannya.
