@@ -11,6 +11,8 @@ import {
   type BindableAction,
 } from "@/lib/game/keybinds";
 import { useKeybindStore } from "@/lib/store/keybind-store";
+import { SENSITIVITY_MAX, SENSITIVITY_MIN } from "@/lib/game/settings";
+import { useSettingsStore } from "@/lib/store/settings-store";
 
 /** Tombol yang tertulis seperti pada papan ketik. */
 function KeyChip({
@@ -47,6 +49,8 @@ export function KeybindSection() {
   const rebind = useKeybindStore((state) => state.rebind);
   const resetAction = useKeybindStore((state) => state.resetAction);
   const resetAll = useKeybindStore((state) => state.resetAll);
+  const sensitivity = useSettingsStore((state) => state.controls.sensitivity);
+  const setSensitivity = useSettingsStore((state) => state.setSensitivity);
 
   /** Aksi yang sedang menunggu tombol; null berarti tidak ada. */
   const [menunggu, setMenunggu] = useState<BindableAction | null>(null);
@@ -98,6 +102,38 @@ export function KeybindSection() {
 
   return (
     <div>
+      {/*
+        Sensitivitas berada di bagian tombol, bukan tampilan, karena ia bagian
+        dari cara membidik — sama seperti tombol gerak. Ia juga satu-satunya
+        pengaturan di halaman ini yang langsung terasa di tangan begitu diubah,
+        jadi ia ditaruh paling atas: pemain yang datang untuk membetulkan
+        rasa membidik menemukannya lebih dulu.
+      */}
+      <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-white/10 pb-3">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] text-slate-300">
+            Sensitivitas mouse
+          </span>
+          <span className="block text-[10px] text-slate-600">
+            Seratus persen sama dengan kecepatan bawaan.
+          </span>
+        </span>
+        <input
+          id="sensitivitas"
+          type="range"
+          min={SENSITIVITY_MIN}
+          max={SENSITIVITY_MAX}
+          step={5}
+          value={sensitivity}
+          aria-label="Sensitivitas mouse"
+          onChange={(event) => setSensitivity(Number(event.target.value))}
+          className="h-1.5 w-full max-w-[14rem] cursor-pointer appearance-none rounded-full bg-white/10 accent-emerald-400"
+        />
+        <span className="w-12 shrink-0 text-right font-mono text-xs text-slate-300 tabular-nums">
+          {sensitivity}%
+        </span>
+      </div>
+
       <ul className="divide-y divide-white/5">
         {BINDABLE_ACTIONS.map((entry) => {
           const sedang = menunggu === entry.action;

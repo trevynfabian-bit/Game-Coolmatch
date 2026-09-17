@@ -120,8 +120,8 @@ export function EngageOverlay({
           menu" tidak sekaligus mengunci kursor dan melanjutkan pertandingan.
         */}
         {/*
-          Tiga tombol, tidak lebih: lapisan ini hanya selebar max-w-md, dan
-          tombol keempat memaksa teksnya pecah jadi dua baris.
+          Dua baris berisi dua, bukan satu baris berisi empat: lapisan ini
+          hanya selebar max-w-md, dan tombol keempat memaksa teksnya pecah.
 
           Yang ditawarkan berbeda menurut keadaannya, dan bukan sekadar demi
           muat. Layar BERSIAP adalah layar persiapan terakhir sebelum bertanding,
@@ -129,6 +129,10 @@ export function EngageOverlay({
           pertandingan yang sedang berjalan; yang dibutuhkan di sana adalah
           mengulang dari awal, dan peta tetap bisa dicapai lewat Ganti lawan
           yang menuju layar persiapan.
+
+          "Pengaturan" ada di keduanya. Justru di sinilah pemain menyadari
+          gerakannya tersendat atau bidikannya terlalu sensitif — dan sebelum
+          ini, satu-satunya jalan ke sana adalah lewat menu utama.
         */}
         <ActionRow className="pointer-events-auto mt-7">
           {isStart ? (
@@ -145,6 +149,11 @@ export function EngageOverlay({
           )}
           <ActionButton size="ringkas" href="/lawan">
             Ganti lawan
+          </ActionButton>
+        </ActionRow>
+        <ActionRow className="pointer-events-auto mt-2">
+          <ActionButton size="ringkas" href="/pengaturan">
+            Pengaturan
           </ActionButton>
           <ActionButton size="ringkas" href="/">
             Kembali ke menu

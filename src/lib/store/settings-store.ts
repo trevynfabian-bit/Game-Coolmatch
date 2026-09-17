@@ -3,9 +3,11 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import {
   DEFAULT_SETTINGS,
   clampScale,
+  clampSensitivity,
   clampVolume,
   isQualityLevel,
   type AudioSettings,
+  type ControlSettings,
   type DisplaySettings,
   type GameSettings,
   type QualityLevel,
@@ -56,6 +58,16 @@ function sanitizeDisplay(value: unknown): DisplaySettings {
   };
 }
 
+function sanitizeControls(value: unknown): ControlSettings {
+  const saved = (value ?? {}) as Partial<ControlSettings>;
+  return {
+    sensitivity:
+      typeof saved.sensitivity === "number"
+        ? clampSensitivity(saved.sensitivity)
+        : DEFAULT_SETTINGS.controls.sensitivity,
+  };
+}
+
 interface SettingsState extends GameSettings {
   setEffectsVolume: (value: number) => void;
   setMusicVolume: (value: number) => void;
@@ -63,6 +75,7 @@ interface SettingsState extends GameSettings {
   setQuality: (quality: QualityLevel) => void;
   setRenderScale: (value: number) => void;
   setShowFps: (show: boolean) => void;
+  setSensitivity: (value: number) => void;
   /** Mengembalikan seluruh pengaturan ke bawaan. */
   resetSettings: () => void;
 }
@@ -84,6 +97,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       audio: DEFAULT_SETTINGS.audio,
       display: DEFAULT_SETTINGS.display,
+      controls: DEFAULT_SETTINGS.controls,
 
       setEffectsVolume: (value) =>
         set((state) => {
@@ -130,10 +144,19 @@ export const useSettingsStore = create<SettingsState>()(
             : { display: { ...state.display, showFps } },
         ),
 
+      setSensitivity: (value) =>
+        set((state) => {
+          const sensitivity = clampSensitivity(value);
+          return sensitivity === state.controls.sensitivity
+            ? state
+            : { controls: { ...state.controls, sensitivity } };
+        }),
+
       resetSettings: () =>
         set({
           audio: DEFAULT_SETTINGS.audio,
           display: DEFAULT_SETTINGS.display,
+          controls: DEFAULT_SETTINGS.controls,
         }),
     }),
     {
@@ -143,6 +166,7 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state): GameSettings => ({
         audio: state.audio,
         display: state.display,
+        controls: state.controls,
       }),
       merge: (persisted, current): SettingsState => {
         const saved = (persisted ?? {}) as Partial<GameSettings>;
@@ -150,6 +174,7 @@ export const useSettingsStore = create<SettingsState>()(
           ...current,
           audio: sanitizeAudio(saved.audio),
           display: sanitizeDisplay(saved.display),
+          controls: sanitizeControls(saved.controls),
         };
       },
     },

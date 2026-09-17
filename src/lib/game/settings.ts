@@ -41,9 +41,23 @@ export interface DisplaySettings {
   showFps: boolean;
 }
 
+/**
+ * Sensitivitas dinyatakan dalam persen terhadap kecepatan bawaan, sama seperti
+ * volume dan skala resolusi. Seratus berarti persis seperti sebelum pemain
+ * menyentuh apa pun.
+ */
+export const SENSITIVITY_MIN = 30;
+export const SENSITIVITY_MAX = 200;
+
+export interface ControlSettings {
+  /** Kecepatan putar pandangan terhadap gerakan mouse, 30..200 persen. */
+  sensitivity: number;
+}
+
 export interface GameSettings {
   audio: AudioSettings;
   display: DisplaySettings;
+  controls: ControlSettings;
 }
 
 /**
@@ -100,6 +114,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   // berperangkat lemah belum tentu tahu bahwa tersendat-sendatnya bisa
   // diperbaiki dari layar ini.
   display: { quality: "sedang", renderScale: SCALE_MAX, showFps: false },
+  controls: { sensitivity: 100 },
 };
 
 /** Menjepit volume ke rentang yang sah dan membulatkannya. */
@@ -129,6 +144,24 @@ export function canvasDpr(
   const [min, max] = QUALITY_PROFILES[quality].dpr;
   const skala = clampScale(renderScale) / SCALE_MAX;
   return [Math.min(min, max * skala), max * skala];
+}
+
+/** Menjepit sensitivitas ke rentang yang sah dan membulatkannya. */
+export function clampSensitivity(value: number): number {
+  if (!Number.isFinite(value)) return 100;
+  return Math.min(
+    SENSITIVITY_MAX,
+    Math.max(SENSITIVITY_MIN, Math.round(value)),
+  );
+}
+
+/**
+ * Sensitivitas sebagai pengali yang diminta PointerLockControls, di mana satu
+ * berarti kecepatan bawaannya. Diubah di sini, bukan di tempat pemakaian,
+ * supaya hanya ada satu tempat yang tahu bahwa angkanya disimpan dalam persen.
+ */
+export function pointerSpeed(controls: ControlSettings): number {
+  return clampSensitivity(controls.sensitivity) / 100;
 }
 
 export function isQualityLevel(value: unknown): value is QualityLevel {

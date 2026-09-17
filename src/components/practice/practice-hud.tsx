@@ -146,6 +146,11 @@ function StartOverlay({ weapon }: { weapon: Weapon }) {
           <ActionButton size="ringkas" href="/koleksi">
             Lihat koleksi
           </ActionButton>
+          <ActionButton size="ringkas" href="/pengaturan">
+            Pengaturan
+          </ActionButton>
+        </ActionRow>
+        <ActionRow className="pointer-events-auto mt-2">
           <ActionButton size="ringkas" href="/">
             Kembali ke menu
           </ActionButton>

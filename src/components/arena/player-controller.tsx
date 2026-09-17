@@ -5,6 +5,8 @@ import { PointerLockControls, useKeyboardControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Vector3 } from "three";
 import { buildColliders, movePlayer } from "@/lib/game/collision";
+import { pointerSpeed } from "@/lib/game/settings";
+import { useSettingsStore } from "@/lib/store/settings-store";
 import type { PlayerPosition } from "@/lib/game/collision";
 import {
   EYE_HEIGHT,
@@ -44,6 +46,7 @@ export function PlayerController({
   const [subscribeKeys, getKeys] = useKeyboardControls<MoveAction>();
 
   const setLocked = usePlayerStore((state) => state.setLocked);
+  const speed = pointerSpeed(useSettingsStore((state) => state.controls));
   const setMotion = usePlayerStore((state) => state.setMotion);
   const setHintsVisible = usePlayerStore((state) => state.setHintsVisible);
   const toggleHints = usePlayerStore((state) => state.toggleHints);
@@ -285,8 +288,16 @@ export function PlayerController({
   });
 
   return (
+    /*
+      Sensitivitas dilanggani, bukan dibaca sekali. Berbeda dengan kualitas
+      gambar yang menuntut kanvas dibangun ulang, kecepatan putar hanya sebuah
+      pengali — mengubahnya di tengah permainan tidak mengganggu apa pun, dan
+      justru begitulah orang menyetelnya: geser sedikit, coba membidik, geser
+      lagi.
+    */
     <PointerLockControls
       makeDefault
+      pointerSpeed={speed}
       onLock={() => setLocked(true)}
       onUnlock={() => setLocked(false)}
     />
