@@ -5,6 +5,7 @@ import {
   isValidPlayerName,
   normalizePlayerName,
 } from "@/lib/game/player-name";
+import { BOT_NAMES } from "@/lib/mock/bots";
 
 /** Kunci penyimpanan; diawali nama game supaya tidak bentrok di domain yang sama. */
 const STORAGE_KEY = "coolmatch:profil-pemain";
@@ -20,12 +21,13 @@ interface StoredProfile {
  * Isi localStorage bisa berasal dari versi lama atau disunting tangan, jadi
  * nama yang tidak lolos aturan dijatuhkan ke nama bawaan alih-alih dipercaya.
  * Tanpa ini, nama sepanjang seratus huruf hasil suntingan tangan akan merusak
- * papan skor dan tidak ada satu pun layar yang bisa menolaknya.
+ * papan skor dan tidak ada satu pun layar yang bisa menolaknya — begitu pula
+ * nama yang disunting menjadi sama dengan nama lawan otomatis.
  */
 function sanitizeName(value: unknown): string {
   if (typeof value !== "string") return DEFAULT_PLAYER_NAME;
   const name = normalizePlayerName(value);
-  return isValidPlayerName(name) ? name : DEFAULT_PLAYER_NAME;
+  return isValidPlayerName(name, BOT_NAMES) ? name : DEFAULT_PLAYER_NAME;
 }
 
 interface ProfileState extends StoredProfile {
@@ -52,7 +54,10 @@ export const useProfileStore = create<ProfileState>()(
       hasNamed: false,
       setPlayerName: (name) => {
         const next = normalizePlayerName(name);
-        if (!isValidPlayerName(next)) return false;
+        // Aturan yang sama persis dengan yang dipakai form, daftar nama bot
+        // termasuk. Store yang lebih longgar daripada formnya berarti ada
+        // jalan masuk lain untuk nama yang formnya sendiri sudah menolak.
+        if (!isValidPlayerName(next, BOT_NAMES)) return false;
         set((state) =>
           state.playerName === next && state.hasNamed
             ? state

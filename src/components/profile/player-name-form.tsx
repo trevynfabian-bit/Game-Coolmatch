@@ -10,6 +10,7 @@ import {
   playerNameLength,
   type PlayerNameProblem,
 } from "@/lib/game/player-name";
+import { BOT_NAMES } from "@/lib/mock/bots";
 import { useProfileStore } from "@/lib/store/profile-store";
 
 /**
@@ -25,6 +26,9 @@ const PROBLEM_TEXT: Record<PlayerNameProblem, string> = {
   "terlalu-panjang": `Maksimal ${PLAYER_NAME_MAX} huruf — papan skor tidak muat lebih dari itu.`,
   "karakter-terlarang":
     "Boleh huruf, angka, spasi, serta tanda titik, strip, dan garis bawah.",
+  "tanpa-huruf": "Harus ada setidaknya satu huruf atau angka.",
+  "sudah-dipakai":
+    "Nama itu dipakai salah satu lawan otomatis. Papan skor jadi sulit dibaca kalau ada dua yang sama.",
 };
 
 /**
@@ -54,7 +58,7 @@ export function PlayerNameForm({
   const [showProblem, setShowProblem] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const problem = checkPlayerName(draft);
+  const problem = checkPlayerName(draft, BOT_NAMES);
   const preview = normalizePlayerName(draft);
   const length = playerNameLength(draft);
 
@@ -64,7 +68,13 @@ export function PlayerNameForm({
       setShowProblem(true);
       return;
     }
-    setPlayerName(draft);
+    // Store punya aturannya sendiri dan bisa menolak. Tanpa memeriksa
+    // jawabannya, form akan berkata "Tersimpan" atas nama yang justru tidak
+    // jadi disimpan — kebohongan yang baru ketahuan di papan skor.
+    if (!setPlayerName(draft)) {
+      setShowProblem(true);
+      return;
+    }
     setSaved(true);
   }
 
@@ -99,6 +109,11 @@ export function PlayerNameForm({
               setDraft(event.target.value);
               setSaved(false);
             }}
+            // Meninggalkan isian adalah tanda pemain sudah selesai mengetik,
+            // jadi kesalahannya pantas disebut tanpa menunggu tombol simpan.
+            onBlur={() => {
+              if (draft !== "") setShowProblem(true);
+            }}
             placeholder="misalnya: Rio"
             autoFocus
             autoComplete="nickname"
@@ -114,6 +129,9 @@ export function PlayerNameForm({
         <div className="mt-2 flex items-start justify-between gap-4">
           <p
             id="nama-bantuan"
+            // Diumumkan pembaca layar saat isinya berubah. Tanpa ini, alasan
+            // penolakan hanya terlihat oleh yang bisa melihatnya.
+            aria-live="polite"
             className="text-[11px] leading-relaxed text-slate-500"
           >
             {showProblem && problem ? (

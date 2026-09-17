@@ -24,6 +24,17 @@ const BOT_TEMPLATES = [
 export const MAX_BOT_TEMPLATES = BOT_TEMPLATES.length;
 
 /**
+ * Nama lawan otomatis yang bisa muncul di arena.
+ *
+ * Dibuka supaya form nama bisa menolak nama yang bentrok dengan salah satunya:
+ * papan skor yang memuat dua "Bot Ayu" memaksa pemain menebak baris mana yang
+ * miliknya.
+ */
+export const BOT_NAMES: readonly string[] = BOT_TEMPLATES.map(
+  (template) => template.name,
+);
+
+/**
  * Berapa banyak lawan yang MUAT di sebuah peta.
  *
  * Dua hal membatasinya: banyaknya template lawan, dan banyaknya titik spawn

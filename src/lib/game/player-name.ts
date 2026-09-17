@@ -50,15 +50,25 @@ export type PlayerNameProblem =
   | "kosong"
   | "terlalu-pendek"
   | "terlalu-panjang"
-  | "karakter-terlarang";
+  | "karakter-terlarang"
+  | "tanpa-huruf"
+  | "sudah-dipakai";
 
 /**
  * Periksa nama, kembalikan alasan pertama yang menggagalkannya.
  *
  * Diperiksa atas nama yang SUDAH dirapikan, supaya spasi di ujung tidak
  * diam-diam ikut dihitung sebagai panjang nama.
+ *
+ * `takenNames` berisi nama yang sudah dipakai peserta lain — lawan otomatis
+ * yang bisa muncul di arena. Dioper, bukan diimpor: aturan nama tidak punya
+ * urusan dengan daftar bot, dan mengikatnya ke sana berarti aturan ini ikut
+ * berubah setiap kali ada bot baru.
  */
-export function checkPlayerName(raw: string): PlayerNameProblem | undefined {
+export function checkPlayerName(
+  raw: string,
+  takenNames: readonly string[] = [],
+): PlayerNameProblem | undefined {
   const name = normalizePlayerName(raw);
 
   if (name === "") return "kosong";
@@ -69,11 +79,25 @@ export function checkPlayerName(raw: string): PlayerNameProblem | undefined {
   if (length > PLAYER_NAME_MAX) return "terlalu-panjang";
   if (!ALLOWED.test(name)) return "karakter-terlarang";
 
+  // "..." dan "---" lolos pemeriksaan di atas: panjangnya cukup dan setiap
+  // tandanya diizinkan. Sebuah nama tetap harus bisa dibaca sebagai nama.
+  if (!/[\p{L}\p{N}]/u.test(name)) return "tanpa-huruf";
+
+  // Perbandingan mengabaikan besar-kecil huruf: "bot ayu" dan "Bot Ayu"
+  // terbaca sebagai peserta yang sama di papan skor sesempit itu.
+  const lowered = name.toLocaleLowerCase();
+  if (takenNames.some((taken) => taken.toLocaleLowerCase() === lowered)) {
+    return "sudah-dipakai";
+  }
+
   return undefined;
 }
 
-export function isValidPlayerName(raw: string): boolean {
-  return checkPlayerName(raw) === undefined;
+export function isValidPlayerName(
+  raw: string,
+  takenNames: readonly string[] = [],
+): boolean {
+  return checkPlayerName(raw, takenNames) === undefined;
 }
 
 /** Panjang nama seperti yang dihitung `checkPlayerName`, untuk penghitung karakter. */
