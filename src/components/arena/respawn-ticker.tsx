@@ -10,6 +10,7 @@ import {
 } from "@/lib/game/respawn-runtime";
 import { pickSpawnPoint } from "@/lib/game/spawn";
 import { useMatchStore } from "@/lib/store/match-store";
+import { usePlayerStore } from "@/lib/store/player-store";
 import type { ArenaMapInfo, Vec3 } from "@/types/game";
 
 /** Batas delta time agar jeda tab tidak memunculkan semua orang sekaligus. */
@@ -30,6 +31,11 @@ export function RespawnTicker({ map }: { map: ArenaMapInfo }) {
     // Di luar ronde berjalan tidak ada yang perlu dihidupkan: peralihan ronde
     // sendiri yang menghidupkan semua orang sekaligus.
     if (match.round.status !== "live") return;
+    // Kursor yang dilepas berarti jeda, dan jeda berlaku untuk seluruh arena —
+    // sama seperti musuh dan jam ronde yang ikut berhenti. Tanpa ini pemain
+    // yang menjeda tepat setelah tumbang akan hidup kembali sendirinya selagi
+    // tidak ada apa pun di arena yang bergerak.
+    if (!usePlayerStore.getState().isLocked) return;
 
     for (const fighter of match.fighters) {
       if (fighter.isAlive) {

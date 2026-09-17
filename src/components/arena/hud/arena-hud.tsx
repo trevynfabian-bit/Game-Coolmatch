@@ -66,6 +66,7 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
   // supaya HUD tidak pernah kosong sekejap.
   const local =
     fighters.find((fighter) => fighter.isLocal) ?? getLocalFighter(match);
+  const activeRound = round.total > 0 ? round : match.round;
   const scoreboard = useMemo(
     () => sortScoreboard(fighters.length > 0 ? fighters : match.fighters),
     [fighters, match.fighters],
@@ -78,7 +79,7 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
 
       <div className="pointer-events-none absolute inset-0 z-10 select-none">
         <LiveScore scoreboard={scoreboard} />
-        <RoundHeader round={round.total > 0 ? round : match.round} />
+        <RoundHeader round={activeRound} />
         <KillFeed entries={killFeed.length > 0 ? killFeed : match.killFeed} />
         {isLocked && local.isAlive ? <Crosshair /> : null}
         <DamageNumbers />
@@ -92,23 +93,23 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
 
       <ScoreboardOverlay
         fighters={fighters.length > 0 ? fighters : match.fighters}
-        round={round.total > 0 ? round : match.round}
+        round={activeRound}
         pingMs={match.pingMs}
       />
 
       <RoundBanner
-        round={round.total > 0 ? round : match.round}
+        round={activeRound}
         fighters={fighters.length > 0 ? fighters : match.fighters}
       />
 
       <MatchEndScreen
-        round={round.total > 0 ? round : match.round}
+        round={activeRound}
         fighters={fighters.length > 0 ? fighters : match.fighters}
         map={match.map}
         snapshot={match}
       />
 
-      <EngageOverlay />
+      <EngageOverlay round={activeRound} match={match} />
     </>
   );
 }

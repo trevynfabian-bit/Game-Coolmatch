@@ -72,3 +72,45 @@ export function findMatchWinner(fighters: Fighter[]): Fighter | null {
 
   return !best || tied ? null : best;
 }
+
+/**
+ * Benar bila gelar juara sudah tidak bisa berpindah lagi, walau masih ada ronde
+ * tersisa: keunggulan pemimpin lebih besar daripada jumlah ronde yang belum
+ * dimainkan, sehingga penantang terdekat tetap tidak bisa menyamainya meski
+ * memenangi semuanya.
+ *
+ * Unggulnya harus BENAR-BENAR lebih banyak, bukan sekadar cukup untuk imbang:
+ * kedudukan ronde yang sama dipecah oleh jumlah kill, dan kill masih bisa
+ * bertambah selama masih ada ronde yang dimainkan — jadi selisih nol belum
+ * memutuskan apa pun.
+ *
+ * `roundsPlayed` adalah jumlah ronde yang SUDAH selesai, termasuk ronde yang
+ * baru saja ditutup.
+ */
+export function hasClinchedMatch(
+  fighters: Fighter[],
+  roundsPlayed: number,
+  totalRounds: number,
+): boolean {
+  if (fighters.length === 0) return false;
+
+  const remaining = totalRounds - roundsPlayed;
+  if (remaining <= 0) return true;
+
+  // Cukup dua teratas: yang di bawahnya tertinggal lebih jauh lagi.
+  let best = -1;
+  let runnerUp = -1;
+  for (const fighter of fighters) {
+    if (fighter.roundWins > best) {
+      runnerUp = best;
+      best = fighter.roundWins;
+    } else if (fighter.roundWins > runnerUp) {
+      runnerUp = fighter.roundWins;
+    }
+  }
+
+  // Bertanding seorang diri: tidak ada yang bisa mengambil gelarnya.
+  if (runnerUp < 0) return true;
+
+  return best > runnerUp + remaining;
+}

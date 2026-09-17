@@ -7,6 +7,7 @@ import { refillActiveWeapon } from "@/lib/game/arm-player";
 import { spreadSpawns } from "@/lib/game/match-reset";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
+import { usePlayerStore } from "@/lib/store/player-store";
 import type { ArenaMapInfo } from "@/types/game";
 
 /** Batas delta time agar jeda tab tidak melompati satu ronde penuh. */
@@ -15,10 +16,11 @@ const MAX_DELTA = 1 / 10;
 /**
  * Menjalankan jam ronde dan seluruh peralihannya.
  *
- * Ronde berakhir saat waktunya habis atau ada yang mencapai batas kill. Sesudah
- * itu masuk jeda singkat, lalu ronde berikutnya dimulai dengan semua petarung
- * hidup penuh di titik spawn yang saling berjauhan. Ronde terakhir mengakhiri
- * pertandingan.
+ * Pertandingan menunggu di `warmup` sampai pemain benar-benar masuk arena,
+ * lalu ronde berakhir saat waktunya habis atau ada yang mencapai batas kill.
+ * Sesudah itu masuk jeda singkat, lalu ronde berikutnya dimulai dengan semua
+ * petarung hidup penuh di titik spawn yang saling berjauhan. Pertandingan
+ * ditutup pada ronde terakhir — atau lebih awal bila gelar sudah terkunci.
  *
  * Jam pecahannya hidup di round-runtime; store hanya diperbarui saat detik
  * bulat berubah, jadi HUD render ulang sekali per detik alih-alih tiap frame.
@@ -45,7 +47,27 @@ export function RoundTicker({ map }: { map: ArenaMapInfo }) {
     }
 
     const { status } = match.round;
-    if (status === "ended" || status === "warmup") return;
+    if (status === "ended") return;
+
+    /**
+     * Pertandingan belum dimulai sampai pemain mengunci kursor. Tanpa gerbang
+     * ini jam ronde sudah mengalir selagi layar ajakan main masih terbuka —
+     * pemain yang membaca petunjuk kontrol lebih lama akan mendapati rondenya
+     * sudah terpotong padahal belum sempat melangkah.
+     */
+    if (status === "warmup") {
+      if (!usePlayerStore.getState().isLocked) return;
+      match.beginMatch();
+      setRoundClock(useMatchStore.getState().round.secondsLeft);
+      return;
+    }
+
+    /**
+     * Kursor yang dilepas berarti pemain menjeda. Musuh sudah berhenti sendiri
+     * saat itu terjadi, jadi jam ikut berhenti; kalau tidak, ronde bisa habis
+     * atau berganti sementara tidak ada satu pun yang bergerak di arena.
+     */
+    if (!usePlayerStore.getState().isLocked) return;
 
     const delta = Math.min(rawDelta, MAX_DELTA);
     const remaining = tickRoundClock(delta);

@@ -7,6 +7,7 @@ import {
 import {
   findMatchWinner,
   findRoundWinner,
+  hasClinchedMatch,
   hasReachedScoreLimit,
 } from "@/lib/game/round";
 import type {
@@ -79,6 +80,14 @@ interface MatchState {
   /** Mengganti senjata yang dipegang seorang petarung. */
   setFighterWeapon: (fighterId: string, weaponId: string) => void;
 
+  /**
+   * Menyalakan pertandingan yang masih menunggu di `warmup`, dipanggil saat
+   * pemain benar-benar masuk arena. Jam ronde disetel penuh di sini supaya
+   * detik yang dihitung adalah detik pemain bermain, bukan detik ia membaca
+   * petunjuk kontrol.
+   */
+  beginMatch: () => void;
+
   /** Memperbarui detik bulat pada jam ronde. */
   setRoundClock: (seconds: number) => void;
 
@@ -150,7 +159,10 @@ export const useMatchStore = create<MatchState>((set, get) => ({
         ...snapshot.round,
         current: 1,
         secondsLeft: snapshot.round.durationSeconds,
-        status: "live",
+        // "Main lagi" melewati pintu masuk yang sama dengan pertandingan
+        // pertama: kursor sudah dilepas saat layar akhir muncul, jadi jam
+        // ronde menunggu sampai pemain menguncinya kembali.
+        status: "warmup",
         lastRoundWinner: null,
         matchWinner: null,
       },
@@ -229,6 +241,18 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       };
     }),
 
+  beginMatch: () =>
+    set((state) => {
+      if (state.round.status !== "warmup") return state;
+      return {
+        round: {
+          ...state.round,
+          secondsLeft: state.round.durationSeconds,
+          status: "live",
+        },
+      };
+    }),
+
   setRoundClock: (seconds) =>
     set((state) =>
       state.round.secondsLeft === seconds
@@ -257,16 +281,25 @@ export const useMatchStore = create<MatchState>((set, get) => ({
           )
         : state.fighters;
 
+      /**
+       * Pertandingan selesai bukan hanya saat ronde habis, tetapi juga begitu
+       * gelar tidak bisa berpindah lagi. Memainkan sisa ronde yang sudah tidak
+       * mengubah apa pun cuma menahan pemain di arena yang hasilnya sudah
+       * ditentukan.
+       */
       const isLastRound = state.round.current >= state.round.total;
+      const isDecided =
+        isLastRound ||
+        hasClinchedMatch(fighters, state.round.current, state.round.total);
 
       return {
         fighters,
         round: {
           ...state.round,
-          secondsLeft: isLastRound ? 0 : state.round.intermissionSeconds,
-          status: isLastRound ? "ended" : "intermission",
+          secondsLeft: isDecided ? 0 : state.round.intermissionSeconds,
+          status: isDecided ? "ended" : "intermission",
           lastRoundWinner: winner?.name ?? null,
-          matchWinner: isLastRound ? (findMatchWinner(fighters)?.name ?? null) : null,
+          matchWinner: isDecided ? (findMatchWinner(fighters)?.name ?? null) : null,
         },
       };
     }),

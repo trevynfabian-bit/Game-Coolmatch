@@ -90,7 +90,11 @@ export function buildMatchSnapshot({
       durationSeconds: ROUND_SECONDS,
       intermissionSeconds: INTERMISSION_SECONDS,
       scoreLimit: SCORE_LIMIT,
-      status: "live",
+      // Pertandingan baru menunggu di garis start. Browser hanya mau mengunci
+      // kursor sesudah gerakan pengguna, jadi selalu ada jeda antara arena
+      // tampil dan pemain benar-benar bermain; jam ronde tidak boleh mengalir
+      // selama jeda itu.
+      status: "warmup",
       lastRoundWinner: null,
       matchWinner: null,
     },

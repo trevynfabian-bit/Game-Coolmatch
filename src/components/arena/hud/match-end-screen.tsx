@@ -45,6 +45,14 @@ export function MatchEndScreen({
   const local = fighters.find((fighter) => fighter.isLocal);
   const playerWon = Boolean(local && round.matchWinner === local.name);
 
+  /**
+   * Pertandingan bisa ditutup sebelum ronde terakhir, yaitu saat keunggulan
+   * juaranya sudah tidak mungkin disusul. Tanpa keterangan ini pemain hanya
+   * melihat pertandingan lima ronde yang tiba-tiba berhenti di ronde ketiga
+   * dan mengira ada yang rusak.
+   */
+  const clinchedEarly = Boolean(round.matchWinner) && round.current < round.total;
+
   return (
     <div className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-slate-950/85 px-4 py-8 backdrop-blur-sm">
       <div className="w-full max-w-lg">
@@ -66,10 +74,18 @@ export function MatchEndScreen({
           <p className="mt-2 text-sm text-slate-400">
             {map.name}
             <span className="text-slate-600"> · </span>
-            {round.total} ronde
+            {round.current} dari {round.total} ronde
             <span className="text-slate-600"> · </span>
             batas {round.scoreLimit} kill
           </p>
+
+          {clinchedEarly ? (
+            <p className="mt-2 text-xs text-amber-200/80">
+              Gelar terkunci di ronde {round.current} — sisa{" "}
+              {round.total - round.current} ronde sudah tidak bisa mengubah
+              juaranya.
+            </p>
+          ) : null}
         </div>
 
         <div className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-slate-950/70">
