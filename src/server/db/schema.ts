@@ -171,6 +171,42 @@ export const opponentSettings = sqliteTable(
 );
 
 /**
+ * Peta yang terakhir dipilih seorang pemain.
+ *
+ * Satu baris per pemain, bukan riwayat — polanya sama dengan
+ * `opponent_settings`, dan alasannya sama: yang berguna adalah pilihan
+ * TERAKHIR, supaya membuka game besok langsung memakai peta yang sama. Peta
+ * yang dipakai tiap pertandingan sudah tersimpan di `matches.map_id`.
+ *
+ * Tabelnya terpisah, bukan kolom tambahan di `opponent_settings`, karena
+ * namanya harus tetap jujur: pengaturan lawan bicara soal musuh, bukan soal
+ * arena. Menambahkan `map_id` ke sana akan membuat tabel yang namanya tidak
+ * lagi menggambarkan isinya.
+ *
+ * `map_id` mengacu ke `maps` dengan restrict, jadi peta yang pernah dipilih
+ * tidak bisa hilang dari katalog begitu saja. Peta yang ditarik ditandai tidak
+ * bisa dimainkan, dan pembacaannya yang menjatuhkan pilihan itu ke peta lain.
+ */
+export const mapSelections = sqliteTable(
+  "map_selections",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    mapId: text("map_id")
+      .notNull()
+      .references(() => maps.id, { onDelete: "restrict" }),
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (table) => [
+    // Satu pemain satu pilihan. Indeks unik ini juga yang membuat penyimpanan
+    // bisa ditulis sebagai satu upsert alih-alih "cek dulu" yang bisa berlomba.
+    uniqueIndex("map_selections_pemain_unik").on(table.playerId),
+  ],
+);
+
+/**
  * Satu pertandingan. Barisnya dibuat saat pertandingan dimulai dengan
  * `endedAt` masih kosong, lalu ditutup saat selesai — jadi pertandingan yang
  * ditinggalkan di tengah tetap terekam alih-alih hilang tanpa jejak.
@@ -332,5 +368,6 @@ export type MatchRoundRow = typeof matchRounds.$inferSelect;
 export type NewMatchRoundRow = typeof matchRounds.$inferInsert;
 export type MatchScoreRow = typeof matchScores.$inferSelect;
 export type NewMatchScoreRow = typeof matchScores.$inferInsert;
+export type MapSelectionRow = typeof mapSelections.$inferSelect;
 export type OpponentSettingsRow = typeof opponentSettings.$inferSelect;
 export type NewOpponentSettingsRow = typeof opponentSettings.$inferInsert;
