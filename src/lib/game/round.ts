@@ -1,13 +1,35 @@
-import type { Fighter } from "@/types/game";
+/**
+ * Bentuk terkecil yang dibutuhkan untuk menentukan pemenang satu RONDE.
+ *
+ * Sengaja bukan `Fighter`. Aturan juara berlaku di dua tempat yang datanya
+ * berbeda bentuk — arena yang memegang petarung lengkap, dan server yang hanya
+ * punya baris perolehan — dan keduanya harus memakai aturan yang SAMA persis.
+ * Dengan bentuk sekecil ini, pemanggil tidak perlu mengarang petarung palsu
+ * hanya agar lolos tipe, dan tidak ada godaan menuliskan ulang aturannya.
+ */
+export interface RoundStanding {
+  roundKills: number;
+  deaths: number;
+}
+
+/** Bentuk terkecil yang dibutuhkan untuk menentukan juara PERTANDINGAN. */
+export interface MatchStanding {
+  roundWins: number;
+  kills: number;
+  deaths: number;
+}
 
 /**
  * Pemenang satu ronde: kill terbanyak pada ronde itu, seri dipecah oleh jumlah
  * kematian yang lebih sedikit. Mengembalikan null bila benar-benar seri —
  * termasuk saat belum ada satu kill pun — supaya ronde kosong tidak memberi
  * kemenangan kepada siapa pun.
+ *
+ * Yang dikembalikan adalah peserta ASLI yang dioper, bukan salinan, sehingga
+ * pemanggil bisa langsung membaca nama atau id miliknya sendiri.
  */
-export function findRoundWinner(fighters: Fighter[]): Fighter | null {
-  let best: Fighter | null = null;
+export function findRoundWinner<T extends RoundStanding>(fighters: T[]): T | null {
+  let best: T | null = null;
   let tied = false;
 
   for (const fighter of fighters) {
@@ -34,7 +56,7 @@ export function findRoundWinner(fighters: Fighter[]): Fighter | null {
 
 /** Benar bila ada yang sudah mencapai batas kill ronde ini. */
 export function hasReachedScoreLimit(
-  fighters: Fighter[],
+  fighters: RoundStanding[],
   scoreLimit: number,
 ): boolean {
   if (scoreLimit <= 0) return false;
@@ -45,16 +67,16 @@ export function hasReachedScoreLimit(
  * Pemenang pertandingan: ronde menang terbanyak, seri dipecah oleh total kill,
  * lalu oleh kematian yang lebih sedikit. Null bila masih seri sepenuhnya.
  */
-export function findMatchWinner(fighters: Fighter[]): Fighter | null {
-  let best: Fighter | null = null;
+export function findMatchWinner<T extends MatchStanding>(fighters: T[]): T | null {
+  let best: T | null = null;
   let tied = false;
 
-  const better = (a: Fighter, b: Fighter) => {
+  const better = (a: MatchStanding, b: MatchStanding) => {
     if (a.roundWins !== b.roundWins) return a.roundWins > b.roundWins;
     if (a.kills !== b.kills) return a.kills > b.kills;
     return a.deaths < b.deaths;
   };
-  const equal = (a: Fighter, b: Fighter) =>
+  const equal = (a: MatchStanding, b: MatchStanding) =>
     a.roundWins === b.roundWins && a.kills === b.kills && a.deaths === b.deaths;
 
   for (const fighter of fighters) {
@@ -88,7 +110,7 @@ export function findMatchWinner(fighters: Fighter[]): Fighter | null {
  * baru saja ditutup.
  */
 export function hasClinchedMatch(
-  fighters: Fighter[],
+  fighters: Pick<MatchStanding, "roundWins">[],
   roundsPlayed: number,
   totalRounds: number,
 ): boolean {

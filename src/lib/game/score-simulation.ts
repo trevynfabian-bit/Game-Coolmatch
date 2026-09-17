@@ -168,25 +168,6 @@ export function createSimulation({
 }
 
 /**
- * Bentuk `Fighter` seadanya dari peserta simulasi, hanya untuk kolom yang
- * dibaca penentu pemenang ronde dan penutup pertandingan. Itu memungkinkan
- * simulasi memakai aturan juara yang sama dengan arena alih-alih menuliskan
- * ulang versinya sendiri, yang cepat atau lambat akan berbeda.
- */
-function asFighters(participants: SimParticipant[]): Fighter[] {
-  return participants.map(
-    (p) =>
-      ({
-        id: p.id,
-        roundKills: p.roundKills,
-        roundWins: p.roundWins,
-        kills: p.kills,
-        deaths: p.deaths,
-      }) as Fighter,
-  );
-}
-
-/**
  * Menjalankan simulasi satu kejadian: seorang peserta menumbangkan peserta
  * lain, lalu seluruh akibatnya diterapkan — kill, kematian, skor, kill ronde,
  * dan bila perlu pergantian ronde atau penutupan pertandingan.
@@ -262,10 +243,11 @@ export function stepSimulation(state: SimState): SimState {
   }
 
   // Ronde selesai — pemenangnya ditentukan aturan yang sama dengan arena.
-  // Dicocokkan lewat id, bukan lewat angka perolehannya: dua peserta bisa saja
-  // punya angka yang sama persis, dan mencocokkan angka akan memberi kemenangan
-  // ronde kepada orang yang salah.
-  const roundWinner = findRoundWinner(asFighters(participants));
+  // findRoundWinner mengembalikan peserta ASLI yang dioper, jadi pemenangnya
+  // dikenali lewat id miliknya sendiri. Mencocokkan angka perolehan tidak
+  // aman: dua peserta bisa saja punya angka yang sama persis, dan kemenangan
+  // rondenya akan jatuh ke orang yang salah.
+  const roundWinner = findRoundWinner(participants);
   const winnerIndex = roundWinner
     ? participants.findIndex((p) => p.id === roundWinner.id)
     : -1;
@@ -281,11 +263,7 @@ export function stepSimulation(state: SimState): SimState {
   const isLastRound = state.round.current >= state.round.total;
   const isDecided =
     isLastRound ||
-    hasClinchedMatch(
-      asFighters(participants),
-      state.round.current,
-      state.round.total,
-    );
+    hasClinchedMatch(participants, state.round.current, state.round.total);
 
   if (isDecided) {
     const ranked = [...participants].sort(

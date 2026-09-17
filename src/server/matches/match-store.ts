@@ -1,12 +1,18 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { killScore } from "@/lib/game/damage";
+import {
+  findMatchWinner,
+  findRoundWinner,
+  hasClinchedMatch,
+  hasReachedScoreLimit,
+} from "@/lib/game/round";
 import { rankScores } from "@/lib/game/scoreboard";
 import {
   DIFFICULTY_PROFILES,
   MAX_BOTS,
   MIN_BOTS,
 } from "@/lib/game/difficulty";
-import type { Difficulty, MatchScoreLine } from "@/types/game";
+import type { Difficulty, MatchResult, MatchScoreLine } from "@/types/game";
 import { db } from "@/server/db/client";
 import { matchRounds, matchScores, matches } from "@/server/db/schema";
 import { ensureMapRow, findMapName } from "@/server/maps/map-store";
@@ -415,4 +421,244 @@ export function loadLiveScoreboard(matchId: number): LiveScoreboard | null {
     roundsPlayed: Number(jumlah),
     scoreboard,
   };
+}
+
+/** Kill tiap peserta pada satu ronde, dikirim klien saat rondenya ditutup. */
+export interface RoundKillInput {
+  participantName: string;
+  roundKills: number;
+}
+
+export interface FinishRoundInput {
+  roundNumber: number;
+  kills: RoundKillInput[];
+}
+
+/** Memeriksa badan permintaan "tutup ronde". */
+export function parseFinishRound(body: unknown): Parsed<FinishRoundInput> {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return { ok: false, message: "Badan permintaan harus berupa objek JSON." };
+  }
+  const b = body as Record<string, unknown>;
+
+  if (!positiveInt(b.roundNumber)) {
+    return { ok: false, message: "Nomor ronde harus bilangan bulat positif." };
+  }
+  if (!Array.isArray(b.kills) || b.kills.length === 0) {
+    return { ok: false, message: "Kill tiap peserta pada ronde ini harus disertakan." };
+  }
+
+  const kills: RoundKillInput[] = [];
+  for (const raw of b.kills) {
+    if (typeof raw !== "object" || raw === null) {
+      return { ok: false, message: "Tiap perolehan ronde harus berupa objek." };
+    }
+    const k = raw as Record<string, unknown>;
+    if (!nonEmptyString(k.participantName)) {
+      return { ok: false, message: "Tiap perolehan ronde harus menyebut nama peserta." };
+    }
+    if (
+      typeof k.roundKills !== "number" ||
+      !Number.isInteger(k.roundKills) ||
+      k.roundKills < 0
+    ) {
+      return {
+        ok: false,
+        message: `Kill ronde "${k.participantName}" harus bilangan bulat tidak negatif.`,
+      };
+    }
+    kills.push({ participantName: k.participantName, roundKills: k.roundKills });
+  }
+
+  if (new Set(kills.map((k) => k.participantName)).size !== kills.length) {
+    return { ok: false, message: "Nama peserta tidak boleh disebut dua kali." };
+  }
+
+  return { ok: true, value: { roundNumber: b.roundNumber, kills } };
+}
+
+export type FinishRoundResult =
+  | {
+      ok: true;
+      /** Pemenang ronde ini; null bila rondenya berakhir seri. */
+      roundWinner: string | null;
+      /** Benar bila ronde ini menutup seluruh pertandingan. */
+      matchEnded: boolean;
+      /** Juara pertandingan; hanya terisi saat `matchEnded`. */
+      matchWinner: string | null;
+      /** Hasil dari sudut pandang pemain; hanya terisi saat `matchEnded`. */
+      result: MatchResult | null;
+      scoreboard: MatchScoreLine[];
+    }
+  | { ok: false; status: 404 | 409 | 400; message: string };
+
+/**
+ * Menutup satu ronde dan, bila syarat kemenangan sudah terpenuhi, menutup
+ * seluruh pertandingan.
+ *
+ * Seluruh aturannya diambil dari lib/game/round — `findRoundWinner`,
+ * `hasReachedScoreLimit`, `hasClinchedMatch`, dan `findMatchWinner` — yaitu
+ * fungsi yang SAMA persis dengan yang dipakai arena. Itu yang membuat juara
+ * versi server tidak mungkin berbeda dari juara yang diumumkan layar akhir
+ * kepada pemain. Menuliskan ulang aturannya di sini akan cepat atau lambat
+ * menghasilkan dua kebenaran yang berbeda.
+ *
+ * Yang dikirim klien hanyalah FAKTA rondenya — siapa membunuh berapa kali.
+ * Server tidak menerima klaim "si anu menang": kesimpulannya dihitung di sini.
+ *
+ * Nomor ronde harus tepat melanjutkan ronde terakhir yang tercatat. Itu yang
+ * menahan permintaan yang terkirim dua kali agar tidak menambah kemenangan
+ * ronde dua kali, sekaligus menahan ronde yang bolong.
+ */
+export function finishRound(
+  matchId: number,
+  input: FinishRoundInput,
+): FinishRoundResult {
+  return db.transaction((tx) => {
+    const [match] = tx
+      .select()
+      .from(matches)
+      .where(eq(matches.id, matchId))
+      .limit(1)
+      .all();
+
+    if (!match) {
+      return { ok: false, status: 404, message: "Pertandingan tidak ditemukan." };
+    }
+    if (match.endedAt !== null) {
+      return {
+        ok: false,
+        status: 409,
+        message: "Pertandingan sudah ditutup, ronde baru tidak bisa dicatat.",
+      };
+    }
+
+    const sudah = tx
+      .select()
+      .from(matchRounds)
+      .where(eq(matchRounds.matchId, matchId))
+      .all();
+    const berikutnya = sudah.length + 1;
+    if (input.roundNumber !== berikutnya) {
+      return {
+        ok: false,
+        status: 409,
+        message: `Ronde berikutnya adalah ronde ${berikutnya}, bukan ${input.roundNumber}.`,
+      };
+    }
+
+    const lines = tx
+      .select()
+      .from(matchScores)
+      .where(eq(matchScores.matchId, matchId))
+      .all();
+    const byName = new Map(lines.map((line) => [line.participantName, line]));
+
+    for (const k of input.kills) {
+      if (!byName.has(k.participantName)) {
+        return {
+          ok: false,
+          status: 404,
+          message: `"${k.participantName}" bukan peserta pertandingan ini.`,
+        };
+      }
+    }
+
+    // Peserta yang tidak disebut dianggap nol kill pada ronde ini; itu keadaan
+    // yang wajar dan tidak perlu dipaksa disertakan klien.
+    const roundKills = new Map<string, number>(
+      lines.map((line) => [line.participantName, 0]),
+    );
+    for (const k of input.kills) roundKills.set(k.participantName, k.roundKills);
+
+    const standings = lines.map((line) => ({
+      name: line.participantName,
+      isBot: line.isBot,
+      roundKills: roundKills.get(line.participantName) ?? 0,
+      roundWins: line.roundWins,
+      kills: line.kills,
+      deaths: line.deaths,
+    }));
+
+    const winner = findRoundWinner(standings);
+
+    tx.insert(matchRounds)
+      .values({
+        matchId,
+        roundNumber: input.roundNumber,
+        winnerName: winner?.name ?? null,
+        endedReason: hasReachedScoreLimit(standings, match.scoreLimit)
+          ? "batas_kill"
+          : "waktu_habis",
+        playerKills: standings.find((s) => !s.isBot)?.roundKills ?? 0,
+      })
+      .run();
+
+    if (winner) {
+      tx.update(matchScores)
+        .set({ roundWins: sql`${matchScores.roundWins} + 1` })
+        .where(
+          and(
+            eq(matchScores.matchId, matchId),
+            eq(matchScores.participantName, winner.name),
+          ),
+        )
+        .run();
+      winner.roundWins += 1;
+    }
+
+    /**
+     * Pertandingan berhenti pada ronde terakhir, ATAU lebih awal begitu gelar
+     * tidak bisa berpindah lagi. Memainkan sisa ronde yang sudah tidak
+     * mengubah apa pun hanya menahan pemain di pertandingan yang hasilnya
+     * sudah ditentukan.
+     */
+    const isLastRound = input.roundNumber >= match.totalRounds;
+    const isDecided =
+      isLastRound ||
+      hasClinchedMatch(standings, input.roundNumber, match.totalRounds);
+
+    let matchWinner: string | null = null;
+    let result: MatchResult | null = null;
+
+    if (isDecided) {
+      matchWinner = findMatchWinner(standings)?.name ?? null;
+      const local = standings.find((s) => !s.isBot);
+      result = !matchWinner
+        ? "seri"
+        : local && matchWinner === local.name
+          ? "menang"
+          : "kalah";
+
+      tx.update(matches)
+        .set({
+          endedAt: sql`(unixepoch() * 1000)`,
+          result,
+          winnerName: matchWinner,
+        })
+        .where(eq(matches.id, matchId))
+        .run();
+
+      if (matchWinner) {
+        tx.update(matchScores)
+          .set({ isWinner: true })
+          .where(
+            and(
+              eq(matchScores.matchId, matchId),
+              eq(matchScores.participantName, matchWinner),
+            ),
+          )
+          .run();
+      }
+    }
+
+    return {
+      ok: true,
+      roundWinner: winner?.name ?? null,
+      matchEnded: isDecided,
+      matchWinner,
+      result,
+      scoreboard: loadLiveScoreboard(matchId)!.scoreboard,
+    };
+  });
 }
