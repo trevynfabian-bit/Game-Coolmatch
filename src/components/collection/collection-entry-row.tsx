@@ -1,5 +1,6 @@
 "use client";
 
+import { UnlockRequirementNote } from "@/components/weapons/unlock-requirement";
 import { WeaponSilhouette } from "@/components/weapons/weapon-silhouette";
 import { ActionButton } from "@/components/ui/action-button";
 import type { CollectionEntry } from "@/lib/game/collection";
@@ -87,25 +88,11 @@ export function CollectionEntryRow({
           ) : null}
         </span>
 
-        {locked ? (
-          <span className="mt-1.5 block">
-            <span className="block text-[11px] text-amber-300/80">
-              {ownership.requirement}
-            </span>
-            {ownership.progress !== null ? (
-              <span className="mt-1 flex items-center gap-2">
-                <span className="h-1 w-32 overflow-hidden rounded-full bg-white/10">
-                  <span
-                    className="block h-full rounded-full bg-amber-400/70"
-                    style={{ width: `${Math.max(2, ownership.progress * 100)}%` }}
-                  />
-                </span>
-                <span className="font-mono text-[10px] text-slate-500 tabular-nums">
-                  {ownership.progressLabel}
-                </span>
-              </span>
-            ) : null}
-          </span>
+        {locked && ownership.requirement ? (
+          <UnlockRequirementNote
+            requirement={ownership.requirement}
+            className="mt-1.5"
+          />
         ) : (
           <span className="mt-1 block text-[11px] text-slate-500">
             {weapon.damage} kerusakan

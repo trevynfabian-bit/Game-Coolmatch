@@ -1,3 +1,4 @@
+import type { UnlockRequirement } from "@/lib/game/unlock";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 
 /**
@@ -19,34 +20,39 @@ export const MOCK_PLAYER_PROGRESS = {
 export interface WeaponOwnership {
   weaponId: string;
   isUnlocked: boolean;
-  /** Syarat membuka, ditulis untuk dibaca pemain. Null bila sudah terbuka. */
-  requirement: string | null;
-  /** Kemajuan menuju syarat itu, 0..1. Null bila sudah terbuka. */
-  progress: number | null;
-  /** Bentuk "2 / 5" untuk ditampilkan di samping bar kemajuan. */
-  progressLabel: string | null;
+  /**
+   * Syarat membuka sebagai ANGKA. Kalimat, bar kemajuan, dan sisa yang
+   * dibutuhkan semuanya diturunkan darinya lewat `unlockFacts`, sehingga tidak
+   * ada dua keterangan yang bisa berselisih. Null bila senjatanya sudah
+   * terbuka.
+   */
+  requirement: UnlockRequirement | null;
 }
 
 const WINS_FOR_SHOTGUN = 5;
 const KILLS_FOR_SNIPER = 60;
 
 export const MOCK_PLAYER_WEAPONS: WeaponOwnership[] = [
-  { weaponId: "wpn-pistol-p9", isUnlocked: true, requirement: null, progress: null, progressLabel: null },
-  { weaponId: "wpn-smg-vektor", isUnlocked: true, requirement: null, progress: null, progressLabel: null },
-  { weaponId: "wpn-rifle-garuda", isUnlocked: true, requirement: null, progress: null, progressLabel: null },
+  { weaponId: "wpn-pistol-p9", isUnlocked: true, requirement: null },
+  { weaponId: "wpn-smg-vektor", isUnlocked: true, requirement: null },
+  { weaponId: "wpn-rifle-garuda", isUnlocked: true, requirement: null },
   {
     weaponId: "wpn-shotgun-badai",
     isUnlocked: false,
-    requirement: `Menangi ${WINS_FOR_SHOTGUN} pertandingan`,
-    progress: Math.min(1, MOCK_PLAYER_PROGRESS.wins / WINS_FOR_SHOTGUN),
-    progressLabel: `${MOCK_PLAYER_PROGRESS.wins} / ${WINS_FOR_SHOTGUN}`,
+    requirement: {
+      kind: "wins",
+      current: MOCK_PLAYER_PROGRESS.wins,
+      target: WINS_FOR_SHOTGUN,
+    },
   },
   {
     weaponId: "wpn-sniper-elang",
     isUnlocked: false,
-    requirement: `Kumpulkan ${KILLS_FOR_SNIPER} kill`,
-    progress: Math.min(1, MOCK_PLAYER_PROGRESS.totalKills / KILLS_FOR_SNIPER),
-    progressLabel: `${MOCK_PLAYER_PROGRESS.totalKills} / ${KILLS_FOR_SNIPER}`,
+    requirement: {
+      kind: "kills",
+      current: MOCK_PLAYER_PROGRESS.totalKills,
+      target: KILLS_FOR_SNIPER,
+    },
   },
 ];
 
@@ -58,13 +64,7 @@ const byId = new Map(MOCK_PLAYER_WEAPONS.map((item) => [item.weaponId, item]));
  */
 export function weaponOwnership(weaponId: string): WeaponOwnership {
   return (
-    byId.get(weaponId) ?? {
-      weaponId,
-      isUnlocked: true,
-      requirement: null,
-      progress: null,
-      progressLabel: null,
-    }
+    byId.get(weaponId) ?? { weaponId, isUnlocked: true, requirement: null }
   );
 }
 

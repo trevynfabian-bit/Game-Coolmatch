@@ -1,3 +1,4 @@
+import { unlockFacts } from "@/lib/game/unlock";
 import type { WeaponOwnership } from "@/lib/mock/player-weapons";
 import type { Weapon } from "@/types/game";
 
@@ -72,7 +73,10 @@ export function collectionFacts(
       if (a.ownership.isUnlocked !== b.ownership.isUnlocked) {
         return a.ownership.isUnlocked ? -1 : 1;
       }
-      return (b.ownership.progress ?? 0) - (a.ownership.progress ?? 0);
+      // Kemajuan diturunkan saat dibutuhkan, bukan disimpan di kepemilikan.
+      const maju = (o: WeaponOwnership) =>
+        o.requirement ? unlockFacts(o.requirement).progress : 0;
+      return maju(b.ownership) - maju(a.ownership);
     });
 
   const unlocked = entries.filter((e) => e.ownership.isUnlocked).length;

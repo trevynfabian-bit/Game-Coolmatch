@@ -1,5 +1,7 @@
 "use client";
 
+import { UnlockRequirementNote } from "@/components/weapons/unlock-requirement";
+import { unlockFacts } from "@/lib/game/unlock";
 import { WeaponSilhouette } from "@/components/weapons/weapon-silhouette";
 import type { WeaponOwnership } from "@/lib/mock/player-weapons";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
@@ -49,7 +51,9 @@ export function WeaponCard({
       disabled={locked}
       aria-pressed={locked ? undefined : selected}
       aria-label={
-        locked ? `${weapon.name} — terkunci, ${ownership.requirement}` : undefined
+        locked && ownership.requirement
+          ? `${weapon.name} — terkunci, ${unlockFacts(ownership.requirement).label}`
+          : undefined
       }
       className={`relative flex w-full items-center gap-4 overflow-hidden rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
         locked
@@ -92,25 +96,12 @@ export function WeaponCard({
           ) : null}
         </span>
 
-        {locked ? (
-          <span className="mt-1 block">
-            <span className="block text-[11px] text-amber-300/80">
-              {ownership.requirement}
-            </span>
-            {ownership.progress !== null ? (
-              <span className="mt-1 flex items-center gap-2">
-                <span className="h-1 w-24 overflow-hidden rounded-full bg-white/10">
-                  <span
-                    className="block h-full rounded-full bg-amber-400/70"
-                    style={{ width: `${ownership.progress * 100}%` }}
-                  />
-                </span>
-                <span className="font-mono text-[10px] text-slate-500 tabular-nums">
-                  {ownership.progressLabel}
-                </span>
-              </span>
-            ) : null}
-          </span>
+        {locked && ownership.requirement ? (
+          <UnlockRequirementNote
+            requirement={ownership.requirement}
+            className="mt-1"
+            barWidth="w-24"
+          />
         ) : (
           <span className="block text-[11px] text-slate-500">
             {WEAPON_TYPE_LABEL[weapon.type]}

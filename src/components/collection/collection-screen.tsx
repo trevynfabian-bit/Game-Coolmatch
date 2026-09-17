@@ -6,6 +6,7 @@ import { CollectionEntryRow } from "@/components/collection/collection-entry-row
 import { StatTile } from "@/components/scoreboard/stat-tile";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { collectionFacts, progressFacts } from "@/lib/game/collection";
+import { unlockFacts } from "@/lib/game/unlock";
 import {
   MOCK_PLAYER_PROGRESS,
   weaponOwnership,
@@ -48,6 +49,11 @@ export function CollectionScreen() {
   };
 
   const persen = Math.round(collection.completion * 100);
+
+  /** Sisa syarat senjata yang paling dekat terbuka; null bila semua terbuka. */
+  const berikutnya = collection.nextUnlock?.ownership.requirement
+    ? unlockFacts(collection.nextUnlock.ownership.requirement)
+    : null;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8">
@@ -125,14 +131,17 @@ export function CollectionScreen() {
           />
         </div>
 
-        {collection.nextUnlock ? (
+        {berikutnya ? (
           <p className="mt-3 text-[11px] leading-relaxed text-amber-200/80">
             Paling dekat terbuka:{" "}
             <span className="font-medium text-amber-200">
-              {collection.nextUnlock.weapon.name}
+              {collection.nextUnlock?.weapon.name}
             </span>{" "}
-            — {collection.nextUnlock.ownership.requirement?.toLowerCase()} (
-            {collection.nextUnlock.ownership.progressLabel}).
+            — tinggal{" "}
+            <span className="font-medium text-amber-200">
+              {berikutnya.remainingText}
+            </span>{" "}
+            ({berikutnya.countText}).
           </p>
         ) : (
           <p className="mt-3 text-[11px] text-emerald-300/80">
