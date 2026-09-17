@@ -17,6 +17,7 @@ import { StanceBadge } from "@/components/arena/hud/stance-badge";
 import { TrialBadge } from "@/components/arena/hud/trial-badge";
 import { VitalsPanel } from "@/components/arena/hud/vitals-panel";
 import { WeaponSlots } from "@/components/arena/hud/weapon-slots";
+import { UnlockCelebration } from "@/components/weapons/unlock-celebration";
 import { getLocalFighter } from "@/lib/mock/match";
 import { findWeapon } from "@/lib/mock/weapons";
 import { sortScoreboard, useMatchStore } from "@/lib/store/match-store";
@@ -144,6 +145,14 @@ export function ArenaHud({
       />
 
       <EngageOverlay round={activeRound} match={match} />
+
+      {/*
+        Dipasang paling akhir, dan memang harus menumpuk segalanya: ia memakai
+        elemen dialog bawaan browser, yang naik ke lapisan teratas halaman
+        terlepas dari urutan di sini — termasuk di atas ringkasan akhir
+        pertandingan yang sedang tampil di belakangnya.
+      */}
+      <UnlockCelebration isTrial={isTrial} />
     </>
   );
 }

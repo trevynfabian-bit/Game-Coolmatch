@@ -4,6 +4,7 @@ import {
   isWeaponUnlocked,
 } from "@/lib/mock/player-weapons";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
+import { useUnlockStore } from "@/lib/store/unlock-store";
 
 /** Pilihan bawaan: senapan serbu, bila memang sudah terbuka. */
 const DEFAULT_WEAPON_ID = isWeaponUnlocked(MOCK_WEAPONS[2]?.id ?? "")
@@ -25,7 +26,11 @@ export const useLoadoutStore = create<LoadoutState>((set) => ({
   selectWeapon: (weaponId) =>
     set((state) => {
       if (state.selectedWeaponId === weaponId) return state;
-      if (!isWeaponUnlocked(weaponId)) return state;
+      // Termasuk senjata yang baru terbuka sesi ini. Dibaca di dalam
+      // penangan, bukan saat modul dimuat: daftarnya bisa bertambah kapan saja
+      // selama pemain bermain.
+      if (!isWeaponUnlocked(weaponId, useUnlockStore.getState().unlocked))
+        return state;
       return { selectedWeaponId: weaponId };
     }),
 }));

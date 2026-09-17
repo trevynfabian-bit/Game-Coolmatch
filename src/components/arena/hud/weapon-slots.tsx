@@ -1,9 +1,10 @@
 "use client";
 
-import { SWAP_SLOTS } from "@/components/arena/weapon-swap";
+import { swapSlots } from "@/components/arena/weapon-swap";
 import { WeaponSilhouette } from "@/components/weapons/weapon-silhouette";
 import { useCombatStore } from "@/lib/store/combat-store";
 import { usePlayerStore } from "@/lib/store/player-store";
+import { useEarnedWeapons } from "@/lib/store/unlock-store";
 import { WEAPON_SHAPES } from "@/lib/weapons/weapon-shape";
 
 /**
@@ -15,8 +16,11 @@ export function WeaponSlots() {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const activeWeaponId = useCombatStore((state) => state.activeWeaponId);
   const isSwapping = useCombatStore((state) => state.isSwapping);
+  // Dilanggani, bukan dibaca sekali: senjata yang terbuka di tengah bermain
+  // harus langsung punya slotnya sendiri di deretan ini.
+  const slots = swapSlots(useEarnedWeapons());
 
-  if (!isLocked || SWAP_SLOTS.length < 2) return null;
+  if (!isLocked || slots.length < 2) return null;
 
   return (
     <div
@@ -25,7 +29,7 @@ export function WeaponSlots() {
       }`}
     >
       <ul className="flex items-end gap-2">
-        {SWAP_SLOTS.map((weapon, index) => {
+        {slots.map((weapon, index) => {
           const active = weapon.id === activeWeaponId;
           const accent = WEAPON_SHAPES[weapon.type].accent;
 

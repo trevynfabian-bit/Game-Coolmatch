@@ -61,19 +61,48 @@ const byId = new Map(MOCK_PLAYER_WEAPONS.map((item) => [item.weaponId, item]));
 /**
  * Kepemilikan satu senjata. Senjata yang tidak tercatat dianggap terbuka,
  * supaya menambah senjata baru ke daftar tidak diam-diam menguncinya.
+ *
+ * `earned` adalah senjata yang terbuka karena pemain memainkannya — hasil
+ * kemajuan, bukan bawaan. Ia dioper sebagai ARGUMEN alih-alih dibaca dari
+ * penyimpanan di dalam sini, dan itu disengaja: fungsi ini dipanggil dari
+ * lingkup modul (senjata bawaan loadout, deretan slot tukar senjata) yang
+ * tidak boleh bergantung pada keadaan yang hidup, dan dari render komponen
+ * yang justru harus. Dengan argumen, tiap pemanggil menentukan sendiri
+ * jawabannya dan fungsinya tetap murni.
  */
-export function weaponOwnership(weaponId: string): WeaponOwnership {
-  return (
-    byId.get(weaponId) ?? { weaponId, isUnlocked: true, requirement: null }
-  );
+export function weaponOwnership(
+  weaponId: string,
+  earned: readonly string[] = [],
+): WeaponOwnership {
+  const bawaan = byId.get(weaponId) ?? {
+    weaponId,
+    isUnlocked: true,
+    requirement: null,
+  };
+  if (bawaan.isUnlocked || !earned.includes(weaponId)) return bawaan;
+
+  // Sudah terbuka: syaratnya tidak lagi punya pekerjaan, dan membiarkannya
+  // terisi membuat kartu senjata menampilkan bar kemajuan untuk sesuatu yang
+  // sudah selesai.
+  return { weaponId, isUnlocked: true, requirement: null };
 }
 
-export function isWeaponUnlocked(weaponId: string): boolean {
-  return weaponOwnership(weaponId).isUnlocked;
+export function isWeaponUnlocked(
+  weaponId: string,
+  earned: readonly string[] = [],
+): boolean {
+  return weaponOwnership(weaponId, earned).isUnlocked;
 }
 
 /** Senjata terbuka pertama, dipakai sebagai cadangan pilihan yang sah. */
-export function firstUnlockedWeaponId(): string {
-  const unlocked = MOCK_WEAPONS.find((weapon) => isWeaponUnlocked(weapon.id));
+export function firstUnlockedWeaponId(earned: readonly string[] = []): string {
+  const unlocked = MOCK_WEAPONS.find((weapon) =>
+    isWeaponUnlocked(weapon.id, earned),
+  );
   return unlocked?.id ?? MOCK_WEAPONS[0].id;
+}
+
+/** Senjata yang boleh dibawa bertanding, urut sesuai nomor slotnya. */
+export function unlockedWeapons(earned: readonly string[] = []) {
+  return MOCK_WEAPONS.filter((weapon) => isWeaponUnlocked(weapon.id, earned));
 }

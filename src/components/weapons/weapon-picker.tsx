@@ -7,6 +7,7 @@ import { WeaponPreview } from "@/components/weapons/weapon-preview";
 import { weaponOwnership } from "@/lib/mock/player-weapons";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
+import { useEarnedWeapons } from "@/lib/store/unlock-store";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
 import { killSummary, weaponFeel } from "@/lib/weapons/weapon-feel";
 import { weaponBlurb, weaponStatBars } from "@/lib/weapons/weapon-stats";
@@ -47,15 +48,23 @@ function StatRow({
 export function WeaponPicker() {
   const selectedWeaponId = useLoadoutStore((state) => state.selectedWeaponId);
   const selectWeapon = useLoadoutStore((state) => state.selectWeapon);
+  // Senjata yang terbuka karena dimainkan ikut dihitung, jadi yang barusan
+  // dirayakan langsung berhenti tampil terkunci di daftar ini.
+  const earned = useEarnedWeapons();
 
-  const selected = useMemo(() => findWeapon(selectedWeaponId), [selectedWeaponId]);
+  const selected = useMemo(
+    () => findWeapon(selectedWeaponId),
+    [selectedWeaponId],
+  );
   const bars = useMemo(() => weaponStatBars(selected), [selected]);
   const feel = useMemo(() => weaponFeel(selected), [selected]);
   const accent = WEAPON_SHAPES[selected.type].accent;
   const unlockedCount = useMemo(
-    () => MOCK_WEAPONS.filter((weapon) => weaponOwnership(weapon.id).isUnlocked)
-      .length,
-    [],
+    () =>
+      MOCK_WEAPONS.filter(
+        (weapon) => weaponOwnership(weapon.id, earned).isUnlocked,
+      ).length,
+    [earned],
   );
 
   return (
@@ -85,15 +94,15 @@ export function WeaponPicker() {
             ) : null}
           </p>
           <ul className="space-y-2">
-          {MOCK_WEAPONS.map((weapon) => (
-            <li key={weapon.id}>
-              <WeaponCard
-                weapon={weapon}
-                ownership={weaponOwnership(weapon.id)}
-                selected={weapon.id === selectedWeaponId}
-                onSelect={() => selectWeapon(weapon.id)}
-              />
-            </li>
+            {MOCK_WEAPONS.map((weapon) => (
+              <li key={weapon.id}>
+                <WeaponCard
+                  weapon={weapon}
+                  ownership={weaponOwnership(weapon.id, earned)}
+                  selected={weapon.id === selectedWeaponId}
+                  onSelect={() => selectWeapon(weapon.id)}
+                />
+              </li>
             ))}
           </ul>
         </div>
@@ -103,7 +112,10 @@ export function WeaponPicker() {
             <WeaponPreview weapon={selected} />
           </div>
 
-          <p className="mt-4 text-[10px] tracking-[0.2em] uppercase" style={{ color: accent }}>
+          <p
+            className="mt-4 text-[10px] tracking-[0.2em] uppercase"
+            style={{ color: accent }}
+          >
             {WEAPON_TYPE_LABEL[selected.type]}
             <span className="text-slate-600"> · </span>
             <span className="text-slate-500">

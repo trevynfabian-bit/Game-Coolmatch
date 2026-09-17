@@ -8,10 +8,11 @@ import { difficultyProfile } from "@/lib/game/difficulty";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { findMap } from "@/lib/mock/maps";
 import { DEFAULT_MATCH_RULES } from "@/lib/mock/match";
-import { isWeaponUnlocked } from "@/lib/mock/player-weapons";
-import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
+import { unlockedWeapons } from "@/lib/mock/player-weapons";
+import { findWeapon } from "@/lib/mock/weapons";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useMapStore } from "@/lib/store/map-store";
+import { useEarnedWeapons } from "@/lib/store/unlock-store";
 import {
   TRIAL_BOT_COUNT,
   TRIAL_DIFFICULTY,
@@ -53,10 +54,8 @@ export function TrialScreen({ initialWeaponId }: { initialWeaponId?: string }) {
   const selectedMapId = useMapStore((state) => state.selectedMapId);
 
   /** Hanya senjata terbuka; yang terkunci belum bisa dibawa ke mana pun. */
-  const weapons = useMemo(
-    () => MOCK_WEAPONS.filter((weapon) => isWeaponUnlocked(weapon.id)),
-    [],
-  );
+  const earned = useEarnedWeapons();
+  const weapons = useMemo(() => unlockedWeapons(earned), [earned]);
 
   /**
    * Pilihan uji coba berdiri SENDIRI, tidak menulis balik ke perlengkapan yang
@@ -70,12 +69,11 @@ export function TrialScreen({ initialWeaponId }: { initialWeaponId?: string }) {
    * yang tidak dikenal jatuh ke senjata terbuka pertama.
    */
   const [weaponId, setWeaponId] = useState<string>(() => {
+    const terbuka = new Set(weapons.map((weapon) => weapon.id));
     const diminta =
-      initialWeaponId && isWeaponUnlocked(initialWeaponId)
-        ? initialWeaponId
-        : null;
+      initialWeaponId && terbuka.has(initialWeaponId) ? initialWeaponId : null;
     const dibawa = useLoadoutStore.getState().selectedWeaponId;
-    return diminta ?? (isWeaponUnlocked(dibawa) ? dibawa : weapons[0].id);
+    return diminta ?? (terbuka.has(dibawa) ? dibawa : weapons[0].id);
   });
 
   const selectedIndex = Math.max(

@@ -9,17 +9,25 @@ import {
   WEAPON_SWAP_SECONDS,
   type MoveAction,
 } from "@/lib/game/controls";
-import { isWeaponUnlocked } from "@/lib/mock/player-weapons";
-import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
+import { unlockedWeapons } from "@/lib/mock/player-weapons";
+import { findWeapon } from "@/lib/mock/weapons";
 import { useCombatStore } from "@/lib/store/combat-store";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
+import { useUnlockStore } from "@/lib/store/unlock-store";
 
-/** Senjata yang boleh dibawa bertanding, urut sesuai nomor slotnya. */
-export const SWAP_SLOTS = MOCK_WEAPONS.filter((weapon) =>
-  isWeaponUnlocked(weapon.id),
-);
+/**
+ * Senjata yang boleh dibawa bertanding, urut sesuai nomor slotnya.
+ *
+ * Dihitung saat dibutuhkan, bukan sekali saat modul dimuat. Senjata bisa
+ * terbuka di tengah bermain, dan deretan slot yang dibekukan sejak halaman
+ * dibuka akan menyembunyikan senjata yang barusan dirayakan pemain — termasuk
+ * senjata yang sedang ia pegang.
+ */
+export function swapSlots(earned: readonly string[]) {
+  return unlockedWeapons(earned);
+}
 
 /**
  * Menukar senjata di tengah pertandingan lewat tombol angka.
@@ -41,7 +49,10 @@ export function WeaponSwap() {
         (pressed) => {
           if (!pressed) return;
 
-          const target = SWAP_SLOTS[index];
+          // Dibaca dari keadaan terkini, bukan dari tangkapan saat efek
+          // dipasang: senjata yang terbuka di tengah pertandingan harus
+          // langsung bisa dipilih dengan nomornya.
+          const target = swapSlots(useUnlockStore.getState().unlocked)[index];
           if (!target) return;
           if (!usePlayerStore.getState().isLocked) return;
 

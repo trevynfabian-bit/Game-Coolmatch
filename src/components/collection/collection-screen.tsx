@@ -13,6 +13,7 @@ import {
 } from "@/lib/mock/player-weapons";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
+import { useEarnedWeapons } from "@/lib/store/unlock-store";
 
 /**
  * Halaman Koleksi & Progres: seberapa jauh pemain sudah bermain, dan senjata
@@ -30,10 +31,11 @@ import { useLoadoutStore } from "@/lib/store/loadout-store";
 export function CollectionScreen() {
   const router = useRouter();
   const selectWeapon = useLoadoutStore((state) => state.selectWeapon);
+  const earned = useEarnedWeapons();
 
   const collection = useMemo(
-    () => collectionFacts(MOCK_WEAPONS, weaponOwnership),
-    [],
+    () => collectionFacts(MOCK_WEAPONS, (id) => weaponOwnership(id, earned)),
+    [earned],
   );
 
   /**

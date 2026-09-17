@@ -1,8 +1,18 @@
 import Link from "next/link";
 import type { MouseEvent, ReactNode } from "react";
 
+/**
+ * Garis tepi ikut BASE, dan variannya hanya menentukan warnanya — termasuk
+ * "tanpa garis", yang ditulis sebagai garis bening.
+ *
+ * Kalau tombol utama benar-benar tidak punya garis, ia dua piksel lebih pendek
+ * daripada tombol di sebelahnya. Pada deretan tombol yang direntangkan grid,
+ * selisih itu tidak terlihat; begitu tombol yang sama ditumpuk ke bawah —
+ * seperti pada notifikasi senjata terbuka — tumpukannya jadi tidak rata tanpa
+ * alasan yang kelihatan.
+ */
 const BASE =
-  "rounded-lg text-center font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2";
+  "rounded-lg border text-center font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2";
 
 /**
  * Ukuran ditaruh terpisah dari BASE, bukan ditimpa lewat `className`. Dua kelas
@@ -19,10 +29,10 @@ const SIZE = {
 const VARIANT = {
   /** Tindakan yang paling mungkin diinginkan pemain di layar itu. */
   utama:
-    "bg-emerald-500 text-slate-950 hover:bg-emerald-400 focus-visible:outline-emerald-400",
+    "border-transparent bg-emerald-500 text-slate-950 hover:bg-emerald-400 focus-visible:outline-emerald-400",
   /** Tindakan lain yang setara satu sama lain. */
   biasa:
-    "border border-white/15 text-slate-200 hover:border-white/30 hover:bg-white/5 focus-visible:outline-slate-400",
+    "border-white/15 text-slate-200 hover:border-white/30 hover:bg-white/5 focus-visible:outline-slate-400",
 } as const;
 
 export type ActionVariant = keyof typeof VARIANT;
@@ -89,9 +99,7 @@ export function ActionRow({
   className?: string;
 }) {
   return (
-    <div
-      className={`grid gap-3 sm:auto-cols-fr sm:grid-flow-col ${className}`}
-    >
+    <div className={`grid gap-3 sm:auto-cols-fr sm:grid-flow-col ${className}`}>
       {children}
     </div>
   );
