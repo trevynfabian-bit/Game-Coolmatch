@@ -9,6 +9,7 @@ import {
 import { BOT_NAMES } from "@/lib/mock/bots";
 import { db } from "@/server/db/client";
 import { players } from "@/server/db/schema";
+import { hasOpenMatch } from "@/server/matches/match-store";
 
 /** Bentuk yang dikirim dan diterima endpoint nama pemain. */
 export interface PlayerProfilePayload {
@@ -100,7 +101,12 @@ export function loadPlayerProfile(playerId: number): PlayerProfilePayload {
 }
 
 /**
- * Menyimpan nama pemain.
+ * Menyimpan nama pemain — baik penamaan pertama maupun penggantian.
+ *
+ * Keduanya satu jalur karena memang satu tindakan: menetapkan nama pemain ke
+ * nilai yang dikirim. Memisahkannya jadi dua endpoint berarti dua tempat yang
+ * harus sama-sama mengingat penjagaan di bawah ini, dan yang terlupa adalah
+ * yang lebih jarang dipakai.
  *
  * `hasNamed` selalu dinaikkan jadi benar, termasuk ketika nama yang disimpan
  * kebetulan sama dengan nama bawaan. Pemain yang sengaja memilih nama itu sudah
@@ -115,8 +121,30 @@ export function savePlayerName(
   playerId: number,
   value: { name: string },
 ):
-  | { ok: true; profile: PlayerProfilePayload }
-  | { ok: false; message: string } {
+  | { ok: true; profile: PlayerProfilePayload; previousName: string }
+  | { ok: false; status: number; message: string } {
+  const sebelumnya = loadPlayerProfile(playerId);
+
+  /*
+    Nama tidak boleh berganti selagi ada pertandingan yang belum ditutup.
+
+    Daftar peserta sebuah pertandingan dikunci saat ia dimulai, dan kejadian
+    kill dicocokkan dengan NAMA peserta, bukan id pemain. Mengganti nama di
+    tengah jalan memutus pencocokan itu dari kedua arah: kalau baris pesertanya
+    ikut diganti, kejadian yang dikirim arena — yang masih memegang nama sejak
+    awal — berhenti dikenali; kalau tidak diganti, papan skor menampilkan nama
+    yang bukan namanya lagi. Menolak dengan alasan yang jelas lebih baik
+    daripada memilih salah satu kerusakan itu.
+  */
+  if (hasOpenMatch(playerId)) {
+    return {
+      ok: false,
+      status: 409,
+      message:
+        "Nama tidak bisa diganti selagi ada pertandingan berjalan. Selesaikan dulu pertandingannya.",
+    };
+  }
+
   const bentrok = db
     .select({ id: players.id })
     .from(players)
@@ -125,7 +153,11 @@ export function savePlayerName(
     .all();
 
   if (bentrok.length > 0) {
-    return { ok: false, message: "Nama itu sudah dipakai pemain lain." };
+    return {
+      ok: false,
+      status: 400,
+      message: "Nama itu sudah dipakai pemain lain.",
+    };
   }
 
   const [row] = db
@@ -139,6 +171,12 @@ export function savePlayerName(
     .returning()
     .all();
 
-  if (!row) return { ok: false, message: "Pemain tidak ditemukan." };
-  return { ok: true, profile: toPayload(row) };
+  if (!row) {
+    return { ok: false, status: 404, message: "Pemain tidak ditemukan." };
+  }
+
+  // Nama lamanya ikut dikembalikan supaya layar bisa memastikan penggantiannya
+  // — "Rio sekarang Dina" — alih-alih hanya menampilkan nama yang baru dan
+  // membiarkan pemain menebak apakah permintaannya benar-benar berlaku.
+  return { ok: true, profile: toPayload(row), previousName: sebelumnya.name };
 }

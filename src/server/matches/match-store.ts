@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { killScore } from "@/lib/game/damage";
 import {
   findMatchWinner,
@@ -278,6 +278,25 @@ export type RecordKillResult =
  * tengah jalan. Pertandingan yang selesai dengan wajar ditutup dengan total
  * akhir dari arena, yang menimpa akumulasi di sini.
  */
+/**
+ * Benar bila pemain punya pertandingan yang belum ditutup.
+ *
+ * Dipakai penggantian nama. Daftar peserta sebuah pertandingan DIKUNCI saat ia
+ * dimulai — kejadian kill dicocokkan dengan nama peserta, bukan dengan id
+ * pemain — jadi mengganti nama di tengah pertandingan memutus pencocokan itu:
+ * arena masih memakai nama yang dipegangnya sejak awal, sementara barisnya
+ * sudah bernama lain.
+ */
+export function hasOpenMatch(playerId: number): boolean {
+  const [row] = db
+    .select({ id: matches.id })
+    .from(matches)
+    .where(and(eq(matches.playerId, playerId), isNull(matches.endedAt)))
+    .limit(1)
+    .all();
+  return row !== undefined;
+}
+
 export function recordKill(
   matchId: number,
   input: KillInput,

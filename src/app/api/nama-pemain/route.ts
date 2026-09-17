@@ -26,7 +26,7 @@ export function GET(): Response {
 }
 
 /**
- * Menyimpan nama pemain.
+ * Menyimpan nama pemain, baik yang pertama maupun penggantian.
  *
  * PUT, bukan POST: permintaan ini menetapkan nama ke nilai yang dikirim, dan
  * mengirimkannya dua kali berakhir sama dengan sekali.
@@ -45,8 +45,11 @@ export async function PUT(request: Request): Promise<Response> {
   const player = ensureLocalPlayer();
   const saved = savePlayerName(player.id, parsed.value);
   if (!saved.ok) {
-    return jsonError(400, saved.message);
+    // Statusnya datang dari penyimpanannya: 409 untuk pertandingan yang masih
+    // berjalan — keadaan yang bisa berubah sendiri begitu pertandingan selesai
+    // — dan 400 untuk permintaan yang memang salah.
+    return jsonError(saved.status, saved.message);
   }
 
-  return jsonOk(saved.profile);
+  return jsonOk({ ...saved.profile, previousName: saved.previousName });
 }
