@@ -46,8 +46,8 @@ export function EngageOverlay() {
         </dl>
 
         <p className="mt-6 text-[11px] leading-relaxed text-amber-200/80">
-          Papan skor, nyawa, dan peluru masih data tiruan. Menembak, kerusakan,
-          dan pergantian ronde menyusul di task berikutnya.
+          Musuh belum bergerak sendiri dan hasil pertandingan belum tersimpan —
+          keduanya menyusul di task berikutnya.
         </p>
       </div>
     </div>

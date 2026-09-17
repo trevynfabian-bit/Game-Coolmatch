@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   DIFFICULTY_ORDER,
   DIFFICULTY_PROFILES,
-  MAX_BOTS,
   MIN_BOTS,
   difficultyProfile,
   difficultyTraits,
 } from "@/lib/game/difficulty";
-import { buildBotRoster } from "@/lib/mock/bots";
+import { buildBotRoster, maxBotsForMap } from "@/lib/mock/bots";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
 import { findWeapon } from "@/lib/mock/weapons";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
@@ -38,6 +37,19 @@ export function OpponentSetup() {
   const setDifficulty = useMatchSetupStore((state) => state.setDifficulty);
   const setBotCount = useMatchSetupStore((state) => state.setBotCount);
   const selectedWeaponId = useLoadoutStore((state) => state.selectedWeaponId);
+
+  /**
+   * Batas atas penggeser mengikuti peta, bukan angka tetap: peta yang titik
+   * spawn-nya lebih sedikit menampung lebih sedikit lawan.
+   */
+  const maxBots = maxBotsForMap(DEFAULT_MAP);
+
+  // Pilihan yang tersimpan bisa berasal dari peta lain yang lebih lapang, jadi
+  // dirapikan begitu layar ini dibuka — penggeser tidak boleh menampilkan
+  // angka yang tidak bisa dipakai petanya.
+  useEffect(() => {
+    if (botCount > maxBots) setBotCount(maxBots);
+  }, [botCount, maxBots, setBotCount]);
 
   const profile = difficultyProfile(difficulty);
   const roster = useMemo(
@@ -144,7 +156,7 @@ export function OpponentSetup() {
             <input
               type="range"
               min={MIN_BOTS}
-              max={MAX_BOTS}
+              max={maxBots}
               step={1}
               value={botCount}
               onChange={(event) => setBotCount(Number(event.target.value))}
@@ -153,7 +165,7 @@ export function OpponentSetup() {
           </label>
           <div className="flex justify-between text-[10px] text-slate-600">
             <span>{MIN_BOTS}</span>
-            <span>{MAX_BOTS}</span>
+            <span>{maxBots}</span>
           </div>
 
           <p className="mt-3 text-[11px] text-slate-400">{crowdWord(botCount)}</p>

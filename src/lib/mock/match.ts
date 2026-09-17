@@ -1,5 +1,5 @@
 import { clampBotCount } from "@/lib/game/difficulty";
-import { buildBotRoster } from "@/lib/mock/bots";
+import { buildBotRoster, maxBotsForMap } from "@/lib/mock/bots";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
 import { findWeapon } from "@/lib/mock/weapons";
 import type {
@@ -65,7 +65,10 @@ export function buildMatchSnapshot({
   weaponId,
   map = DEFAULT_MAP,
 }: MatchSetup): MatchSnapshot {
-  const bots = clampBotCount(botCount);
+  // Dijepit dua kali: ke rentang yang masuk akal, lalu ke apa yang muat di
+  // peta ini. Angka kedua yang dilaporkan potret pertandingan, supaya HUD dan
+  // papan skor tidak pernah menjanjikan lawan yang tidak muncul.
+  const bots = Math.min(clampBotCount(botCount), maxBotsForMap(map));
   const weapon = findWeapon(weaponId ?? LOCAL_FIGHTER.weaponId);
 
   const local: Fighter = {

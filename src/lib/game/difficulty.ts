@@ -1,3 +1,4 @@
+import { MAX_BOT_TEMPLATES } from "@/lib/mock/bots";
 import type { Difficulty } from "@/types/game";
 
 /**
@@ -99,11 +100,14 @@ export function difficultyTraits(profile: DifficultyProfile): DifficultyTrait[] 
 }
 
 /**
- * Batas jumlah musuh. Batas atas mengikuti jumlah titik spawn peta dikurangi
- * satu untuk pemain, supaya tidak ada dua orang muncul berdempetan.
+ * Batas jumlah musuh yang berlaku di peta MANA PUN — sebanyak template lawan
+ * yang tersedia. Batas sesungguhnya untuk satu peta biasanya lebih rapat dan
+ * dihitung `maxBotsForMap`, karena titik spawn peta ikut membatasi; pakai itu
+ * untuk apa pun yang sudah tahu petanya, dan pakai MAX_BOTS hanya saat petanya
+ * belum diketahui.
  */
 export const MIN_BOTS = 1;
-export const MAX_BOTS = 7;
+export const MAX_BOTS = MAX_BOT_TEMPLATES;
 
 export function clampBotCount(count: number): number {
   if (!Number.isFinite(count)) return MIN_BOTS;

@@ -23,19 +23,37 @@ const BOT_TEMPLATES = [
 export const MAX_BOT_TEMPLATES = BOT_TEMPLATES.length;
 
 /**
+ * Berapa banyak lawan yang MUAT di sebuah peta.
+ *
+ * Dua hal membatasinya: banyaknya template lawan, dan banyaknya titik spawn
+ * peta dikurangi satu yang dipesan pemain. Batas kedua itu penting —
+ * `pickSpawnPoint` selalu memilih titik kosong selama masih ada, tetapi begitu
+ * titik habis ia terpaksa mengembalikan titik yang sudah dipakai dan dua
+ * petarung muncul bertumpuk. Peta Gudang Senja punya sembilan titik sehingga
+ * kedua batas kebetulan bertemu di angka yang sama, tetapi peta baru dari task
+ * pemilihan peta belum tentu begitu, jadi angkanya dihitung dari petanya
+ * sendiri, bukan ditulis tetap.
+ */
+export function maxBotsForMap(map: ArenaMapInfo): number {
+  return Math.max(1, Math.min(MAX_BOT_TEMPLATES, map.spawnPoints.length - 1));
+}
+
+/**
  * Menyusun daftar lawan otomatis untuk sebuah pertandingan baru.
  *
  * Semua dimulai dari nol — nyawa penuh, belum ada kill maupun mati — karena
  * daftar ini dipakai saat pertandingan BARU dimulai, bukan untuk melanjutkan
  * yang sedang berjalan. Titik spawn dipilih berurutan dengan `pickSpawnPoint`
- * sehingga tiap bot mengambil tempat terjauh dari yang sudah dipesan.
+ * sehingga tiap bot mengambil tempat terjauh dari yang sudah dipesan, dan
+ * jumlahnya dijepit ke `maxBotsForMap` supaya tidak pernah ada dua petarung
+ * yang berebut satu titik.
  */
 export function buildBotRoster(
   count: number,
   map: ArenaMapInfo,
   reservedSpawns: Vec3[] = [],
 ): Fighter[] {
-  const wanted = Math.max(0, Math.min(MAX_BOT_TEMPLATES, Math.round(count)));
+  const wanted = Math.max(0, Math.min(maxBotsForMap(map), Math.round(count)));
   const taken = [...reservedSpawns];
 
   return Array.from({ length: wanted }, (_, index) => {
