@@ -65,6 +65,39 @@ export function difficultyProfile(difficulty: Difficulty): DifficultyProfile {
   return DIFFICULTY_PROFILES[difficulty];
 }
 
+export interface DifficultyTrait {
+  label: string;
+  /** 0..1 untuk panjang bar; selalu "makin panjang makin berat bagi pemain". */
+  value: number;
+  /** Kata sehari-hari yang menggantikan angka mentahnya. */
+  word: string;
+}
+
+/** Ambang yang sama dipakai ketiga tingkat, jadi katanya bisa dibandingkan. */
+function traitWord(value: number): string {
+  if (value < 0.34) return "Rendah";
+  if (value < 0.67) return "Sedang";
+  return "Tinggi";
+}
+
+/**
+ * Tiga sifat yang paling terasa saat bermain, diterjemahkan ke skala 0..1 yang
+ * arahnya seragam: makin panjang barnya, makin berat bagi pemain. Reaksi perlu
+ * dibalik karena di profil angkanya adalah LAMA menyadari pemain — makin kecil
+ * justru makin berbahaya.
+ */
+export function difficultyTraits(profile: DifficultyProfile): DifficultyTrait[] {
+  const slowest = DIFFICULTY_PROFILES.santai.reactionSeconds;
+  const fastest = DIFFICULTY_PROFILES.susah.reactionSeconds;
+  const alertness = (slowest - profile.reactionSeconds) / (slowest - fastest);
+
+  return [
+    { label: "Kesigapan", value: alertness, word: traitWord(alertness) },
+    { label: "Ketepatan", value: profile.accuracy, word: traitWord(profile.accuracy) },
+    { label: "Keberanian", value: profile.aggression, word: traitWord(profile.aggression) },
+  ];
+}
+
 /**
  * Batas jumlah musuh. Batas atas mengikuti jumlah titik spawn peta dikurangi
  * satu untuk pemain, supaya tidak ada dua orang muncul berdempetan.

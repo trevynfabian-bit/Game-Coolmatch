@@ -86,7 +86,7 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
       <WeaponSystem match={match} weapon={weapon} />
       <WeaponSwap />
       {/* Sementara sampai AI musuh dibangun di fase berikutnya. */}
-      <StubIncomingFire map={match.map} />
+      <StubIncomingFire map={match.map} difficulty={match.difficulty} />
       <ArenaMap map={match.map} />
 
       {fighters

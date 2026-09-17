@@ -8,6 +8,7 @@ import {
   MAX_BOTS,
   MIN_BOTS,
   difficultyProfile,
+  difficultyTraits,
 } from "@/lib/game/difficulty";
 import { buildBotRoster } from "@/lib/mock/bots";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
@@ -74,7 +75,7 @@ export function OpponentSetup() {
                 type="button"
                 onClick={() => setDifficulty(id)}
                 aria-pressed={active}
-                className={`rounded-xl border px-4 py-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
+                className={`flex h-full flex-col rounded-xl border px-4 py-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
                   active
                     ? "border-emerald-400/70 bg-emerald-500/10"
                     : "border-white/10 bg-slate-900/60 hover:border-white/25 hover:bg-slate-900"
@@ -90,8 +91,33 @@ export function OpponentSetup() {
                     </span>
                   ) : null}
                 </span>
-                <span className="mt-1.5 block text-[11px] leading-relaxed text-slate-400">
+                <span className="mt-1.5 block flex-1 text-[11px] leading-relaxed text-slate-400">
                   {item.blurb}
+                </span>
+
+                <span className="mt-3 block space-y-1.5 border-t border-white/10 pt-3">
+                  {difficultyTraits(item).map((trait) => (
+                    <span
+                      key={trait.label}
+                      className="grid grid-cols-[4.5rem_1fr_3rem] items-center gap-2"
+                    >
+                      <span className="text-[10px] tracking-wider text-slate-500 uppercase">
+                        {trait.label}
+                      </span>
+                      <span className="h-1 overflow-hidden rounded-full bg-white/10">
+                        <span
+                          className="block h-full rounded-full"
+                          style={{
+                            width: `${Math.max(6, trait.value * 100)}%`,
+                            backgroundColor: active ? "#34d399" : "#64748b",
+                          }}
+                        />
+                      </span>
+                      <span className="text-right text-[10px] text-slate-400">
+                        {trait.word}
+                      </span>
+                    </span>
+                  ))}
                 </span>
               </button>
             );
