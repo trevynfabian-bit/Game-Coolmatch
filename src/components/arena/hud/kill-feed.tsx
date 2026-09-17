@@ -1,10 +1,27 @@
 import type { KillFeedEntry } from "@/types/game";
 
 /**
- * Feed kanan-atas berisi kejadian tembakan mematikan terbaru. Entri paling baru
- * ditaruh di atas; kill oleh pemain lokal diberi sorotan.
+ * Daftar kejadian tembakan mematikan terbaru, entri paling baru di atas; kill
+ * oleh pemain lokal diberi sorotan.
+ *
+ * Penempatannya diserahkan ke pemanggil lewat `className`. Di arena daftar ini
+ * melayang di pojok kanan-atas layar, sedangkan di halaman skor ia duduk biasa
+ * di dalam sebuah kolom — dan posisi absolut milik arena, kalau ikut terbawa,
+ * akan menimpa isi kolom di sebelahnya.
+ *
+ * Kelas display-nya ikut diserahkan (bawaannya `flex`), bukan dipatok di sini.
+ * Arena menyembunyikan feed di layar sempit dengan `hidden lg:flex`, dan
+ * `hidden` bawaan yang bertabrakan dengan `flex` bawaan akan diputuskan oleh
+ * urutan aturan di stylesheet, bukan oleh urutan penulisan kelasnya — hasilnya
+ * tidak bisa diandalkan.
  */
-export function KillFeed({ entries }: { entries: KillFeedEntry[] }) {
+export function KillFeedList({
+  entries,
+  className = "flex",
+}: {
+  entries: KillFeedEntry[];
+  className?: string;
+}) {
   // Store menyisipkan entri baru di depan, jadi urutan array sudah terbaru
   // dulu. Jangan urutkan ulang memakai atSecond: nilainya dibaca dari jam ronde
   // yang menghitung mundur, sehingga kill terbaru justru punya angka terkecil.
@@ -13,7 +30,7 @@ export function KillFeed({ entries }: { entries: KillFeedEntry[] }) {
   if (latest.length === 0) return null;
 
   return (
-    <ul className="pointer-events-none absolute top-4 right-5 hidden w-64 flex-col gap-1 lg:flex">
+    <ul className={`flex-col gap-1 ${className}`}>
       {latest.map((entry, index) => {
         const byPlayer = entry.killerName === "Kamu";
         return (
@@ -49,5 +66,15 @@ export function KillFeed({ entries }: { entries: KillFeedEntry[] }) {
         );
       })}
     </ul>
+  );
+}
+
+/** Penempatan kill feed di arena: melayang di pojok kanan-atas, hanya di layar lebar. */
+export function KillFeed({ entries }: { entries: KillFeedEntry[] }) {
+  return (
+    <KillFeedList
+      entries={entries}
+      className="pointer-events-none absolute top-4 right-5 hidden w-64 lg:flex"
+    />
   );
 }

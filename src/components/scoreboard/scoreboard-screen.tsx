@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { LiveScoreDemo } from "@/components/scoreboard/live-score-demo";
 import { MatchDetail } from "@/components/scoreboard/match-detail";
 import { MatchHistory } from "@/components/scoreboard/match-history";
 import { killRatio, summarizeHistory } from "@/lib/game/scoreboard";
@@ -136,6 +137,13 @@ export function ScoreboardScreen({
               tidak pernah ditentukan.
             </p>
           ) : null}
+
+          <section className="mb-8">
+            <h2 className="mb-3 text-[11px] tracking-[0.2em] text-slate-400 uppercase">
+              Papan skor selama bertanding
+            </h2>
+            <LiveScoreDemo />
+          </section>
 
           <div className="grid gap-6 lg:grid-cols-[19rem_1fr] lg:items-start">
             <section>
