@@ -28,24 +28,20 @@ export function MapPicker() {
   const selectedFacts = facts[selectedIndex];
 
   const kartuRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [pratinjauTerbuka, setPratinjauTerbuka] = useState(false);
 
   /**
-   * Menggeser pilihan sejauh `langkah` peta, berputar di ujung katalog.
-   *
-   * Dipakai bersama oleh tombol panah di daftar dan tombol maju-mundur di
-   * layar pratinjau, supaya keduanya tidak bisa berselisih soal apa yang
-   * terjadi di peta pertama dan terakhir.
+   * Peta yang sedang DILIHAT di layar pratinjau — bukan yang dipakai
+   * bertanding. Keduanya sengaja dipisah: membolak-balik pratinjau lalu
+   * menutupnya dengan Escape harus mengembalikan keadaan seperti semula.
+   * Null berarti pratinjaunya tertutup.
    */
-  const geserPilihan = useCallback(
-    (langkah: number) => {
-      const jumlah = MOCK_MAPS.length;
-      const tujuan = (selectedIndex + langkah + jumlah) % jumlah;
-      selectMap(MOCK_MAPS[tujuan].id);
-      return tujuan;
-    },
-    [selectedIndex, selectMap],
-  );
+  const [pratinjauIndex, setPratinjauIndex] = useState<number | null>(null);
+
+  /** Menggeser sebuah penunjuk sejauh `langkah`, berputar di ujung katalog. */
+  const geser = useCallback((dari: number, langkah: number) => {
+    const jumlah = MOCK_MAPS.length;
+    return (dari + langkah + jumlah) % jumlah;
+  }, []);
 
   /**
    * Tombol panah memindahkan pilihan, Home dan End melompat ke ujung.
@@ -64,19 +60,17 @@ export function MapPicker() {
       switch (event.key) {
         case "ArrowRight":
         case "ArrowDown":
-          tujuan = geserPilihan(1);
+          tujuan = geser(selectedIndex, 1);
           break;
         case "ArrowLeft":
         case "ArrowUp":
-          tujuan = geserPilihan(-1);
+          tujuan = geser(selectedIndex, -1);
           break;
         case "Home":
           tujuan = 0;
-          selectMap(MOCK_MAPS[0].id);
           break;
         case "End":
           tujuan = jumlah - 1;
-          selectMap(MOCK_MAPS[jumlah - 1].id);
           break;
         default:
           return;
@@ -85,9 +79,10 @@ export function MapPicker() {
       // Panah atas/bawah menggulung halaman bila dibiarkan, dan gulungan itu
       // membuat kartu yang baru dipilih justru keluar dari pandangan.
       event.preventDefault();
+      selectMap(MOCK_MAPS[tujuan].id);
       kartuRefs.current[tujuan]?.focus();
     },
-    [geserPilihan, selectMap],
+    [geser, selectedIndex, selectMap],
   );
 
   /**
@@ -161,7 +156,7 @@ export function MapPicker() {
         <ActionRow className="mt-4">
           <ActionButton
             variant="utama"
-            onClick={() => setPratinjauTerbuka(true)}
+            onClick={() => setPratinjauIndex(selectedIndex)}
           >
             Lihat pratinjau
           </ActionButton>
@@ -171,16 +166,28 @@ export function MapPicker() {
         </ActionRow>
       </div>
 
-      <MapPreviewDialog
-        map={selected}
-        facts={selectedFacts}
-        allFacts={facts}
-        open={pratinjauTerbuka}
-        onClose={() => setPratinjauTerbuka(false)}
-        onPrev={() => geserPilihan(-1)}
-        onNext={() => geserPilihan(1)}
-        position={{ current: selectedIndex + 1, total: MOCK_MAPS.length }}
-      />
+      {/*
+        Dialog hanya dirender saat terbuka, sehingga penunjuk pratinjaunya
+        selalu mulai dari peta yang sedang dipakai alih-alih dari peta terakhir
+        yang kebetulan dilihat sesi sebelumnya.
+      */}
+      {pratinjauIndex !== null ? (
+        <MapPreviewDialog
+          map={MOCK_MAPS[pratinjauIndex]}
+          facts={facts[pratinjauIndex]}
+          allFacts={facts}
+          open
+          isSelected={pratinjauIndex === selectedIndex}
+          onClose={() => setPratinjauIndex(null)}
+          onConfirm={() => {
+            selectMap(MOCK_MAPS[pratinjauIndex].id);
+            setPratinjauIndex(null);
+          }}
+          onPrev={() => setPratinjauIndex(geser(pratinjauIndex, -1))}
+          onNext={() => setPratinjauIndex(geser(pratinjauIndex, 1))}
+          position={{ current: pratinjauIndex + 1, total: MOCK_MAPS.length }}
+        />
+      ) : null}
     </div>
   );
 }

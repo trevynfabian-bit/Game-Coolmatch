@@ -104,6 +104,12 @@ function Legend({ map }: { map: ArenaMapInfo }) {
  * Peta bisa dibolak-balik dari dalam dialog. Itu yang membuatnya benar-benar
  * layar pratinjau alih-alih sekadar pembesar: pemain bisa membandingkan bentuk
  * ketiga arena berturut-turut tanpa harus menutup dan membuka lagi.
+ *
+ * Membolak-balik di sini TIDAK mengubah peta yang dipakai bertanding. Dialog
+ * ini punya penunjuknya sendiri, dan pilihan baru berpindah saat pemain
+ * menekan "Pakai peta ini". Bedanya penting: melihat-lihat lalu menutup dengan
+ * Escape harus mengembalikan keadaan seperti semula, bukan diam-diam
+ * meninggalkan pemain dengan peta terakhir yang kebetulan ia lihat.
  */
 export function MapPreviewDialog({
   map,
@@ -111,19 +117,26 @@ export function MapPreviewDialog({
   allFacts,
   open,
   onClose,
+  onConfirm,
   onPrev,
   onNext,
   position,
+  isSelected,
 }: {
   map: ArenaMapInfo;
   facts: MapFacts;
   allFacts: MapFacts[];
   open: boolean;
+  /** Menutup TANPA mengubah pilihan. */
   onClose: () => void;
+  /** Menjadikan peta yang sedang dilihat sebagai pilihan, lalu menutup. */
+  onConfirm: () => void;
   onPrev: () => void;
   onNext: () => void;
   /** Urutan peta ini di katalog, mis. "2 dari 3". */
   position: { current: number; total: number };
+  /** Benar bila peta yang sedang dilihat memang yang dipakai bertanding. */
+  isSelected: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -163,8 +176,19 @@ export function MapPreviewDialog({
           <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase">
             Pratinjau peta · {position.current} dari {position.total}
           </p>
-          <h2 className="mt-1.5 truncate text-2xl font-bold text-white">
-            {map.name}
+          <h2 className="mt-1.5 flex min-w-0 items-center gap-2 text-2xl font-bold text-white">
+            <span className="truncate">{map.name}</span>
+            {/*
+              Penanda ini yang membuat pemain tahu di mana ia berdiri saat
+              membolak-balik: tanpa itu, tiga peta terlihat sama-sama "belum
+              dipilih" dan tidak ada cara mengetahui mana yang akan dipakai
+              kalau ia menutup begitu saja.
+            */}
+            {isSelected ? (
+              <span className="shrink-0 rounded bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.12em] text-emerald-300 uppercase">
+                Sedang dipakai
+              </span>
+            ) : null}
           </h2>
         </div>
         <button
@@ -227,8 +251,12 @@ export function MapPreviewDialog({
           </button>
         </div>
 
-        <ActionButton variant="utama" size="ringkas" onClick={onClose}>
-          Pakai peta ini
+        <ActionButton
+          variant={isSelected ? "biasa" : "utama"}
+          size="ringkas"
+          onClick={onConfirm}
+        >
+          {isSelected ? "Tetap pakai peta ini" : "Pakai peta ini"}
         </ActionButton>
       </div>
     </dialog>
