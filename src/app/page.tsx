@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MOCK_MATCH } from "@/lib/mock/match";
+import { DEFAULT_MAP } from "@/lib/mock/maps";
 
 /**
  * Titik masuk sementara. Menu utama lengkap (main cepat, pilih peta, pilih
@@ -23,10 +23,10 @@ export default function Home() {
 
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
-            href="/arena"
+            href="/lawan"
             className="w-full rounded-lg bg-emerald-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 sm:w-auto"
           >
-            Masuk Arena
+            Main Cepat
           </Link>
           <Link
             href="/senjata"
@@ -37,8 +37,7 @@ export default function Home() {
         </div>
 
         <p className="mt-6 text-xs text-slate-600">
-          Peta saat ini: {MOCK_MATCH.map.name} · {MOCK_MATCH.botCount} musuh
-          otomatis
+          Peta saat ini: {DEFAULT_MAP.name}
         </p>
       </div>
     </main>

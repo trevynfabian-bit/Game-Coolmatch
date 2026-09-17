@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { ArenaExperience } from "@/components/arena/arena-experience";
-import { MOCK_MATCH } from "@/lib/mock/match";
 
 export const metadata: Metadata = {
   title: "Arena — Arena Tembak Simple",
@@ -9,14 +8,14 @@ export const metadata: Metadata = {
 };
 
 /**
- * Halaman arena pertandingan. Untuk sekarang seluruh isinya digambar dari
- * potret pertandingan tiruan; ketika layer backend siap, `MOCK_MATCH` diganti
- * hasil pengambilan data pertandingan dari server.
+ * Halaman arena pertandingan. Pertandingannya disusun di sisi klien dari
+ * senjata dan pengaturan lawan yang dipilih pemain; ketika layer backend siap,
+ * penyusunan itu diganti pengambilan data pertandingan dari server.
  */
 export default function ArenaPage() {
   return (
     <main className="h-dvh w-full">
-      <ArenaExperience match={MOCK_MATCH} />
+      <ArenaExperience />
     </main>
   );
 }

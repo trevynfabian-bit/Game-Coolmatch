@@ -1,180 +1,112 @@
-import type { Fighter, KillFeedEntry, MatchSnapshot } from "@/types/game";
+import { clampBotCount } from "@/lib/game/difficulty";
+import { buildBotRoster } from "@/lib/mock/bots";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
+import { findWeapon } from "@/lib/mock/weapons";
+import type {
+  ArenaMapInfo,
+  Difficulty,
+  Fighter,
+  MatchSnapshot,
+} from "@/types/game";
+
+/** Aturan pertandingan bawaan; nanti bisa diatur di layar pengaturan sendiri. */
+const ROUND_SECONDS = 180;
+const INTERMISSION_SECONDS = 6;
+const TOTAL_ROUNDS = 5;
+const SCORE_LIMIT = 15;
+const DEFAULT_RESERVE_MAGAZINES = 3;
 
 /**
- * Peserta pertandingan tiruan: satu pemain lokal dan empat musuh otomatis.
- * Posisi sengaja disebar di sekitar panggung tengah supaya arena terlihat
- * ramai saat halaman dibuka.
+ * Pemain lokal pada pertandingan baru: nyawa penuh, belum punya perolehan apa
+ * pun. Titik spawn-nya dipesan lebih dulu supaya lawan tidak mengambilnya.
  */
-const MOCK_FIGHTERS: Fighter[] = [
-  {
-    id: "ftr-lokal",
-    name: "Kamu",
-    team: "alpha",
-    isLocal: true,
-    isBot: false,
-    health: 78,
-    maxHealth: 100,
-    armor: 35,
-    kills: 7,
-    deaths: 4,
-    score: 700,
-    roundKills: 7,
-    roundWins: 0,
-    isAlive: true,
-    respawnInSeconds: null,
-    weaponId: "wpn-rifle-garuda",
-    color: "#38bdf8",
-    position: [-18.5, 0, 18.5],
-    rotationY: -Math.PI / 4,
-  },
-  {
-    id: "ftr-bot-1",
-    name: "Bot Rangga",
-    team: "bravo",
-    isLocal: false,
-    isBot: true,
-    health: 100,
-    maxHealth: 100,
-    armor: 0,
-    kills: 6,
-    deaths: 5,
-    score: 600,
-    roundKills: 6,
-    roundWins: 0,
-    isAlive: true,
-    respawnInSeconds: null,
-    weaponId: "wpn-smg-vektor",
-    color: "#f97316",
-    position: [-7.5, 0, -6],
-    rotationY: Math.PI * 0.2,
-  },
-  {
-    id: "ftr-bot-2",
-    name: "Bot Ayu",
-    team: "bravo",
-    isLocal: false,
-    isBot: true,
-    health: 42,
-    maxHealth: 100,
-    armor: 20,
-    kills: 5,
-    deaths: 6,
-    score: 500,
-    roundKills: 5,
-    roundWins: 0,
-    isAlive: true,
-    respawnInSeconds: null,
-    weaponId: "wpn-shotgun-badai",
-    color: "#f43f5e",
-    position: [11, 0, -11],
-    rotationY: -Math.PI * 0.65,
-  },
-  {
-    id: "ftr-bot-3",
-    name: "Bot Dimas",
-    team: "bravo",
-    isLocal: false,
-    isBot: true,
-    health: 0,
-    maxHealth: 100,
-    armor: 0,
-    kills: 3,
-    deaths: 8,
-    score: 300,
-    roundKills: 3,
-    roundWins: 0,
-    isAlive: false,
-    respawnInSeconds: 3,
-    weaponId: "wpn-sniper-elang",
-    color: "#a855f7",
-    position: [-11, 0, -13],
-    rotationY: Math.PI * 0.5,
-  },
-  {
-    id: "ftr-bot-4",
-    name: "Bot Sari",
-    team: "bravo",
-    isLocal: false,
-    isBot: true,
-    health: 91,
-    maxHealth: 100,
-    armor: 10,
-    kills: 4,
-    deaths: 5,
-    score: 400,
-    roundKills: 4,
-    roundWins: 0,
-    isAlive: true,
-    respawnInSeconds: null,
-    weaponId: "wpn-pistol-p9",
-    color: "#22c55e",
-    position: [4, 2, 2],
-    rotationY: -Math.PI * 0.25,
-  },
-];
-
-const MOCK_KILL_FEED: KillFeedEntry[] = [
-  {
-    id: "kf-1",
-    killerName: "Kamu",
-    victimName: "Bot Dimas",
-    weaponName: "Garuda AR",
-    isHeadshot: true,
-    atSecond: 148,
-  },
-  {
-    id: "kf-2",
-    killerName: "Bot Rangga",
-    victimName: "Bot Sari",
-    weaponName: "Vektor Cepat",
-    isHeadshot: false,
-    atSecond: 141,
-  },
-  {
-    id: "kf-3",
-    killerName: "Bot Ayu",
-    victimName: "Kamu",
-    weaponName: "Badai 12",
-    isHeadshot: false,
-    atSecond: 133,
-  },
-  {
-    id: "kf-4",
-    killerName: "Kamu",
-    victimName: "Bot Rangga",
-    weaponName: "Garuda AR",
-    isHeadshot: false,
-    atSecond: 126,
-  },
-];
-
-/**
- * Potret pertandingan tiruan yang dipakai seluruh HUD arena selama layer
- * frontend. Satu objek ini nanti diganti respons endpoint pertandingan.
- */
-export const MOCK_MATCH: MatchSnapshot = {
-  matchId: "match-tiruan-001",
-  map: DEFAULT_MAP,
-  difficulty: "normal",
-  botCount: 4,
-  round: {
-    current: 2,
-    total: 5,
-    secondsLeft: 154,
-    durationSeconds: 180,
-    intermissionSeconds: 6,
-    scoreLimit: 15,
-    status: "live",
-    lastRoundWinner: null,
-    matchWinner: null,
-  },
-  fighters: MOCK_FIGHTERS,
-  killFeed: MOCK_KILL_FEED,
-  ammoInMagazine: 19,
-  ammoReserve: 90,
-  pingMs: 24,
+const LOCAL_FIGHTER: Fighter = {
+  id: "ftr-lokal",
+  name: "Kamu",
+  team: "alpha",
+  isLocal: true,
+  isBot: false,
+  health: 100,
+  maxHealth: 100,
+  armor: 0,
+  kills: 0,
+  deaths: 0,
+  score: 0,
+  roundKills: 0,
+  roundWins: 0,
+  isAlive: true,
+  respawnInSeconds: null,
+  weaponId: "wpn-rifle-garuda",
+  color: "#38bdf8",
+  position: [-18.5, 0, 18.5],
+  rotationY: -Math.PI / 4,
 };
+
+export interface MatchSetup {
+  difficulty: Difficulty;
+  botCount: number;
+  /** Senjata yang dibawa pemain; bawaan mengikuti senjata pemain lokal. */
+  weaponId?: string;
+  map?: ArenaMapInfo;
+}
+
+/**
+ * Menyusun potret pertandingan BARU dari pengaturan lawan yang dipilih pemain.
+ *
+ * Semua perolehan dimulai dari nol dan ronde dimulai dari satu — ini titik awal
+ * sebuah pertandingan, bukan potret pertandingan yang sedang berjalan. Selama
+ * layer backend belum ada, fungsi inilah yang berperan sebagai "membuat
+ * pertandingan"; nanti tinggal diganti pemanggilan API yang mengembalikan
+ * bentuk yang sama.
+ */
+export function buildMatchSnapshot({
+  difficulty,
+  botCount,
+  weaponId,
+  map = DEFAULT_MAP,
+}: MatchSetup): MatchSnapshot {
+  const bots = clampBotCount(botCount);
+  const weapon = findWeapon(weaponId ?? LOCAL_FIGHTER.weaponId);
+
+  const local: Fighter = {
+    ...LOCAL_FIGHTER,
+    weaponId: weapon.id,
+    position: map.spawnPoints[0] ?? LOCAL_FIGHTER.position,
+  };
+
+  return {
+    matchId: `match-${map.id}-${difficulty}-${bots}`,
+    map,
+    difficulty,
+    botCount: bots,
+    round: {
+      current: 1,
+      total: TOTAL_ROUNDS,
+      secondsLeft: ROUND_SECONDS,
+      durationSeconds: ROUND_SECONDS,
+      intermissionSeconds: INTERMISSION_SECONDS,
+      scoreLimit: SCORE_LIMIT,
+      status: "live",
+      lastRoundWinner: null,
+      matchWinner: null,
+    },
+    fighters: [local, ...buildBotRoster(bots, map, [local.position])],
+    killFeed: [],
+    ammoInMagazine: weapon.magazineSize,
+    ammoReserve: weapon.magazineSize * DEFAULT_RESERVE_MAGAZINES,
+    pingMs: 0,
+  };
+}
+
+/** Pengaturan lawan bawaan, dipakai saat pemain langsung masuk arena. */
+export const DEFAULT_MATCH_SETUP: Required<Pick<MatchSetup, "difficulty" | "botCount">> =
+  {
+    difficulty: "normal",
+    botCount: 4,
+  };
+
+/** Potret pertandingan bawaan. */
+export const MOCK_MATCH: MatchSnapshot = buildMatchSnapshot(DEFAULT_MATCH_SETUP);
 
 /** Pemain lokal dari sebuah potret pertandingan. */
 export function getLocalFighter(match: MatchSnapshot): Fighter {

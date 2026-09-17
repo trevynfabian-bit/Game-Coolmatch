@@ -10,9 +10,10 @@ import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
-import { MOCK_MATCH } from "@/lib/mock/match";
-import { findWeapon } from "@/lib/mock/weapons";
+import { DEFAULT_MAP } from "@/lib/mock/maps";
+import { buildMatchSnapshot } from "@/lib/mock/match";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
+import { useMatchSetupStore } from "@/lib/store/match-setup-store";
 import type { MatchSnapshot } from "@/types/game";
 
 /** Placeholder selagi bundel 3D diunduh dan konteks WebGL disiapkan. */
@@ -40,7 +41,7 @@ const ArenaScene = dynamic(
   () => import("@/components/arena/arena-scene").then((mod) => mod.ArenaScene),
   {
     ssr: false,
-    loading: () => <SceneFallback mapName={MOCK_MATCH.map.name} />,
+    loading: () => <SceneFallback mapName={DEFAULT_MAP.name} />,
   },
 );
 
@@ -53,38 +54,32 @@ const ArenaScene = dynamic(
  * Sumber datanya masih `MOCK_MATCH`; prop `match` sengaja dibuka supaya task
  * backend nanti tinggal mengoper data asli dari server.
  */
-export function ArenaExperience({
-  match = MOCK_MATCH,
-}: {
-  match?: MatchSnapshot;
-}) {
+export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
   /**
-   * Senjata yang dipilih di halaman Pilih Senjata dibawa masuk ke arena.
-   *
-   * Dibaca SEKALI saat arena dibuka, bukan dilanggani. Pemain bisa menukar
-   * senjata di tengah pertandingan, dan pergantian itu ikut memperbarui pilihan
-   * di loadout store; kalau nilai ini dilanggani, potret pertandingan akan
-   * disusun ulang dan seluruh pertandingan ikut dimulai dari awal.
+   * Senjata dan pengaturan lawan yang dipilih pemain dibaca SEKALI saat arena
+   * dibuka, bukan dilanggani. Pemain bisa menukar senjata di tengah
+   * pertandingan, dan pergantian itu ikut memperbarui pilihan di loadout store;
+   * kalau nilainya dilanggani, potret pertandingan akan disusun ulang dan
+   * seluruh pertandingan ikut dimulai dari awal.
    */
-  const [entryWeaponId] = useState(
-    () => useLoadoutStore.getState().selectedWeaponId,
-  );
+  const [entry] = useState(() => {
+    const setup = useMatchSetupStore.getState();
+    return {
+      difficulty: setup.difficulty,
+      botCount: setup.botCount,
+      weaponId: useLoadoutStore.getState().selectedWeaponId,
+    };
+  });
 
   /**
-   * Isi magasin awal dijepit ke kapasitas senjata yang dibawa, sebab angka pada
-   * potret pertandingan mengacu pada senjata bawaan yang magasinnya bisa lebih
-   * besar.
+   * Pertandingan disusun dari pengaturan tadi. Prop `match` tetap dibuka supaya
+   * pemanggil bisa memberi potret siap pakai — nanti dipakai layer backend
+   * untuk mengoper pertandingan yang dibuat server.
    */
-  const armedMatch = useMemo<MatchSnapshot>(() => {
-    const weapon = findWeapon(entryWeaponId);
-    return {
-      ...match,
-      fighters: match.fighters.map((fighter) =>
-        fighter.isLocal ? { ...fighter, weaponId: weapon.id } : fighter,
-      ),
-      ammoInMagazine: Math.min(match.ammoInMagazine, weapon.magazineSize),
-    };
-  }, [match, entryWeaponId]);
+  const armedMatch = useMemo<MatchSnapshot>(
+    () => match ?? buildMatchSnapshot(entry),
+    [match, entry],
+  );
 
   // Potret pertandingan menjadi keadaan awal store; sejak itu seluruh HUD dan
   // arena membaca state yang hidup, bukan data tiruan yang statis.

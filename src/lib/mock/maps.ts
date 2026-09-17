@@ -210,12 +210,18 @@ export const MOCK_MAPS: ArenaMapInfo[] = [
       ...crates,
       ...halfWalls,
     ],
+    // Sembilan titik: satu pemain plus maksimal delapan lawan, semuanya di
+    // ruang terbuka dan berjauhan satu sama lain.
     spawnPoints: [
       [-18.5, 0, 18.5],
       [-15, 0, -16],
       [15, 0, -16],
       [18, 0, 7],
       [-18, 0, -4],
+      [18, 0, 18],
+      [-18, 0, -18],
+      [0, 0, 19],
+      [0, 0, -19],
     ],
   },
 ];

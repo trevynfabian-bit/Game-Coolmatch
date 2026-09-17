@@ -38,8 +38,14 @@ function MatchInfoStrip({ match }: { match: MatchSnapshot }) {
         <span>{DIFFICULTY_LABEL[match.difficulty]}</span>
         <span className="text-slate-600">•</span>
         <span>{match.botCount} bot</span>
-        <span className="text-slate-600">•</span>
-        <span className="font-mono tabular-nums">{match.pingMs} ms</span>
+        {/* Pertandingan lokal tidak punya ping; menampilkan "0 ms" hanya bikin
+            bingung, jadi angkanya disembunyikan saat nol. */}
+        {match.pingMs > 0 ? (
+          <>
+            <span className="text-slate-600">•</span>
+            <span className="font-mono tabular-nums">{match.pingMs} ms</span>
+          </>
+        ) : null}
       </div>
     </div>
   );
