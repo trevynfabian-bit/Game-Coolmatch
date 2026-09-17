@@ -120,7 +120,12 @@ export function MatchEndScreen({
 
   return (
     <div className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-slate-950/85 px-4 py-8 backdrop-blur-sm">
-      <div className="w-full max-w-lg">
+      {/*
+        Selebar max-w-2xl, bukan max-w-lg. Layar ini memuat tabel enam kolom
+        DAN empat tombol tindakan; pada lebar sebelumnya teks tombolnya pecah
+        jadi dua baris masing-masing.
+      */}
+      <div className="w-full max-w-2xl">
         <div className="text-center">
           <p
             className={`text-[10px] tracking-[0.3em] uppercase ${
@@ -202,6 +207,7 @@ export function MatchEndScreen({
         <ActionRow className="mt-6">
           <ActionButton
             variant="utama"
+            size="ringkas"
             onClick={() => restartMatch(map, snapshot)}
           >
             Main lagi
@@ -212,9 +218,15 @@ export function MatchEndScreen({
             kewalahan melawan enam musuh Susah harus lewat menu utama dulu
             hanya untuk menurunkan tingkat kesulitan.
           */}
-          <ActionButton href="/lawan">Ganti lawan</ActionButton>
-          <ActionButton href="/skor">Papan skor</ActionButton>
-          <ActionButton href="/">Kembali ke menu</ActionButton>
+          <ActionButton size="ringkas" href="/lawan">
+            Ganti lawan
+          </ActionButton>
+          <ActionButton size="ringkas" href="/skor">
+            Papan skor
+          </ActionButton>
+          <ActionButton size="ringkas" href="/">
+            Kembali ke menu
+          </ActionButton>
         </ActionRow>
 
         <p className="mt-4 text-center text-[11px] text-slate-600">

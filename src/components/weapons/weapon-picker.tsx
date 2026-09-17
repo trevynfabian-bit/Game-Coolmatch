@@ -198,6 +198,12 @@ export function WeaponPicker() {
             Coba dulu di tempat latihan
           </Link>
           <Link
+            href="/peta"
+            className="mt-2 block rounded-lg border border-white/15 px-5 py-2.5 text-center text-sm font-medium text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+          >
+            Pilih peta
+          </Link>
+          <Link
             href="/"
             className="mt-2 block rounded-lg px-5 py-2 text-center text-xs font-medium text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
           >
