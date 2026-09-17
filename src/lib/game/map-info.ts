@@ -28,6 +28,20 @@ export interface MapFacts {
    * karena itu tidak memberi tahu apa pun.
    */
   typicalSightline: number;
+  /**
+   * Benar bila pusat arena ditempati bangunan — panggung, helipad — alih-alih
+   * lantai kosong. Peta dengan pusat yang ditempati punya satu titik rebutan
+   * yang jelas; yang pusatnya kosong tidak.
+   */
+  hasCentralStructure: boolean;
+  /**
+   * Jalur tembus sisi-ke-sisi yang TIDAK terlihat dari pusat arena.
+   *
+   * Inilah yang membuat mengapit mungkin: nol berarti siapa pun yang menguasai
+   * tengah melihat setiap perpindahan, dan satu-satunya cara maju adalah maju
+   * terang-terangan.
+   */
+  hiddenRouteCount: number;
 }
 
 /** Tembok keliling selalu ada di tiap peta, jadi tidak dihitung sebagai cover. */
@@ -65,7 +79,21 @@ const SAMPLE_STEP = 1;
  * lapang sama-sama mendapat angka selebar arenanya. Nilai tengah menjawab
  * pertanyaan yang sebenarnya: seberapa jauh pandangan BIASANYA menembus.
  */
-function measureTypicalSightline(map: ArenaMapInfo): number {
+/**
+ * Petak area main, ditandai terhalang atau tidak setinggi dada.
+ *
+ * Dipisah karena dipakai tiga pengukuran sekaligus — jarak pandang, keterbukaan,
+ * dan jalur tersembunyi. Membangunnya ulang di masing-masing berarti tiga
+ * salinan aturan "apa yang dianggap menghalangi", dan yang paling mungkin
+ * berselisih justru aturan itu.
+ */
+interface SightGrid {
+  blocked: boolean[][];
+  cols: number;
+  rows: number;
+}
+
+function buildSightGrid(map: ArenaMapInfo): SightGrid {
   const { minX, maxX, minZ, maxZ } = map.playableBounds;
 
   const walls = map.blocks.filter((block) => {
@@ -97,6 +125,10 @@ function measureTypicalSightline(map: ArenaMapInfo): number {
     blocked.push(baris);
   }
 
+  return { blocked, cols, rows };
+}
+
+function measureTypicalSightline({ blocked, cols, rows }: SightGrid): number {
   /** Deretan petak bebas terpanjang di satu garis. */
   const runTerpanjang = (panjang: number, terhalang: (i: number) => boolean) => {
     let jalan = 0;
@@ -121,18 +153,155 @@ function measureTypicalSightline(map: ArenaMapInfo): number {
   return tengah * SAMPLE_STEP;
 }
 
+/**
+ * Bagian tengah arena, sebagai pecahan dari sisinya.
+ *
+ * Seperempat, bukan satu petak: panggung Gudang Senja selebar 12 satuan di
+ * arena 45 satuan tidak duduk tepat di titik nol, dan "pusat" yang diartikan
+ * sesempit satu petak akan menyebut arena berpanggung sebagai arena kosong.
+ */
+const CENTRE_FRACTION = 0.25;
+
+/** Benar bila ada bangunan — bukan tembok keliling — menempati pusat arena. */
+function detectCentralStructure(map: ArenaMapInfo): boolean {
+  const { minX, maxX, minZ, maxZ } = map.playableBounds;
+  const cx = (minX + maxX) / 2;
+  const cz = (minZ + maxZ) / 2;
+  const half = (Math.max(maxX - minX, maxZ - minZ) * CENTRE_FRACTION) / 2;
+
+  return map.blocks.some((b) => {
+    if (PERIMETER_IDS.has(b.id)) return false;
+    /*
+      Harus berupa PANGGUNG, bukan sekadar balok yang kebetulan berdiri di
+      tengah. Bedanya menentukan: panggung ditempati dan diperebutkan, sedangkan
+      dinding pembelah justru memisahkan — memanggil keduanya "pusat yang
+      ditempati" akan menyebut Lorong Pabrik, yang dibelah dua dinding panjang
+      jadi tiga jalur, sebagai peta berpanggung tengah. Krat setinggi dada di
+      titik tengah juga bukan panggung; itu penghalang, dan sudah terhitung
+      sebagai cover.
+    */
+    if (b.kind !== "platform") return false;
+    return (
+      Math.abs(b.position[0] - cx) <= half + b.size[0] / 2 &&
+      Math.abs(b.position[2] - cz) <= half + b.size[2] / 2
+    );
+  });
+}
+
+/** Petak yang terlihat dari pusat arena, ditembakkan garis lurus di atas petak. */
+function markVisibleFromCentre({
+  blocked,
+  cols,
+  rows,
+}: SightGrid): boolean[][] {
+  const c0 = Math.floor(cols / 2);
+  const r0 = Math.floor(rows / 2);
+
+  const visible: boolean[][] = Array.from({ length: rows }, () =>
+    new Array<boolean>(cols).fill(false),
+  );
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (blocked[r][c]) continue;
+
+      // Garis lurus dari pusat ke petak ini; berhenti begitu ada yang
+      // memotongnya. Petak tujuannya sendiri tidak ikut memotong.
+      const dc = c - c0;
+      const dr = r - r0;
+      const langkah = Math.max(Math.abs(dc), Math.abs(dr));
+      let tembus = true;
+      for (let i = 1; i < langkah; i++) {
+        const cc = Math.round(c0 + (dc * i) / langkah);
+        const rr = Math.round(r0 + (dr * i) / langkah);
+        if (blocked[rr][cc]) {
+          tembus = false;
+          break;
+        }
+      }
+      if (tembus) visible[r][c] = true;
+    }
+  }
+
+  return visible;
+}
+
+/**
+ * Berapa banyak jalur tembus sisi-ke-sisi yang tidak terlihat dari pusat.
+ *
+ * Petak yang bebas TAPI tidak terlihat dari pusat dikelompokkan jadi kumpulan
+ * yang saling bersambung, lalu dihitung berapa kumpulan yang benar-benar
+ * mencapai dua sisi berseberangan — barat ke timur, atau utara ke selatan.
+ * Syarat "mencapai dua sisi" itu yang membedakan jalur memutar dari sekadar
+ * sudut gelap: sudut yang tidak menuju ke mana-mana bukan jalur.
+ */
+function countHiddenRoutes(grid: SightGrid): number {
+  const { blocked, cols, rows } = grid;
+  const visible = markVisibleFromCentre(grid);
+
+  const seen: boolean[][] = Array.from({ length: rows }, () =>
+    new Array<boolean>(cols).fill(false),
+  );
+
+  let routes = 0;
+
+  for (let r0 = 0; r0 < rows; r0++) {
+    for (let c0 = 0; c0 < cols; c0++) {
+      if (seen[r0][c0] || blocked[r0][c0] || visible[r0][c0]) continue;
+
+      let barat = false;
+      let timur = false;
+      let utara = false;
+      let selatan = false;
+
+      const antre: Array<[number, number]> = [[r0, c0]];
+      seen[r0][c0] = true;
+
+      while (antre.length > 0) {
+        const [r, c] = antre.pop()!;
+        if (c === 0) barat = true;
+        if (c === cols - 1) timur = true;
+        if (r === 0) utara = true;
+        if (r === rows - 1) selatan = true;
+
+        for (const [dr, dc] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ] as const) {
+          const rr = r + dr;
+          const cc = c + dc;
+          if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) continue;
+          if (seen[rr][cc] || blocked[rr][cc] || visible[rr][cc]) continue;
+          seen[rr][cc] = true;
+          antre.push([rr, cc]);
+        }
+      }
+
+      if ((barat && timur) || (utara && selatan)) routes++;
+    }
+  }
+
+  return routes;
+}
+
 export function mapFacts(map: ArenaMapInfo): MapFacts {
   const { minX, maxX, minZ, maxZ } = map.playableBounds;
   const span = Math.round(Math.max(maxX - minX, maxZ - minZ));
   const area = (maxX - minX) * (maxZ - minZ);
   const coverCount = map.blocks.filter((b) => !PERIMETER_IDS.has(b.id)).length;
 
+  const grid = buildSightGrid(map);
+
   return {
     span,
     area,
     maxBots: maxBotsForMap(map),
     coverCount,
-    typicalSightline: measureTypicalSightline(map),
+    typicalSightline: measureTypicalSightline(grid),
+    hasCentralStructure: detectCentralStructure(map),
+    hiddenRouteCount: countHiddenRoutes(grid),
   };
 }
 
@@ -162,6 +331,33 @@ export function sightWord(facts: MapFacts): string {
   if (facts.typicalSightline < SIGHT_CLOSE) return "Serba tikungan";
   if (facts.typicalSightline < SIGHT_MEDIUM) return "Jarak menengah";
   return "Tembus pandang";
+}
+
+/**
+ * Kata sehari-hari untuk tata letak arena.
+ *
+ * Panggung diperiksa lebih dulu karena ia yang paling menentukan cara peta
+ * dimainkan: ada satu tempat tinggi yang diperebutkan, dan segala sesuatu
+ * berputar di sekitarnya. Tanpa panggung, yang membedakan tinggal apakah
+ * pandangannya cepat terpotong — itulah peta berjalur — atau tidak.
+ */
+export function layoutWord(facts: MapFacts): string {
+  if (facts.hasCentralStructure) return "Panggung tengah";
+  if (facts.typicalSightline < SIGHT_CLOSE) return "Berjalur";
+  return "Terbuka";
+}
+
+/**
+ * Kata sehari-hari untuk jalur yang tidak terlihat dari pusat arena.
+ *
+ * Nol bukan sekadar "sedikit" — ia berarti setiap perpindahan terlihat oleh
+ * siapa pun yang menguasai tengah, dan itu mengubah cara peta dimainkan lebih
+ * daripada selisih satu jalur mana pun. Karena itu ia punya kalimatnya sendiri.
+ */
+export function flankWord(facts: MapFacts): string {
+  if (facts.hiddenRouteCount === 0) return "Tidak ada jalur memutar";
+  if (facts.hiddenRouteCount === 1) return "Satu jalur memutar";
+  return "Beberapa jalur memutar";
 }
 
 /**

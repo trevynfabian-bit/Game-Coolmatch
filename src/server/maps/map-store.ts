@@ -1,5 +1,6 @@
 import { asc, eq, notInArray, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
+import { mapFacts } from "@/lib/game/map-info";
 import { maxBotsForSpawnPoints } from "@/lib/mock/bots";
 import { MOCK_MAPS } from "@/lib/mock/maps";
 import { maps } from "@/server/db/schema";
@@ -116,6 +117,20 @@ export interface MapCatalogueEntry {
    * pada ketiga peta yang ada sekarang.
    */
   maxBots: number;
+
+  /**
+   * Keterangan tata letak, DITURUNKAN dari bentuk petanya, tidak disimpan.
+   *
+   * Sengaja tidak masuk tabel. Angka tata letak yang ditulis ke database akan
+   * berselisih dengan petanya begitu ada yang menambah satu krat lalu lupa
+   * menyinkronkan katalog — persis alasan `map-info` menghitung semuanya alih-
+   * alih menuliskannya di katalog. Menghitungnya per permintaan untuk tiga
+   * peta tidak ada harganya.
+   */
+  coverCount: number;
+  typicalSightline: number;
+  hasCentralStructure: boolean;
+  hiddenRouteCount: number;
 }
 
 /**
@@ -133,14 +148,27 @@ export function listPlayableMaps(): MapCatalogueEntry[] {
     .where(eq(maps.isPlayable, true))
     .orderBy(asc(maps.sortOrder), asc(maps.id))
     .all()
-    .map((row) => ({
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      previewUrl: row.previewUrl,
-      floorSize: [row.floorWidth, row.floorDepth] as [number, number],
-      maxBots: maxBotsForSpawnPoints(row.spawnPointCount),
-    }));
+    .map((row) => {
+      // Geometrinya tetap di kode, jadi keterangan tata letak dihitung dari
+      // sana. Peta yang ada di database tetapi tidak lagi di kode tidak bisa
+      // dihitung — dan memang tidak akan sampai ke sini, karena peta seperti
+      // itu sudah ditandai tidak bisa dimainkan oleh sinkronisasi katalog.
+      const geometry = MOCK_MAPS.find((map) => map.id === row.id);
+      const facts = geometry ? mapFacts(geometry) : undefined;
+
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        previewUrl: row.previewUrl,
+        floorSize: [row.floorWidth, row.floorDepth] as [number, number],
+        maxBots: maxBotsForSpawnPoints(row.spawnPointCount),
+        coverCount: facts?.coverCount ?? 0,
+        typicalSightline: facts?.typicalSightline ?? 0,
+        hasCentralStructure: facts?.hasCentralStructure ?? false,
+        hiddenRouteCount: facts?.hiddenRouteCount ?? 0,
+      };
+    });
 }
 
 /**
