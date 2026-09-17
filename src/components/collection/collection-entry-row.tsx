@@ -33,11 +33,14 @@ function LockIcon({ className }: { className?: string }) {
 export function CollectionEntryRow({
   entry,
   onTry,
+  onUse,
   highlighted = false,
 }: {
   entry: CollectionEntry;
   /** Membawa senjata ini ke tempat latihan; hanya untuk yang sudah terbuka. */
   onTry: () => void;
+  /** Menjadikannya senjata bertanding, lalu menuju layar Atur Lawan. */
+  onUse: () => void;
   /** Menyorot senjata yang paling dekat terbuka. */
   highlighted?: boolean;
 }) {
@@ -110,22 +113,36 @@ export function CollectionEntryRow({
         menggoda pemain untuk mengkliknya berulang kali dan menebak kenapa
         tidak terjadi apa-apa. Syaratnya sudah tertulis tepat di sebelahnya.
 
-        Yang terbuka punya DUA, karena ada dua pertanyaan berbeda tentang
-        sebuah senjata. Sasaran diam menjawab seberapa enak senjatanya
-        ditembakkan; lawan yang balas menembak menjawab apakah ia cocok
-        dipakai. Menawarkan salah satu saja memaksa pemain menebak yang lain.
+        Yang terbuka punya TIGA, dan ketiganya menjawab pertanyaan yang
+        berbeda. Sasaran diam menjawab seberapa enak senjatanya ditembakkan;
+        lawan yang balas menembak menjawab apakah ia cocok dipakai; dan
+        "Pakai" untuk pemain yang sudah tahu jawabannya.
+
+        Yang terakhir itu yang paling ditonjolkan. Halaman ini memajang
+        senjata yang SUDAH dimiliki pemain, dan tindakan paling wajar atas
+        sesuatu yang sudah dimiliki adalah memakainya — bukan mencobanya
+        untuk kesekian kali.
+
+        Labelnya pendek-pendek, dan itu bukan sekadar selera. Tiga tombol
+        berlabel panjang memakan separuh lebar baris, dan yang mengalah adalah
+        keterangan senjatanya — nama, jenis, dan angka-angkanya ikut terpotong
+        jadi beberapa baris sehingga daftar yang seharusnya mudah dipindai
+        justru jadi berantakan. Arti ketiganya dijelaskan sekali di bawah
+        daftar, bukan diulang pada tiap baris.
       */}
       {locked ? null : (
-        <span className="flex shrink-0 gap-2">
+        <span className="flex shrink-0 flex-wrap gap-2">
           <ActionButton size="ringkas" onClick={onTry}>
             Latihan
           </ActionButton>
           <ActionButton
             size="ringkas"
-            variant="utama"
             href={`/uji?senjata=${encodeURIComponent(weapon.id)}`}
           >
-            Coba di arena
+            Uji arena
+          </ActionButton>
+          <ActionButton size="ringkas" variant="utama" onClick={onUse}>
+            Pakai
           </ActionButton>
         </span>
       )}

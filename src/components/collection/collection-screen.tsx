@@ -54,6 +54,20 @@ export function CollectionScreen() {
     router.push("/latihan");
   };
 
+  /**
+   * "Pakai bertanding" menuju layar Atur Lawan, bukan langsung ke arena.
+   *
+   * Tujuannya sama dengan tombol "Main Cepat" di menu utama, dan itu bukan
+   * kebetulan: halaman ini tempat melihat-lihat, dan tombol yang melemparkan
+   * pemain langsung ke tengah pertandingan dari layar melihat-lihat terasa
+   * seperti tergelincir. Satu layar persiapan di antaranya memberinya
+   * kesempatan memastikan lawan dan peta sebelum peluit berbunyi.
+   */
+  const pakaiBertanding = (weaponId: string) => {
+    selectWeapon(weaponId);
+    router.push("/lawan");
+  };
+
   const persen = Math.round(collection.completion * 100);
 
   return (
@@ -131,15 +145,37 @@ export function CollectionScreen() {
               entry={entry}
               highlighted={entry.weapon.id === collection.nextUnlock?.weapon.id}
               onTry={() => cobaDiLatihan(entry.weapon.id)}
+              onUse={() => pakaiBertanding(entry.weapon.id)}
             />
           ))}
         </ul>
+
+        {/*
+          Arti ketiga tombol dijelaskan sekali di sini, bukan lewat label
+          panjang yang diulang pada tiap baris. Label panjang memakan lebar
+          yang dibutuhkan keterangan senjatanya, dan kalimat ini toh hanya
+          perlu dibaca satu kali.
+        */}
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+          <span className="text-slate-400">Latihan</span> menembak sasaran diam.
+          <span className="text-slate-700"> · </span>
+          <span className="text-slate-400">Uji arena</span> melawan bot dalam
+          pertandingan singkat.
+          <span className="text-slate-700"> · </span>
+          <span className="text-slate-400">Pakai</span> membawanya ke
+          pertandingan penuh.
+        </p>
       </section>
 
+      {/*
+        "Bertanding lagi" memakai senjata yang SEDANG dibawa, apa pun yang
+        barusan dilihat-lihat di daftar atas. Itu tetap berguna — pemain yang
+        hanya mampir mengecek progresnya tidak perlu memilih ulang apa pun —
+        tetapi ia bukan lagi tindakan utama halaman ini, sebab tiap senjata
+        terbuka sekarang punya tombol "Pakai bertanding"-nya sendiri.
+      */}
       <ActionRow>
-        <ActionButton variant="utama" href="/lawan">
-          Bertanding lagi
-        </ActionButton>
+        <ActionButton href="/lawan">Bertanding lagi</ActionButton>
         <ActionButton href="/senjata">Pilih senjata</ActionButton>
         <ActionButton href="/">Kembali ke menu</ActionButton>
       </ActionRow>

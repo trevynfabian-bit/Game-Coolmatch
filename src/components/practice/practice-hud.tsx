@@ -121,12 +121,27 @@ function StartOverlay({ weapon }: { weapon: Weapon }) {
           {hasEngaged ? "Lanjut latihan" : "Klik untuk mulai"}
         </button>
 
+        {/*
+          Dua baris berisi dua, bukan satu baris berisi empat. Lapisan ini
+          hanya selebar max-w-sm; empat tombol sebaris di dalamnya menyisakan
+          sekitar delapan puluh piksel masing-masing dan teksnya pecah.
+
+          "Lihat koleksi" ada karena tempat latihan justru sering dicapai DARI
+          halaman koleksi, lewat tombol Latihan di tiap barisnya. Tanpa jalan
+          pulang, pemain yang mencoba senjatanya satu per satu harus lewat
+          menu utama setiap kali ingin kembali ke daftar.
+        */}
         <ActionRow className="pointer-events-auto mt-3">
           <ActionButton size="ringkas" href="/arena">
             Pakai senjata ini
           </ActionButton>
           <ActionButton size="ringkas" href="/senjata">
             Ganti senjata
+          </ActionButton>
+        </ActionRow>
+        <ActionRow className="pointer-events-auto mt-2">
+          <ActionButton size="ringkas" href="/koleksi">
+            Lihat koleksi
           </ActionButton>
           <ActionButton size="ringkas" href="/">
             Kembali ke menu
@@ -139,7 +154,9 @@ function StartOverlay({ weapon }: { weapon: Weapon }) {
               <dt className="rounded border border-white/15 bg-white/5 px-2 py-0.5 text-center font-mono text-[11px] whitespace-nowrap text-slate-200">
                 {hint.keys}
               </dt>
-              <dd className="self-center text-xs text-slate-400">{hint.label}</dd>
+              <dd className="self-center text-xs text-slate-400">
+                {hint.label}
+              </dd>
             </div>
           ))}
         </dl>
