@@ -299,3 +299,10 @@ export function controlHints(
 
   return [gerak, ...mouse, ...diubah, ...tetap];
 }
+
+/** Benar bila seluruh tombol masih sama dengan bawaannya. */
+export function isDefaultBindings(bindings: KeyBindings): boolean {
+  return BINDABLE_ACTIONS.every(
+    (entry) => bindings[entry.action] === entry.defaultCode,
+  );
+}

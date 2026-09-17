@@ -212,6 +212,12 @@ export function KeybindSection() {
         })}
       </ul>
 
+      {/*
+        Hanya tombol, bukan seluruh pengaturan. Pemulih menyeluruh ada di kaki
+        halaman; yang ini untuk pemain yang tata tombolnya kusut tetapi suara
+        dan tampilannya sudah pas — memaksanya menyetel ulang keduanya hanya
+        karena ingin WASD-nya kembali adalah pertukaran yang tidak masuk akal.
+      */}
       {adaYangDiubah ? (
         <div className="mt-3 flex justify-end">
           <button
@@ -219,7 +225,7 @@ export function KeybindSection() {
             onClick={resetAll}
             className="rounded-lg px-2.5 py-1 text-[12px] text-slate-500 transition-colors hover:text-slate-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
           >
-            Kembalikan semua tombol ke bawaan
+            Kembalikan tombol ke bawaan
           </button>
         </div>
       ) : null}

@@ -182,3 +182,24 @@ export function effectiveVolume(
   if (audio.muted) return 0;
   return clampVolume(audio[kind]) / VOLUME_MAX;
 }
+
+/**
+ * Benar bila seluruh pengaturan masih sama dengan bawaannya.
+ *
+ * Dipakai layar Pengaturan untuk memutuskan apakah tombol kembalikan perlu
+ * ditawarkan sama sekali. Tombol yang tidak mengubah apa pun tetap bisa
+ * terpencet, dan satu-satunya yang dihasilkannya adalah keraguan: "tadi saya
+ * menekan apa, ya?"
+ */
+export function isDefaultSettings(settings: GameSettings): boolean {
+  const d = DEFAULT_SETTINGS;
+  return (
+    settings.audio.effects === d.audio.effects &&
+    settings.audio.music === d.audio.music &&
+    settings.audio.muted === d.audio.muted &&
+    settings.display.quality === d.display.quality &&
+    settings.display.renderScale === d.display.renderScale &&
+    settings.display.showFps === d.display.showFps &&
+    settings.controls.sensitivity === d.controls.sensitivity
+  );
+}

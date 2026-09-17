@@ -6,6 +6,7 @@ import {
 } from "@/components/settings/audio-preview";
 import { ChoiceSetting } from "@/components/settings/choice-setting";
 import { KeybindSection } from "@/components/settings/keybind-section";
+import { ResetSettings } from "@/components/settings/reset-settings";
 import {
   SettingsRow,
   SettingsSection,
@@ -45,8 +46,9 @@ const QUALITY_CHOICES = QUALITY_ORDER.map((level) => ({
  * tempat ketiga bagian tidak muat sekaligus.
  *
  * Tidak ada tombol "simpan". Tiap perubahan langsung tersimpan ke perangkat,
- * dan "Kembali ke bawaan" menjadi jalan pulangnya — pengaturan yang perlu
- * dikonfirmasi selalu meninggalkan keraguan apakah perubahannya sudah berlaku.
+ * dan "Kembalikan semua ke bawaan" menjadi jalan pulangnya — pengaturan yang
+ * perlu dikonfirmasi selalu meninggalkan keraguan apakah perubahannya sudah
+ * berlaku.
  */
 export function SettingsScreen() {
   // Layar ini ikut mengeluarkan bunyi lewat tombol Dengar, jadi ia juga yang
@@ -64,7 +66,6 @@ export function SettingsScreen() {
   const setQuality = useSettingsStore((state) => state.setQuality);
   const setRenderScale = useSettingsStore((state) => state.setRenderScale);
   const setShowFps = useSettingsStore((state) => state.setShowFps);
-  const resetSettings = useSettingsStore((state) => state.resetSettings);
 
   /*
     Apakah perangkat ini benar-benar mau menyimpan hanya bisa diketahui di
@@ -259,13 +260,7 @@ export function SettingsScreen() {
       </div>
 
       <div className="mt-6 flex justify-end">
-        <button
-          type="button"
-          onClick={resetSettings}
-          className="rounded-lg px-3 py-1.5 text-[12px] text-slate-500 transition-colors hover:text-slate-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-        >
-          Kembali ke bawaan
-        </button>
+        <ResetSettings />
       </div>
 
       <ActionRow className="mt-4">
