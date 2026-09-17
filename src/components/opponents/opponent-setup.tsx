@@ -106,12 +106,9 @@ export function OpponentSetup() {
             </p>
           </div>
 
-          <Link
-            href="/peta"
-            className="shrink-0 rounded-lg border border-white/15 px-4 py-2.5 text-center text-sm font-medium text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-          >
+          <ActionButton size="ringkas" href="/peta" className="shrink-0">
             Ganti peta
-          </Link>
+          </ActionButton>
         </div>
       </section>
 
@@ -263,16 +260,15 @@ export function OpponentSetup() {
         </p>
 
         {/*
-          Ketiga layar persiapan — peta, senjata, dan lawan — saling
-          terhubung langsung. Sebelumnya daftar peta hanya bisa dicapai dari
-          menu utama, sehingga pemain yang sedang mengatur lawan dan sadar
-          ingin arena lain harus mundur dua langkah dulu.
+          "Ganti peta" sengaja TIDAK diulang di sini. Tempatnya di panel Arena
+          paling atas, tepat di sebelah denah yang sedang dilihat pemain —
+          deretan ini isinya tujuan lain: mulai bertanding, ganti senjata, atau
+          keluar.
         */}
         <ActionRow className="mt-4">
           <ActionButton variant="utama" href="/arena">
             Mulai bertanding
           </ActionButton>
-          <ActionButton href="/peta">Ganti peta</ActionButton>
           <ActionButton href="/senjata">Ganti senjata</ActionButton>
           <ActionButton href="/">Kembali ke menu</ActionButton>
         </ActionRow>
