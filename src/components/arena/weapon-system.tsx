@@ -26,6 +26,12 @@ import { resolveShotDamage } from "@/lib/game/damage";
 import { useCombatStore } from "@/lib/store/combat-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
+import {
+  playEmpty,
+  playHit,
+  playReload,
+  playShot,
+} from "@/lib/audio/audio-engine";
 import type { MatchSnapshot, Vec3, Weapon } from "@/types/game";
 
 /** Seberapa cepat sentakan kamera pulih ke posisi bidik semula, per detik. */
@@ -138,7 +144,13 @@ export function WeaponSystem({
         (state) => state.reload,
         (pressed) => {
           if (!pressed || !usePlayerStore.getState().isLocked) return;
-          useCombatStore.getState().beginReload(weapon.reloadSeconds);
+          // Hanya berbunyi bila isi ulangnya benar-benar dimulai; menekan R
+          // berulang kali di tengah isi ulang tidak menghasilkan deretan
+          // ketukan yang tidak pernah terjadi.
+          const combat = useCombatStore.getState();
+          const sedangIsi = combat.isReloading;
+          combat.beginReload(weapon.reloadSeconds);
+          if (!sedangIsi && useCombatStore.getState().isReloading) playReload();
         },
       ),
     [subscribeKeys, weapon.reloadSeconds],
@@ -157,9 +169,14 @@ export function WeaponSystem({
   const fireOnce = () => {
     const combat = useCombatStore.getState();
     if (!combat.consumeRound()) {
+      playEmpty();
       combat.beginReload(weapon.reloadSeconds);
       return;
     }
+
+    // Bunyi dikeluarkan di sini, bukan setelah hasil tembakan diketahui:
+    // letupan terdengar saat pelatuk ditarik, bukan saat peluru sampai.
+    playShot(weapon.type);
 
     camera.getWorldDirection(forward);
     origin.copy(camera.position);
@@ -222,6 +239,10 @@ export function WeaponSystem({
           // Null berarti sasaran sudah tumbang lebih dulu — misalnya butir
           // shotgun berikutnya yang datang sesudah butir yang mematikan.
           if (report) {
+            // Denting kena menemani penanda kena di layar. Butir shotgun yang
+            // datang sesudah sasaran tumbang tidak sampai ke sini, jadi satu
+            // tembakan tidak pernah berbunyi berkali-kali.
+            playHit(isHeadshot);
             markFighterHit(hit.fighterId);
             useCombatStore.getState().pushDamagePop({
               amount: report.healthLost + report.armorLost,
@@ -247,10 +268,7 @@ export function WeaponSystem({
 
     effects.current?.flashMuzzle();
     recoil.current += weapon.recoilDegrees;
-    bloom.current = Math.min(
-      MAX_BLOOM_DEGREES,
-      bloom.current + BLOOM_PER_SHOT,
-    );
+    bloom.current = Math.min(MAX_BLOOM_DEGREES, bloom.current + BLOOM_PER_SHOT);
   };
 
   useFrame((_state, rawDelta) => {
@@ -268,7 +286,13 @@ export function WeaponSystem({
       matchNow.fighters.find((f) => f.isLocal)?.isAlive ?? true;
     const roundLive = matchNow.round.status === "live";
 
-    if (locked && localAlive && roundLive && !combat.isReloading && !combat.isSwapping) {
+    if (
+      locked &&
+      localAlive &&
+      roundLive &&
+      !combat.isReloading &&
+      !combat.isSwapping
+    ) {
       const canPull = weapon.automatic
         ? triggerHeld.current
         : triggerHeld.current && !triggerConsumed.current;

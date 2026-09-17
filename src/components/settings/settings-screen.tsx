@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  EffectsPreview,
+  MusicPreview,
+} from "@/components/settings/audio-preview";
 import { ChoiceSetting } from "@/components/settings/choice-setting";
 import { KeybindSection } from "@/components/settings/keybind-section";
 import {
@@ -10,6 +14,7 @@ import { VolumeSetting } from "@/components/settings/volume-setting";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { QUALITY_ORDER, QUALITY_PROFILES } from "@/lib/game/settings";
 import { useSettingsStore } from "@/lib/store/settings-store";
+import { useAudioSettings } from "@/lib/audio/use-audio-settings";
 
 /** Ketiga bagian halaman ini, dipakai judul sekaligus tautan lompatnya. */
 const SECTIONS = [
@@ -37,6 +42,11 @@ const QUALITY_CHOICES = QUALITY_ORDER.map((level) => ({
  * dikonfirmasi selalu meninggalkan keraguan apakah perubahannya sudah berlaku.
  */
 export function SettingsScreen() {
+  // Layar ini ikut mengeluarkan bunyi lewat tombol Dengar, jadi ia juga yang
+  // menyalurkan volume ke mesin audio — dan itulah yang membuat penggeser
+  // terdengar berubah sambil ditarik, bukan hanya pada tembakan berikutnya.
+  useAudioSettings();
+
   const audio = useSettingsStore((state) => state.audio);
   const quality = useSettingsStore((state) => state.display.quality);
   const setEffectsVolume = useSettingsStore((state) => state.setEffectsVolume);
@@ -102,23 +112,29 @@ export function SettingsScreen() {
           </SettingsRow>
 
           <SettingsRow label="Efek suara" hint="Tembakan, langkah, benturan.">
-            <VolumeSetting
-              id="volume-efek"
-              label="Volume efek suara"
-              value={audio.effects}
-              onChange={setEffectsVolume}
-              disabled={audio.muted}
-            />
+            <div className="flex items-center gap-3">
+              <VolumeSetting
+                id="volume-efek"
+                label="Volume efek suara"
+                value={audio.effects}
+                onChange={setEffectsVolume}
+                disabled={audio.muted}
+              />
+              <EffectsPreview disabled={audio.muted} />
+            </div>
           </SettingsRow>
 
           <SettingsRow label="Musik latar">
-            <VolumeSetting
-              id="volume-musik"
-              label="Volume musik latar"
-              value={audio.music}
-              onChange={setMusicVolume}
-              disabled={audio.muted}
-            />
+            <div className="flex items-center gap-3">
+              <VolumeSetting
+                id="volume-musik"
+                label="Volume musik latar"
+                value={audio.music}
+                onChange={setMusicVolume}
+                disabled={audio.muted}
+              />
+              <MusicPreview disabled={audio.muted} />
+            </div>
           </SettingsRow>
         </SettingsSection>
 

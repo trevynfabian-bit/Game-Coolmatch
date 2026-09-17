@@ -6,6 +6,8 @@ import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
 import { buildKeyboardMap } from "@/lib/game/keybinds";
 import { useKeybindStore } from "@/lib/store/keybind-store";
+import { useAudioSettings } from "@/lib/audio/use-audio-settings";
+import { useArenaMusic } from "@/lib/audio/use-arena-music";
 import { armPlayerFrom } from "@/lib/game/arm-player";
 import { resetBotRuntime } from "@/lib/game/bot-runtime";
 import { resetFighterHits } from "@/lib/game/fighter-runtime";
@@ -149,6 +151,8 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
   });
 
   const hydrated = useHydrated();
+  useAudioSettings();
+  useArenaMusic();
 
   /**
    * Pemetaan tombol disusun dari pilihan pemain dan ikut berubah saat ia

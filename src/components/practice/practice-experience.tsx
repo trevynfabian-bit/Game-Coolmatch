@@ -6,6 +6,8 @@ import { KeyboardControls } from "@react-three/drei";
 import { PracticeHud } from "@/components/practice/practice-hud";
 import { buildKeyboardMap } from "@/lib/game/keybinds";
 import { useKeybindStore } from "@/lib/store/keybind-store";
+import { useAudioSettings } from "@/lib/audio/use-audio-settings";
+import { useArenaMusic } from "@/lib/audio/use-arena-music";
 import { armPlayerFrom } from "@/lib/game/arm-player";
 import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
@@ -53,6 +55,8 @@ export function PracticeExperience() {
   // Tombol yang sama dengan arena, disusun dari satu fungsi supaya keduanya
   // mustahil berjalan dengan pemetaan yang berbeda.
   const bindings = useKeybindStore((state) => state.bindings);
+  useAudioSettings();
+  useArenaMusic();
   const keyboardMap = useMemo(() => buildKeyboardMap(bindings), [bindings]);
 
   useEffect(() => {
