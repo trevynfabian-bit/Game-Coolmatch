@@ -34,6 +34,12 @@ export default function Home() {
           >
             Pilih Senjata
           </Link>
+          <Link
+            href="/skor"
+            className="w-full rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
+          >
+            Papan Skor
+          </Link>
         </div>
 
         <p className="mt-6 text-xs text-slate-600">

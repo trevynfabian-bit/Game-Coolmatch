@@ -2,12 +2,9 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { killRatio } from "@/lib/game/scoreboard";
 import { restartMatch } from "@/lib/game/match-reset";
 import type { ArenaMapInfo, Fighter, MatchSnapshot, RoundState } from "@/types/game";
-
-function killRatio(fighter: Fighter): string {
-  return (fighter.kills / Math.max(1, fighter.deaths)).toFixed(2);
-}
 
 /**
  * Layar akhir pertandingan: juara, klasemen akhir lengkap, dan pilihan lanjut.
@@ -139,7 +136,7 @@ export function MatchEndScreen({
                     {fighter.deaths}
                   </td>
                   <td className="px-2 py-2 text-right font-mono text-sm text-slate-400 tabular-nums">
-                    {killRatio(fighter)}
+                    {killRatio(fighter.kills, fighter.deaths)}
                   </td>
                   <td className="px-4 py-2 text-right font-mono text-sm text-slate-100 tabular-nums">
                     {fighter.score}

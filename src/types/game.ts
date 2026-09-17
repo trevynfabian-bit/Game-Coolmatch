@@ -155,3 +155,55 @@ export interface MatchSnapshot {
   /** Ping tiruan, ditampilkan di pojok HUD. */
   pingMs: number;
 }
+
+/**
+ * Perolehan akhir satu peserta pertandingan yang sudah selesai, pemain maupun
+ * bot. Bentuknya mengikuti tabel `match_scores`: namanya disimpan apa adanya,
+ * bukan sebagai acuan ke `players`, sebab bot tidak punya baris di tabel itu
+ * dan nama pemain bisa berubah tanpa membuat catatan lama jadi salah.
+ */
+export interface MatchScoreLine {
+  id: string;
+  participantName: string;
+  isBot: boolean;
+  /** Benar untuk pemain yang bermain di perangkat ini. */
+  isLocal: boolean;
+  kills: number;
+  deaths: number;
+  score: number;
+  roundWins: number;
+  isWinner: boolean;
+  /** Warna penanda, sama dengan yang dipakai petarung ini di arena. */
+  color: string;
+}
+
+/** Hasil akhir pertandingan dari sudut pandang pemain; sama dengan kolom `result`. */
+export type MatchResult = "menang" | "kalah" | "seri" | "ditinggal";
+
+/**
+ * Satu pertandingan yang sudah tercatat, gabungan baris `matches` dengan
+ * seluruh `match_scores` miliknya. Inilah bentuk yang dibaca halaman skor;
+ * ketika layer backend siap, data tiruannya tinggal ditukar respons API yang
+ * berbentuk sama.
+ */
+export interface MatchRecord {
+  id: string;
+  mapId: string;
+  mapName: string;
+  difficulty: Difficulty;
+  botCount: number;
+  totalRounds: number;
+  /**
+   * Ronde yang benar-benar dimainkan. Bisa lebih sedikit dari `totalRounds`
+   * saat gelar sudah terkunci sebelum ronde terakhir.
+   */
+  roundsPlayed: number;
+  scoreLimit: number;
+  result: MatchResult;
+  /** Kosong bila pertandingan berakhir seri. */
+  winnerName: string | null;
+  /** Epoch milidetik, sama dengan kolom waktu di database. */
+  startedAt: number;
+  endedAt: number;
+  scores: MatchScoreLine[];
+}

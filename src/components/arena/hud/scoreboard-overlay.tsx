@@ -1,13 +1,9 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { killRatio } from "@/lib/game/scoreboard";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { Fighter, RoundState } from "@/types/game";
-
-/** Rasio kill per mati, dengan pembagi nol diperlakukan sebagai satu. */
-function killRatio(fighter: Fighter): string {
-  return (fighter.kills / Math.max(1, fighter.deaths)).toFixed(2);
-}
 
 /**
  * Papan skor penuh yang muncul selama Tab ditahan.
@@ -143,7 +139,7 @@ export function ScoreboardOverlay({
                   {fighter.deaths}
                 </td>
                 <td className="px-2 py-2 text-right font-mono text-sm text-slate-400 tabular-nums">
-                  {killRatio(fighter)}
+                  {killRatio(fighter.kills, fighter.deaths)}
                 </td>
                 <td className="px-4 py-2 text-right font-mono text-sm text-slate-100 tabular-nums">
                   {fighter.score}
