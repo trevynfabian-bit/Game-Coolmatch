@@ -32,11 +32,25 @@ function isSolid(block: MapBlock): boolean {
 export function MapThumbnail({
   map,
   className = "",
+  showScale = false,
 }: {
   map: ArenaMapInfo;
   className?: string;
+  /**
+   * Menggambar garis bantu tiap sepuluh satuan dunia.
+   *
+   * Hanya berguna pada tampilan besar: di ukuran kartu, garisnya lebih tipis
+   * daripada balok terkecil dan justru membuat denahnya ramai. Di layar
+   * pratinjau, garis itulah yang memberi arti pada angka "43m" — tanpanya
+   * ketiga peta terlihat sama besar karena sama-sama memenuhi kotaknya.
+   */
+  showScale?: boolean;
 }) {
   const [width, depth] = map.floorSize;
+  const half = Math.max(width, depth) / 2;
+  const scaleLines = showScale
+    ? Array.from({ length: Math.floor(half / 10) * 2 + 1 }, (_, i) => (i - Math.floor(half / 10)) * 10)
+    : [];
 
   return (
     <svg
@@ -54,6 +68,14 @@ export function MapThumbnail({
         height={depth}
         fill={map.floorColor}
       />
+
+      {/* Garis bantu digambar di bawah balok supaya tidak memotong bentuknya. */}
+      {scaleLines.map((v) => (
+        <g key={`skala-${v}`} stroke="#ffffff" strokeOpacity={0.07} strokeWidth={0.15}>
+          <line x1={v} y1={-depth / 2} x2={v} y2={depth / 2} />
+          <line x1={-width / 2} y1={v} x2={width / 2} y2={v} />
+        </g>
+      ))}
 
       {map.blocks.map((block) => (
         <rect

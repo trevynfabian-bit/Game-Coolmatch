@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { MapCard } from "@/components/maps/map-card";
+import { MapPreviewDialog } from "@/components/maps/map-preview-dialog";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { mapFacts } from "@/lib/game/map-info";
 import { MOCK_MAPS, findMap } from "@/lib/mock/maps";
@@ -27,6 +28,24 @@ export function MapPicker() {
   const selectedFacts = facts[selectedIndex];
 
   const kartuRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [pratinjauTerbuka, setPratinjauTerbuka] = useState(false);
+
+  /**
+   * Menggeser pilihan sejauh `langkah` peta, berputar di ujung katalog.
+   *
+   * Dipakai bersama oleh tombol panah di daftar dan tombol maju-mundur di
+   * layar pratinjau, supaya keduanya tidak bisa berselisih soal apa yang
+   * terjadi di peta pertama dan terakhir.
+   */
+  const geserPilihan = useCallback(
+    (langkah: number) => {
+      const jumlah = MOCK_MAPS.length;
+      const tujuan = (selectedIndex + langkah + jumlah) % jumlah;
+      selectMap(MOCK_MAPS[tujuan].id);
+      return tujuan;
+    },
+    [selectedIndex, selectMap],
+  );
 
   /**
    * Tombol panah memindahkan pilihan, Home dan End melompat ke ujung.
@@ -40,22 +59,24 @@ export function MapPicker() {
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const jumlah = MOCK_MAPS.length;
-      let tujuan: number | null = null;
+      let tujuan: number;
 
       switch (event.key) {
         case "ArrowRight":
         case "ArrowDown":
-          tujuan = (selectedIndex + 1) % jumlah;
+          tujuan = geserPilihan(1);
           break;
         case "ArrowLeft":
         case "ArrowUp":
-          tujuan = (selectedIndex - 1 + jumlah) % jumlah;
+          tujuan = geserPilihan(-1);
           break;
         case "Home":
           tujuan = 0;
+          selectMap(MOCK_MAPS[0].id);
           break;
         case "End":
           tujuan = jumlah - 1;
+          selectMap(MOCK_MAPS[jumlah - 1].id);
           break;
         default:
           return;
@@ -64,10 +85,9 @@ export function MapPicker() {
       // Panah atas/bawah menggulung halaman bila dibiarkan, dan gulungan itu
       // membuat kartu yang baru dipilih justru keluar dari pandangan.
       event.preventDefault();
-      selectMap(MOCK_MAPS[tujuan].id);
       kartuRefs.current[tujuan]?.focus();
     },
-    [selectedIndex, selectMap],
+    [geserPilihan, selectMap],
   );
 
   /**
@@ -139,13 +159,28 @@ export function MapPicker() {
         )}
 
         <ActionRow className="mt-4">
-          <ActionButton variant="utama" href="/lawan">
-            Atur lawan
+          <ActionButton
+            variant="utama"
+            onClick={() => setPratinjauTerbuka(true)}
+          >
+            Lihat pratinjau
           </ActionButton>
+          <ActionButton href="/lawan">Atur lawan</ActionButton>
           <ActionButton href="/senjata">Ganti senjata</ActionButton>
           <ActionButton href="/">Kembali ke menu</ActionButton>
         </ActionRow>
       </div>
+
+      <MapPreviewDialog
+        map={selected}
+        facts={selectedFacts}
+        allFacts={facts}
+        open={pratinjauTerbuka}
+        onClose={() => setPratinjauTerbuka(false)}
+        onPrev={() => geserPilihan(-1)}
+        onNext={() => geserPilihan(1)}
+        position={{ current: selectedIndex + 1, total: MOCK_MAPS.length }}
+      />
     </div>
   );
 }
