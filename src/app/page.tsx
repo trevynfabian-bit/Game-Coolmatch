@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SelectedMapLabel } from "@/components/maps/selected-map-label";
+import { PlayerNameLabel } from "@/components/profile/player-name-label";
 
 /**
  * Titik masuk sementara. Menu utama lengkap (main cepat, pilih peta, pilih
@@ -46,10 +47,17 @@ export default function Home() {
           >
             Papan Skor
           </Link>
+          <Link
+            href="/nama"
+            className="w-full rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
+          >
+            Nama Pemain
+          </Link>
         </div>
 
         <p className="mt-6 text-xs text-slate-600">
-          Peta saat ini: <SelectedMapLabel />
+          Kamu bermain sebagai <PlayerNameLabel /> · Peta saat ini:{" "}
+          <SelectedMapLabel />
         </p>
       </div>
     </main>
