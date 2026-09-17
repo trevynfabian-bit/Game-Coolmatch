@@ -1,3 +1,4 @@
+import { STARTING_ARMOR } from "@/lib/game/damage";
 import { pickSpawnPoint } from "@/lib/game/spawn";
 import type { ArenaMapInfo, Fighter, Vec3 } from "@/types/game";
 
@@ -69,7 +70,7 @@ export function buildBotRoster(
       isBot: true,
       health: 100,
       maxHealth: 100,
-      armor: 0,
+      armor: STARTING_ARMOR,
       kills: 0,
       deaths: 0,
       score: 0,

@@ -13,6 +13,19 @@ export const SCORE_HEADSHOT_BONUS = 25;
 /** Lama petarung menunggu sebelum bisa muncul kembali, dalam detik. */
 export const RESPAWN_SECONDS = 4;
 
+/**
+ * Rompi yang dibawa setiap petarung saat sebuah RONDE dimulai.
+ *
+ * Rompi menyerap separuh kerusakan selama masih ada, jadi angka ini menentukan
+ * berapa lama tembakan pertama terasa ringan sebelum nyawa benar-benar
+ * terkuras. Diberikan per ronde, bukan per respawn: sekali tumbang di tengah
+ * ronde, sisa ronde itu dijalani tanpa rompi. Itu membuat rompi jadi sesuatu
+ * yang dijaga, bukan yang datang gratis setiap kali muncul kembali — dan
+ * membuat pembacaan ROMPI di HUD, yang selama ini selalu nol karena tidak ada
+ * satu pun jalur yang pernah mengisinya, akhirnya berarti.
+ */
+export const STARTING_ARMOR = 50;
+
 export interface DamageOutcome {
   /** Keadaan petarung sesudah kena tembak. */
   fighter: Fighter;

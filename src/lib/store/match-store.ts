@@ -1,5 +1,9 @@
 import { create } from "zustand";
-import { applyDamageToFighter, killScore } from "@/lib/game/damage";
+import {
+  STARTING_ARMOR,
+  applyDamageToFighter,
+  killScore,
+} from "@/lib/game/damage";
 import {
   findMatchWinner,
   findRoundWinner,
@@ -132,7 +136,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       fighters: snapshot.fighters.map((fighter) => ({
         ...fighter,
         health: fighter.maxHealth,
-        armor: 0,
+        armor: STARTING_ARMOR,
         isAlive: true,
         respawnInSeconds: null,
         kills: 0,
@@ -274,7 +278,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
         fighters: state.fighters.map((fighter) => ({
           ...fighter,
           health: fighter.maxHealth,
-          armor: 0,
+          armor: STARTING_ARMOR,
           isAlive: true,
           respawnInSeconds: null,
           roundKills: 0,

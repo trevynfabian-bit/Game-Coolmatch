@@ -1,3 +1,4 @@
+import { STARTING_ARMOR } from "@/lib/game/damage";
 import { clampBotCount } from "@/lib/game/difficulty";
 import { buildBotRoster, maxBotsForMap } from "@/lib/mock/bots";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
@@ -28,7 +29,7 @@ const LOCAL_FIGHTER: Fighter = {
   isBot: false,
   health: 100,
   maxHealth: 100,
-  armor: 0,
+  armor: STARTING_ARMOR,
   kills: 0,
   deaths: 0,
   score: 0,
