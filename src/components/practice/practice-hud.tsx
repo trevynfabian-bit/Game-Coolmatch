@@ -7,6 +7,7 @@ import { controlHints } from "@/lib/game/keybinds";
 import { useKeybindStore } from "@/lib/store/keybind-store";
 import { RANGE_TARGETS } from "@/lib/practice/range-map";
 import { accuracyPercent, usePracticeStore } from "@/lib/store/practice-store";
+import { FpsMeter } from "@/components/arena/hud/fps-meter";
 import { usePlayerStore } from "@/lib/store/player-store";
 import { WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
 import type { Weapon } from "@/types/game";
@@ -183,6 +184,7 @@ export function PracticeHud({ weapon }: { weapon: Weapon }) {
         <ScorePanel weapon={weapon} />
         {isLocked ? <Crosshair /> : null}
         <AmmoPanel weapon={weapon} />
+        <FpsMeter />
         <p className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-slate-950/60 px-4 py-1.5 text-[11px] text-slate-400 backdrop-blur-sm">
           Tekan Esc untuk jeda, memakai senjata ini, atau menggantinya
         </p>

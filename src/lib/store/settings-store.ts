@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import {
   DEFAULT_SETTINGS,
+  clampScale,
   clampVolume,
   isQualityLevel,
   type AudioSettings,
@@ -44,6 +45,14 @@ function sanitizeDisplay(value: unknown): DisplaySettings {
     quality: isQualityLevel(saved.quality)
       ? saved.quality
       : DEFAULT_SETTINGS.display.quality,
+    renderScale:
+      typeof saved.renderScale === "number"
+        ? clampScale(saved.renderScale)
+        : DEFAULT_SETTINGS.display.renderScale,
+    showFps:
+      typeof saved.showFps === "boolean"
+        ? saved.showFps
+        : DEFAULT_SETTINGS.display.showFps,
   };
 }
 
@@ -52,6 +61,8 @@ interface SettingsState extends GameSettings {
   setMusicVolume: (value: number) => void;
   setMuted: (muted: boolean) => void;
   setQuality: (quality: QualityLevel) => void;
+  setRenderScale: (value: number) => void;
+  setShowFps: (show: boolean) => void;
   /** Mengembalikan seluruh pengaturan ke bawaan. */
   resetSettings: () => void;
 }
@@ -102,6 +113,21 @@ export const useSettingsStore = create<SettingsState>()(
           quality === state.display.quality
             ? state
             : { display: { ...state.display, quality } },
+        ),
+
+      setRenderScale: (value) =>
+        set((state) => {
+          const renderScale = clampScale(value);
+          return renderScale === state.display.renderScale
+            ? state
+            : { display: { ...state.display, renderScale } };
+        }),
+
+      setShowFps: (showFps) =>
+        set((state) =>
+          showFps === state.display.showFps
+            ? state
+            : { display: { ...state.display, showFps } },
         ),
 
       resetSettings: () =>

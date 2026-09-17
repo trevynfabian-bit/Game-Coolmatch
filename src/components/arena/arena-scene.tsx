@@ -4,6 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { ArenaMap } from "@/components/arena/arena-map";
 import { BotDriver } from "@/components/arena/bot-driver";
 import { FighterMarker } from "@/components/arena/fighter-marker";
+import { FpsTicker } from "@/components/arena/fps-ticker";
 import { MapLights } from "@/components/arena/map-lights";
 import { PlayerController } from "@/components/arena/player-controller";
 import { RespawnTicker } from "@/components/arena/respawn-ticker";
@@ -54,6 +55,7 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
       <color attach="background" args={[match.map.skyColor]} />
       <fog attach="fog" args={[match.map.fogColor, ...match.map.fogRange]} />
 
+      <FpsTicker />
       <MapLights lighting={match.map.lighting} />
       <PlayerController map={match.map} spawn={spawnFighter.position} />
       <RespawnTicker map={match.map} />

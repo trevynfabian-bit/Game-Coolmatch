@@ -12,7 +12,12 @@ import {
 } from "@/components/settings/settings-section";
 import { VolumeSetting } from "@/components/settings/volume-setting";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
-import { QUALITY_ORDER, QUALITY_PROFILES } from "@/lib/game/settings";
+import {
+  QUALITY_ORDER,
+  QUALITY_PROFILES,
+  SCALE_MAX,
+  SCALE_MIN,
+} from "@/lib/game/settings";
 import { useSettingsStore } from "@/lib/store/settings-store";
 import { useAudioSettings } from "@/lib/audio/use-audio-settings";
 
@@ -49,10 +54,14 @@ export function SettingsScreen() {
 
   const audio = useSettingsStore((state) => state.audio);
   const quality = useSettingsStore((state) => state.display.quality);
+  const renderScale = useSettingsStore((state) => state.display.renderScale);
+  const showFps = useSettingsStore((state) => state.display.showFps);
   const setEffectsVolume = useSettingsStore((state) => state.setEffectsVolume);
   const setMusicVolume = useSettingsStore((state) => state.setMusicVolume);
   const setMuted = useSettingsStore((state) => state.setMuted);
   const setQuality = useSettingsStore((state) => state.setQuality);
+  const setRenderScale = useSettingsStore((state) => state.setRenderScale);
+  const setShowFps = useSettingsStore((state) => state.setShowFps);
   const resetSettings = useSettingsStore((state) => state.resetSettings);
 
   return (
@@ -168,6 +177,58 @@ export function SettingsScreen() {
           <p className="pt-3 text-[11px] leading-relaxed text-slate-500">
             {QUALITY_PROFILES[quality].note}
           </p>
+
+          <SettingsRow
+            label="Skala resolusi"
+            hint="Berlaku pada pertandingan berikutnya."
+          >
+            <div className="flex items-center gap-3">
+              <input
+                id="skala-resolusi"
+                type="range"
+                min={SCALE_MIN}
+                max={SCALE_MAX}
+                step={5}
+                value={renderScale}
+                aria-label="Skala resolusi"
+                onChange={(event) => setRenderScale(Number(event.target.value))}
+                className="h-1.5 w-full max-w-xs cursor-pointer appearance-none rounded-full bg-white/10 accent-emerald-400"
+              />
+              <span className="w-12 shrink-0 text-right font-mono text-xs text-slate-300 tabular-nums">
+                {renderScale}%
+              </span>
+            </div>
+          </SettingsRow>
+
+          <p className="pt-1 text-[11px] leading-relaxed text-slate-500">
+            {renderScale === SCALE_MAX
+              ? "Gambar dihitung sepenuh layar. Turunkan angkanya kalau gerakan masih terasa tersendat setelah kualitas diturunkan."
+              : `Gambar dihitung pada ${renderScale}% lebar layar lalu diregangkan. Jauh lebih ringan, dengan harga tepi yang lebih kasar.`}
+          </p>
+
+          {/*
+            Penghitung frame membuat kedua pengaturan di atas bisa DINILAI,
+            bukan ditebak. Tanpa angkanya, pemain hanya bisa merasa-rasa apakah
+            menurunkan kualitas benar-benar ada bedanya.
+          */}
+          <SettingsRow
+            label="Penghitung frame"
+            hint="Angka kecil di bawah panel ronde."
+          >
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showFps}
+              onClick={() => setShowFps(!showFps)}
+              className={`rounded-lg border px-3.5 py-1.5 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
+                showFps
+                  ? "border-emerald-400/70 bg-emerald-500/10 text-emerald-200"
+                  : "border-white/15 text-slate-300 hover:border-white/30 hover:bg-white/5"
+              }`}
+            >
+              {showFps ? "Ditampilkan" : "Disembunyikan"}
+            </button>
+          </SettingsRow>
         </SettingsSection>
       </div>
 

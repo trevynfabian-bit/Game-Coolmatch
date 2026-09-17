@@ -22,8 +22,23 @@ export interface AudioSettings {
 
 export type QualityLevel = "rendah" | "sedang" | "tinggi";
 
+/** Skala resolusi dinyatakan dalam persen, karena begitulah pemain membacanya. */
+export const SCALE_MIN = 50;
+export const SCALE_MAX = 100;
+
 export interface DisplaySettings {
   quality: QualityLevel;
+  /**
+   * Seberapa besar gambar digambar sebelum diregangkan ke layar, 50..100
+   * persen. Terpisah dari tingkat kualitas dan memang harus terpisah:
+   * kualitas menentukan APA yang digambar — bayangan, penghalusan tepi —
+   * sedangkan skala menentukan seberapa banyak piksel yang dihitung. Pemain
+   * berlayar besar sering butuh menurunkan yang kedua tanpa kehilangan yang
+   * pertama.
+   */
+  renderScale: number;
+  /** Menampilkan penghitung frame di sudut arena. */
+  showFps: boolean;
 }
 
 export interface GameSettings {
@@ -84,13 +99,36 @@ export const DEFAULT_SETTINGS: GameSettings = {
   // pemain berperangkat kuat akan menaikkannya sendiri, sementara pemain
   // berperangkat lemah belum tentu tahu bahwa tersendat-sendatnya bisa
   // diperbaiki dari layar ini.
-  display: { quality: "sedang" },
+  display: { quality: "sedang", renderScale: SCALE_MAX, showFps: false },
 };
 
 /** Menjepit volume ke rentang yang sah dan membulatkannya. */
 export function clampVolume(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(VOLUME_MAX, Math.max(VOLUME_MIN, Math.round(value)));
+}
+
+/** Menjepit skala resolusi ke rentang yang sah dan membulatkannya. */
+export function clampScale(value: number): number {
+  if (!Number.isFinite(value)) return SCALE_MAX;
+  return Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(value)));
+}
+
+/**
+ * Rentang device pixel ratio yang benar-benar dipakai kanvas, sesudah tingkat
+ * kualitas dan skala resolusi digabung.
+ *
+ * Batas bawahnya ikut turun bersama skalanya. Kalau tidak, menyetel skala ke
+ * 50 persen tidak mengubah apa pun pada layar biasa — batas bawah 1 akan
+ * menaikkannya kembali, dan pemain menyimpulkan penggesernya rusak.
+ */
+export function canvasDpr(
+  quality: QualityLevel,
+  renderScale: number,
+): [number, number] {
+  const [min, max] = QUALITY_PROFILES[quality].dpr;
+  const skala = clampScale(renderScale) / SCALE_MAX;
+  return [Math.min(min, max * skala), max * skala];
 }
 
 export function isQualityLevel(value: unknown): value is QualityLevel {

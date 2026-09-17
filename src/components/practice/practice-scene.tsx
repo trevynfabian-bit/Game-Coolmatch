@@ -4,6 +4,7 @@ import { useCallback, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import type { MeshStandardMaterial } from "three";
 import { ArenaMap } from "@/components/arena/arena-map";
+import { FpsTicker } from "@/components/arena/fps-ticker";
 import { MapLights } from "@/components/arena/map-lights";
 import { PlayerController } from "@/components/arena/player-controller";
 import { WeaponSystem } from "@/components/arena/weapon-system";
@@ -126,6 +127,7 @@ export function PracticeScene({
       <color attach="background" args={[RANGE_MAP.skyColor]} />
       <fog attach="fog" args={[RANGE_MAP.fogColor, ...RANGE_MAP.fogRange]} />
 
+      <FpsTicker />
       <MapLights lighting={RANGE_MAP.lighting} />
       <PlayerController map={RANGE_MAP} spawn={RANGE_SPAWN} />
       <WeaponSystem match={snapshot} weapon={weapon} onShot={handleShot} />

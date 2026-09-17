@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { QUALITY_PROFILES } from "@/lib/game/settings";
+import { QUALITY_PROFILES, canvasDpr } from "@/lib/game/settings";
 import { useSettingsStore } from "@/lib/store/settings-store";
 
 /**
@@ -18,8 +18,14 @@ import { useSettingsStore } from "@/lib/store/settings-store";
  * jadi membaca simpanan di sini tidak punya render server untuk dicocokkan.
  */
 export function useRenderQuality() {
-  const [profile] = useState(
-    () => QUALITY_PROFILES[useSettingsStore.getState().display.quality],
-  );
+  const [profile] = useState(() => {
+    const { quality, renderScale } = useSettingsStore.getState().display;
+    return {
+      ...QUALITY_PROFILES[quality],
+      // Rentang dpr menggabungkan tingkat kualitas dengan skala resolusi;
+      // yang dipakai kanvas adalah hasil gabungannya, bukan salah satunya.
+      dpr: canvasDpr(quality, renderScale),
+    };
+  });
   return profile;
 }

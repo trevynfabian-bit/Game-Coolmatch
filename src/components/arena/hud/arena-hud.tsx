@@ -5,6 +5,7 @@ import { AmmoPanel } from "@/components/arena/hud/ammo-panel";
 import { ControlHints } from "@/components/arena/hud/control-hints";
 import { DamageNumbers } from "@/components/arena/hud/damage-numbers";
 import { DamageVignette } from "@/components/arena/hud/damage-vignette";
+import { FpsMeter } from "@/components/arena/hud/fps-meter";
 import { Crosshair } from "@/components/arena/hud/crosshair";
 import { EngageOverlay } from "@/components/arena/hud/engage-overlay";
 import { KillFeed } from "@/components/arena/hud/kill-feed";
@@ -120,6 +121,7 @@ export function ArenaHud({
         <AmmoPanel weapon={weapon} />
         <WeaponSlots />
         <MatchInfoStrip match={match} />
+        <FpsMeter />
       </div>
 
       <ScoreboardOverlay

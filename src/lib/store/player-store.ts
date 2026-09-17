@@ -16,11 +16,15 @@ interface PlayerState {
   hintsVisible: boolean;
   /** Papan skor penuh sedang dibuka (tombol Tab ditahan). */
   scoreboardOpen: boolean;
+  /** Frame per detik terakhir yang terukur; nol berarti belum ada ukuran. */
+  fps: number;
   setLocked: (locked: boolean) => void;
   setMotion: (motion: { isSprinting: boolean; isAirborne: boolean }) => void;
   setHintsVisible: (visible: boolean) => void;
   toggleHints: () => void;
   setScoreboardOpen: (open: boolean) => void;
+  /** Disetel sekali per detik oleh penghitung di dalam kanvas. */
+  setFps: (fps: number) => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set) => ({
@@ -30,6 +34,7 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   isAirborne: false,
   hintsVisible: false,
   scoreboardOpen: false,
+  fps: 0,
   setLocked: (locked) =>
     set((state) => ({
       isLocked: locked,
@@ -46,8 +51,13 @@ export const usePlayerStore = create<PlayerState>((set) => ({
         : { isSprinting, isAirborne },
     ),
   setHintsVisible: (visible) =>
-    set((state) => (state.hintsVisible === visible ? state : { hintsVisible: visible })),
+    set((state) =>
+      state.hintsVisible === visible ? state : { hintsVisible: visible },
+    ),
   toggleHints: () => set((state) => ({ hintsVisible: !state.hintsVisible })),
   setScoreboardOpen: (open) =>
-    set((state) => (state.scoreboardOpen === open ? state : { scoreboardOpen: open })),
+    set((state) =>
+      state.scoreboardOpen === open ? state : { scoreboardOpen: open },
+    ),
+  setFps: (fps) => set((state) => (state.fps === fps ? state : { fps })),
 }));
