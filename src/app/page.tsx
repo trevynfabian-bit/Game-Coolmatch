@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DEFAULT_MAP } from "@/lib/mock/maps";
+import { SelectedMapLabel } from "@/components/maps/selected-map-label";
 
 /**
  * Titik masuk sementara. Menu utama lengkap (main cepat, pilih peta, pilih
@@ -35,6 +35,12 @@ export default function Home() {
             Pilih Senjata
           </Link>
           <Link
+            href="/peta"
+            className="w-full rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
+          >
+            Pilih Peta
+          </Link>
+          <Link
             href="/skor"
             className="w-full rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
           >
@@ -43,7 +49,7 @@ export default function Home() {
         </div>
 
         <p className="mt-6 text-xs text-slate-600">
-          Peta saat ini: {DEFAULT_MAP.name}
+          Peta saat ini: <SelectedMapLabel />
         </p>
       </div>
     </main>
