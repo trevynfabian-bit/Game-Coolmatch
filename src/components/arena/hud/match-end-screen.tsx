@@ -51,6 +51,7 @@ export function MatchEndScreen({
   roundResults,
   startedAt,
   endedAt,
+  isTrial = false,
 }: {
   round: RoundState;
   fighters: Fighter[];
@@ -67,6 +68,13 @@ export function MatchEndScreen({
   /** Epoch milidetik mulai dan selesai; nol/null berarti jamnya tidak terisi. */
   startedAt: number;
   endedAt: number | null;
+  /**
+   * Benar bila pertandingan ini uji coba senjata. Layar ini memakai kata-kata
+   * pertandingan sungguhan — "juara", "ringkasan akhir" — jadi tanpa penanda
+   * itu, hasil satu ronde tujuh kill akan terbaca sebagai hasil pertandingan
+   * penuh yang aneh pendeknya.
+   */
+  isTrial?: boolean;
 }) {
   const ranked = useMemo(
     () =>
@@ -160,6 +168,13 @@ export function MatchEndScreen({
               </>
             )}
           </p>
+
+          {isTrial ? (
+            <p className="mt-2 text-xs text-amber-200/80">
+              Ini pertandingan uji coba, bukan pertandingan penuh — aturannya
+              sengaja dipendekkan supaya kamu cepat merasakan senjatanya.
+            </p>
+          ) : null}
 
           {clinchedEarly ? (
             <p className="mt-2 text-xs text-amber-200/80">

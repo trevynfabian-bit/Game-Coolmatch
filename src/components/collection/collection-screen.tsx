@@ -38,10 +38,15 @@ export function CollectionScreen() {
   );
 
   /**
-   * "Coba di latihan" memilih senjatanya lebih dulu, baru berpindah. Tempat
-   * latihan memakai senjata yang sedang terpilih, jadi tanpa langkah itu
-   * pemain akan sampai di sana memegang senjata lamanya — persis bukan yang
-   * baru saja ia klik.
+   * "Latihan" memilih senjatanya lebih dulu, baru berpindah. Tempat latihan
+   * memakai senjata yang sedang terpilih, jadi tanpa langkah itu pemain akan
+   * sampai di sana memegang senjata lamanya — persis bukan yang baru saja ia
+   * klik.
+   *
+   * Tombol sebelahnya, "Coba di arena", justru TIDAK menyentuh pilihan
+   * senjata: ia menyebut senjatanya lewat alamat tujuan. Arena uji memang
+   * berdiri di luar perlengkapan yang dibawa bertanding, dan penasaran pada
+   * sebuah senjata bukan alasan untuk menukar senjata pertandingan pemain.
    */
   const cobaDiLatihan = (weaponId: string) => {
     selectWeapon(weaponId);

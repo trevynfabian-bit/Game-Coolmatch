@@ -109,11 +109,25 @@ export function CollectionEntryRow({
         tidak diberi tombol yang tidak bisa ditekan: tombol mati hanya
         menggoda pemain untuk mengkliknya berulang kali dan menebak kenapa
         tidak terjadi apa-apa. Syaratnya sudah tertulis tepat di sebelahnya.
+
+        Yang terbuka punya DUA, karena ada dua pertanyaan berbeda tentang
+        sebuah senjata. Sasaran diam menjawab seberapa enak senjatanya
+        ditembakkan; lawan yang balas menembak menjawab apakah ia cocok
+        dipakai. Menawarkan salah satu saja memaksa pemain menebak yang lain.
       */}
       {locked ? null : (
-        <ActionButton size="ringkas" onClick={onTry} className="shrink-0">
-          Coba di latihan
-        </ActionButton>
+        <span className="flex shrink-0 gap-2">
+          <ActionButton size="ringkas" onClick={onTry}>
+            Latihan
+          </ActionButton>
+          <ActionButton
+            size="ringkas"
+            variant="utama"
+            href={`/uji?senjata=${encodeURIComponent(weapon.id)}`}
+          >
+            Coba di arena
+          </ActionButton>
+        </span>
       )}
     </li>
   );

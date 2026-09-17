@@ -13,11 +13,17 @@ import { setRoundClock } from "@/lib/game/round-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { findMap } from "@/lib/mock/maps";
-import { buildMatchSnapshot } from "@/lib/mock/match";
+import { buildMatchSnapshot, type MatchRules } from "@/lib/mock/match";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useProfileStore } from "@/lib/store/profile-store";
 import { useMapStore } from "@/lib/store/map-store";
 import { useMatchSetupStore } from "@/lib/store/match-setup-store";
+import {
+  TRIAL_BOT_COUNT,
+  TRIAL_DIFFICULTY,
+  TRIAL_RULES,
+  useTrialStore,
+} from "@/lib/store/trial-store";
 import type { Difficulty, MatchSnapshot } from "@/types/game";
 
 /** Pilihan pemain yang dipakai menyusun pertandingan saat arena dibuka. */
@@ -28,6 +34,14 @@ interface MatchEntry {
   mapId: string;
   /** Nama pemain saat pertandingan disusun; ikut ke HUD, kill feed, dan klasemen. */
   playerName: string;
+  /** Aturan pengganti; hanya terisi untuk pertandingan uji coba. */
+  rules?: Partial<MatchRules>;
+  /**
+   * Benar bila arena ini dibuka dari layar Coba di Arena. Dicatat terpisah dari
+   * `rules` supaya HUD bisa mengatakannya apa adanya — aturan yang berbeda
+   * saja tidak cukup menjelaskan kenapa pertandingannya sependek itu.
+   */
+  isTrial: boolean;
 }
 
 /**
@@ -102,12 +116,34 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
    */
   const [entry] = useState<MatchEntry>(() => {
     const setup = useMatchSetupStore.getState();
+    const mapId = useMapStore.getState().selectedMapId;
+    const playerName = useProfileStore.getState().playerName;
+
+    /*
+      Uji coba yang menunggu dibaca TANPA dihapus di sini. Initialiser useState
+      boleh dijalankan lebih dari sekali oleh React, jadi ia harus murni;
+      penghapusannya menunggu efek di bawah, sesudah pertandingan tersusun.
+    */
+    const trial = useTrialStore.getState().pending;
+    if (trial) {
+      return {
+        difficulty: TRIAL_DIFFICULTY,
+        botCount: TRIAL_BOT_COUNT,
+        weaponId: trial.weaponId,
+        mapId,
+        playerName,
+        rules: TRIAL_RULES,
+        isTrial: true,
+      };
+    }
+
     return {
       difficulty: setup.difficulty,
       botCount: setup.botCount,
       weaponId: useLoadoutStore.getState().selectedWeaponId,
-      mapId: useMapStore.getState().selectedMapId,
-      playerName: useProfileStore.getState().playerName,
+      mapId,
+      playerName,
+      isTrial: false,
     };
   });
 
@@ -118,14 +154,24 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
    * pemanggil bisa memberi potret siap pakai — nanti dipakai layer backend
    * untuk mengoper pertandingan yang dibuat server.
    */
-  const armedMatch = useMemo<MatchSnapshot | null>(
-    () =>
-      match ??
-      (hydrated
-        ? buildMatchSnapshot({ ...entry, map: findMap(entry.mapId) })
-        : null),
-    [match, hydrated, entry],
-  );
+  const armedMatch = useMemo<MatchSnapshot | null>(() => {
+    if (match) return match;
+    if (!hydrated) return null;
+    return buildMatchSnapshot({
+      difficulty: entry.difficulty,
+      botCount: entry.botCount,
+      weaponId: entry.weaponId,
+      playerName: entry.playerName,
+      map: findMap(entry.mapId),
+      rules: entry.rules,
+    });
+  }, [match, hydrated, entry]);
+
+  /**
+   * Potret pertandingan dari server tidak pernah uji coba: uji coba disusun di
+   * sini, dari niat yang dititipkan layar Coba di Arena.
+   */
+  const isTrial = !match && entry.isTrial;
 
   // Potret pertandingan menjadi keadaan awal store; sejak itu seluruh HUD dan
   // arena membaca state yang hidup, bukan data tiruan yang statis.
@@ -137,6 +183,16 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
     setRoundClock(armedMatch.round.secondsLeft);
     useMatchStore.getState().init(armedMatch);
     armPlayerFrom(armedMatch);
+
+    /*
+      Niat uji coba dibuang begitu pertandingannya berdiri. Sekali pakai, dan
+      itu disengaja: tanpa ini, pemain yang menutup arena lalu menekan "Main
+      Cepat" besok akan mendapat aturan uji coba lagi — satu ronde tujuh kill —
+      tanpa pernah memintanya, dan tanpa petunjuk kenapa. Potretnya sendiri
+      sudah tersimpan di `armedMatch`, jadi "Main lagi" tetap mengulang uji coba
+      yang sama.
+    */
+    useTrialStore.getState().consume();
   }, [armedMatch]);
 
   // Selagi pengaturan dibaca, tampilkan layar tunggu yang sama dengan yang
@@ -156,7 +212,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
     <KeyboardControls map={KEYBOARD_MAP}>
       <div className="relative h-full w-full overflow-hidden bg-slate-950">
         <ArenaScene match={armedMatch} />
-        <ArenaHud match={armedMatch} />
+        <ArenaHud match={armedMatch} isTrial={isTrial} />
       </div>
     </KeyboardControls>
   );

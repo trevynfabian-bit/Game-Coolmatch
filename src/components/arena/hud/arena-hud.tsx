@@ -14,6 +14,7 @@ import { RoundBanner } from "@/components/arena/hud/round-banner";
 import { RoundHeader } from "@/components/arena/hud/round-header";
 import { ScoreboardOverlay } from "@/components/arena/hud/scoreboard-overlay";
 import { StanceBadge } from "@/components/arena/hud/stance-badge";
+import { TrialBadge } from "@/components/arena/hud/trial-badge";
 import { VitalsPanel } from "@/components/arena/hud/vitals-panel";
 import { WeaponSlots } from "@/components/arena/hud/weapon-slots";
 import { getLocalFighter } from "@/lib/mock/match";
@@ -56,7 +57,18 @@ function MatchInfoStrip({ match }: { match: MatchSnapshot }) {
  * lapisan ini tidak menangkap pointer sama sekali supaya input bidik langsung
  * sampai ke kanvas di bawahnya.
  */
-export function ArenaHud({ match }: { match: MatchSnapshot }) {
+export function ArenaHud({
+  match,
+  isTrial = false,
+}: {
+  match: MatchSnapshot;
+  /**
+   * Benar bila pertandingan ini uji coba senjata. Dioper sebagai prop, bukan
+   * dibaca dari penyimpanan: niat uji cobanya sudah dibuang begitu arena
+   * berdiri, sedangkan penandanya harus bertahan sepanjang pertandingan.
+   */
+  isTrial?: boolean;
+}) {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const fighters = useMatchStore((state) => state.fighters);
   const killFeed = useMatchStore((state) => state.killFeed);
@@ -83,6 +95,18 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
       <div className="pointer-events-none absolute inset-0 z-10 select-none">
         <LiveScore scoreboard={scoreboard} />
         <RoundHeader round={activeRound} />
+        {/*
+          Yang disebut adalah senjata yang DIUJI, bukan yang sedang dipegang.
+          Pemain bisa menukar senjata di tengah pertandingan lewat tombol
+          angka — justru berguna untuk membandingkan — dan penanda yang ikut
+          berganti akan kehilangan gunanya: ia ada untuk mengingatkan kenapa
+          aturan pertandingan ini berbeda.
+        */}
+        {isTrial ? (
+          <TrialBadge
+            weaponName={findWeapon(getLocalFighter(match).weaponId).name}
+          />
+        ) : null}
         <KillFeed
           entries={killFeed.length > 0 ? killFeed : match.killFeed}
           localName={local.name}
@@ -109,6 +133,7 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
       />
 
       <MatchEndScreen
+        isTrial={isTrial}
         round={activeRound}
         fighters={fighters.length > 0 ? fighters : match.fighters}
         map={match.map}

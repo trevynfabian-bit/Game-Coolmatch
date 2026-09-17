@@ -55,7 +55,31 @@ export interface MatchSetup {
    * yang belum terhidrasi tidak boleh menyebut nama tersimpan.
    */
   playerName?: string;
+  /**
+   * Aturan pertandingan yang menggantikan aturan bawaan.
+   *
+   * Dibuka supaya pertandingan uji coba bisa jauh lebih singkat daripada
+   * pertandingan sungguhan — mencoba rasa sebuah senjata tidak perlu lima ronde
+   * berdurasi tiga menit. Yang tidak disebutkan tetap memakai aturan bawaan.
+   */
+  rules?: Partial<MatchRules>;
 }
+
+/** Aturan yang mengatur panjang sebuah pertandingan. */
+export interface MatchRules {
+  totalRounds: number;
+  scoreLimit: number;
+  roundSeconds: number;
+  intermissionSeconds: number;
+}
+
+/** Aturan pertandingan biasa. */
+export const DEFAULT_MATCH_RULES: MatchRules = {
+  totalRounds: TOTAL_ROUNDS,
+  scoreLimit: SCORE_LIMIT,
+  roundSeconds: ROUND_SECONDS,
+  intermissionSeconds: INTERMISSION_SECONDS,
+};
 
 /**
  * Menyusun potret pertandingan BARU dari pengaturan lawan yang dipilih pemain.
@@ -71,6 +95,7 @@ export function buildMatchSnapshot({
   botCount,
   weaponId,
   map = DEFAULT_MAP,
+  rules,
   playerName = DEFAULT_PLAYER_NAME,
 }: MatchSetup): MatchSnapshot {
   // Dijepit dua kali: ke rentang yang masuk akal, lalu ke apa yang muat di
@@ -78,6 +103,7 @@ export function buildMatchSnapshot({
   // papan skor tidak pernah menjanjikan lawan yang tidak muncul.
   const bots = Math.min(clampBotCount(botCount), maxBotsForMap(map));
   const weapon = findWeapon(weaponId ?? LOCAL_FIGHTER.weaponId);
+  const aturan: MatchRules = { ...DEFAULT_MATCH_RULES, ...rules };
 
   const local: Fighter = {
     ...LOCAL_FIGHTER,
@@ -95,11 +121,11 @@ export function buildMatchSnapshot({
     botCount: bots,
     round: {
       current: 1,
-      total: TOTAL_ROUNDS,
-      secondsLeft: ROUND_SECONDS,
-      durationSeconds: ROUND_SECONDS,
-      intermissionSeconds: INTERMISSION_SECONDS,
-      scoreLimit: SCORE_LIMIT,
+      total: aturan.totalRounds,
+      secondsLeft: aturan.roundSeconds,
+      durationSeconds: aturan.roundSeconds,
+      intermissionSeconds: aturan.intermissionSeconds,
+      scoreLimit: aturan.scoreLimit,
       // Pertandingan baru menunggu di garis start. Browser hanya mau mengunci
       // kursor sesudah gerakan pengguna, jadi selalu ada jeda antara arena
       // tampil dan pemain benar-benar bermain; jam ronde tidak boleh mengalir
