@@ -117,8 +117,23 @@ export function EngageOverlay({
           rambatan kliknya (ditangani ActionButton) supaya menekan "Kembali ke
           menu" tidak sekaligus mengunci kursor dan melanjutkan pertandingan.
         */}
+        {/*
+          Tiga tombol, tidak lebih: lapisan ini hanya selebar max-w-md, dan
+          tombol keempat memaksa teksnya pecah jadi dua baris.
+
+          Yang ditawarkan berbeda menurut keadaannya, dan bukan sekadar demi
+          muat. Layar BERSIAP adalah layar persiapan terakhir sebelum bertanding,
+          jadi di situlah "Ganti peta" berguna. Layar JEDA ada di tengah
+          pertandingan yang sedang berjalan; yang dibutuhkan di sana adalah
+          mengulang dari awal, dan peta tetap bisa dicapai lewat Ganti lawan
+          yang menuju layar persiapan.
+        */}
         <ActionRow className="pointer-events-auto mt-7">
-          {isStart ? null : (
+          {isStart ? (
+            <ActionButton size="ringkas" href="/peta">
+              Ganti peta
+            </ActionButton>
+          ) : (
             <ActionButton
               size="ringkas"
               onClick={() => restartMatch(match.map, match)}

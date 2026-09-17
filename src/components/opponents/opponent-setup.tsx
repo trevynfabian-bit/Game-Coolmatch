@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo } from "react";
+import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import {
   DIFFICULTY_ORDER,
   DIFFICULTY_PROFILES,
@@ -225,20 +225,20 @@ export function OpponentSetup() {
           berikutnya langsung memakai pilihan yang sama.
         </p>
 
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <Link
-            href="/arena"
-            className="flex-1 rounded-lg bg-emerald-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-          >
+        {/*
+          Ketiga layar persiapan — peta, senjata, dan lawan — saling
+          terhubung langsung. Sebelumnya daftar peta hanya bisa dicapai dari
+          menu utama, sehingga pemain yang sedang mengatur lawan dan sadar
+          ingin arena lain harus mundur dua langkah dulu.
+        */}
+        <ActionRow className="mt-4">
+          <ActionButton variant="utama" href="/arena">
             Mulai bertanding
-          </Link>
-          <Link
-            href="/senjata"
-            className="flex-1 rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-medium text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-          >
-            Ganti senjata dulu
-          </Link>
-        </div>
+          </ActionButton>
+          <ActionButton href="/peta">Ganti peta</ActionButton>
+          <ActionButton href="/senjata">Ganti senjata</ActionButton>
+          <ActionButton href="/">Kembali ke menu</ActionButton>
+        </ActionRow>
       </div>
     </div>
   );
