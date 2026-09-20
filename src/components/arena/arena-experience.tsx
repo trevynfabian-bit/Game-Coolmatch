@@ -15,7 +15,10 @@ import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
-import type { MatchSession } from "@/lib/game/match-session";
+import {
+  stubMatchSessionSource,
+  type MatchSession,
+} from "@/lib/game/match-session";
 import { openSession } from "@/lib/game/session-runtime";
 import { findMap } from "@/lib/mock/maps";
 import {
@@ -188,18 +191,29 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
   useEffect(() => {
     if (match || !hydrated) return;
     let batal = false;
-    openSession(
-      buildStartRequest({
-        difficulty: entry.difficulty,
-        botCount: entry.botCount,
-        playerName: entry.playerName,
-        map: findMap(entry.mapId),
-        rules: entry.rules,
-        isTrial: entry.isTrial,
-      }),
-    ).then((hasil) => {
-      if (!batal) setSession(hasil);
+    const permintaan = buildStartRequest({
+      difficulty: entry.difficulty,
+      botCount: entry.botCount,
+      weaponId: entry.weaponId,
+      playerName: entry.playerName,
+      map: findMap(entry.mapId),
+      rules: entry.rules,
+      isTrial: entry.isTrial,
     });
+    openSession(permintaan).then(
+      (hasil) => {
+        if (!batal) setSession(hasil);
+      },
+      (error: unknown) => {
+        // Runtime sesi sudah jatuh ke sesi tiruan bila server tidak
+        // terjangkau; sampai di sini berarti keduanya gagal, dan arena tetap
+        // harus berdiri: potret disusun dari sesi tiruan yang dibuat di sini.
+        console.error("Sesi tidak bisa dibuka sama sekali:", error);
+        void stubMatchSessionSource.start(permintaan).then((hasil) => {
+          if (!batal) setSession(hasil);
+        });
+      },
+    );
     return () => {
       batal = true;
     };

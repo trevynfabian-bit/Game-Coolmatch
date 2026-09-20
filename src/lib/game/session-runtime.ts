@@ -1,4 +1,6 @@
+import { createRemoteMatchSessionSource } from "@/lib/api/match-session-remote";
 import {
+  isStubSession,
   stubMatchSessionSource,
   type FinishRoundRequest,
   type HitReport,
@@ -16,11 +18,23 @@ import type { MatchSnapshot } from "@/types/game";
  * Pelapor kejadian — sistem senjata saat pemain menumbangkan lawan, penggerak
  * musuh saat lawan menumbangkan pemain, jam ronde saat ronde habis — hidup di
  * dalam loop frame dan tidak punya jalan wajar untuk menerima sesi lewat prop.
- * Mereka membaca dari sini. Sumbernya satu untuk seluruh arena, jadi mengganti
- * sumber tiruan dengan pemanggil API cukup dilakukan di satu tempat.
+ * Mereka membaca dari sini.
+ *
+ * Sumbernya server: sesi dibuka di API pertandingan, dan kesimpulan ronde —
+ * pemenang, roster, juara — dihitung di sana. Bila server tidak terjangkau
+ * saat membuka sesi, arena tidak boleh mati: sesi dibuka pada sumber tiruan
+ * dengan aturan yang sama, dan seluruh kejadian sesi itu pun dikirim ke
+ * sumber tiruan (id-nya yang mengenalinya), jadi pertandingan luring tetap
+ * utuh walau tidak tercatat.
  */
-let source: MatchSessionSource = stubMatchSessionSource;
+const remoteSource = createRemoteMatchSessionSource();
+let source: MatchSessionSource = remoteSource;
 let active: MatchSession | null = null;
+
+/** Sumber tempat sebuah sesi dibuka: tiruan untuk id tiruan, selebihnya sumber yang berlaku. */
+function sourceFor(session: Pick<MatchSession, "matchId">): MatchSessionSource {
+  return isStubSession(session) ? stubMatchSessionSource : source;
+}
 
 export function useSessionSource(next: MatchSessionSource): void {
   source = next;
@@ -30,11 +44,24 @@ export function activeSession(): MatchSession | null {
   return active;
 }
 
-/** Membuka sesi baru lewat sumber yang berlaku dan menjadikannya sesi aktif. */
+/**
+ * Membuka sesi baru lewat sumber yang berlaku dan menjadikannya sesi aktif.
+ * Server yang tidak terjangkau tidak menggagalkannya: sesi dibuka pada sumber
+ * tiruan, dengan peringatan di konsol.
+ */
 export async function openSession(
   request: StartSessionRequest,
 ): Promise<MatchSession> {
-  const session = await source.start(request);
+  let session: MatchSession;
+  try {
+    session = await source.start(request);
+  } catch (error) {
+    console.warn(
+      "Sesi tidak bisa dibuka di server; memakai sesi tiruan:",
+      error,
+    );
+    session = await stubMatchSessionSource.start(request);
+  }
   active = session;
   return session;
 }
@@ -57,8 +84,11 @@ export function reopenSessionFor(
       name: fighter.name,
       isBot: fighter.isBot,
       color: fighter.color,
+      weaponId: fighter.weaponId,
     })),
-    isTrial: false,
+    // Tanda uji coba dari sesi yang sedang aktif: potret tidak menyimpannya,
+    // sedangkan mengulang uji coba tetap uji coba.
+    isTrial: active?.isTrial ?? false,
   });
 }
 
@@ -73,9 +103,11 @@ export function clearSession(): void {
  */
 export function reportHit(hit: HitReport): void {
   if (!active) return;
-  source.recordHit(active.matchId, hit).catch((error: unknown) => {
-    console.warn("Hit tidak tercatat di sesi:", error);
-  });
+  sourceFor(active)
+    .recordHit(active.matchId, hit)
+    .catch((error: unknown) => {
+      console.warn("Hit tidak tercatat di sesi:", error);
+    });
 }
 
 /**
@@ -87,9 +119,11 @@ export function reportHit(hit: HitReport): void {
 export function reportKill(kill: KillReport): void {
   if (!active) return;
   const matchId = active.matchId;
-  source.recordKill(matchId, kill).catch((error: unknown) => {
-    console.warn("Kill tidak tercatat di sesi:", error);
-  });
+  sourceFor(active)
+    .recordKill(matchId, kill)
+    .catch((error: unknown) => {
+      console.warn("Kill tidak tercatat di sesi:", error);
+    });
 }
 
 /**
@@ -103,7 +137,7 @@ export async function closeRound(
 ): Promise<RoundOutcome | null> {
   if (!active) return null;
   try {
-    return await source.finishRound(active.matchId, request);
+    return await sourceFor(active).finishRound(active.matchId, request);
   } catch (error) {
     console.warn("Ronde tidak tercatat di sesi:", error);
     return null;

@@ -162,6 +162,12 @@ export function parseStartMatch(body: unknown): Parsed<StartMatchRequest> {
   if (!Array.isArray(b.participants) || b.participants.length < 2) {
     return { ok: false, message: "Pertandingan butuh minimal dua peserta." };
   }
+  // Uji coba boleh tidak disebutkan (bukan uji coba), tetapi kalau disebutkan
+  // harus boolean: tanpa pemeriksaan ini "ya" lolos sebagai benar dan
+  // pertandingan sungguhan bisa tercatat sebagai uji coba yang tidak dihitung.
+  if (b.isTrial !== undefined && typeof b.isTrial !== "boolean") {
+    return { ok: false, message: "isTrial harus bernilai true atau false." };
+  }
 
   const participants: ParticipantInput[] = [];
   for (const raw of b.participants) {
@@ -225,6 +231,7 @@ export function parseStartMatch(body: unknown): Parsed<StartMatchRequest> {
       scoreLimit: b.scoreLimit,
       roundSeconds: b.roundSeconds,
       participants,
+      isTrial: b.isTrial === true,
     },
   };
 }
