@@ -1,5 +1,14 @@
 import type { ArenaBounds, ArenaMapInfo, MapBlock } from "@/types/game";
 
+/**
+ * Sudut sebuah balok yang diputar, pada bidang XZ, urut berkeliling.
+ *
+ * Disimpan bersama kotak pembungkusnya, bukan menggantikannya. Kotak itu tetap
+ * berguna sebagai saringan kasar yang murah — mayoritas penghalang tidak
+ * diputar sama sekali, dan yang diputar pun hampir selalu jauh dari pemain.
+ */
+export type Footprint = [number, number][];
+
 /** Kotak sejajar sumbu dalam koordinat dunia. */
 export interface Aabb {
   minX: number;
@@ -8,6 +17,24 @@ export interface Aabb {
   maxX: number;
   maxY: number;
   maxZ: number;
+  /**
+   * Tapak sebenarnya, hanya diisi untuk balok yang DIPUTAR.
+   *
+   * Tanpa ini, krat berukuran tiga satuan yang diputar tiga puluh derajat
+   * mendapat kotak pembungkus selebar 3,78 satuan — hampir empat puluh
+   * sentimeter tembok tak terlihat di tiap sisinya. Pemain menabrak sesuatu
+   * yang jelas-jelas tidak ada di layar, dan tidak punya cara menebak di mana
+   * sebenarnya batasnya.
+   */
+  footprint?: Footprint;
+  /**
+   * Keterangan balok aslinya, hanya diisi untuk balok yang diputar.
+   *
+   * Dipakai uji sinar peluru. Tapak di atas menjawab pertanyaan "di mana
+   * batasnya pada ketinggian ini", yang cukup untuk mendorong pemain; peluru
+   * datang dari arah mana pun dan butuh balok utuh, bukan potongannya.
+   */
+  oriented?: { cx: number; cz: number; hx: number; hz: number; rot: number };
 }
 
 /** Jarak aman agar pemain tidak menempel persis di permukaan dan tersangkut. */
@@ -25,16 +52,34 @@ function blockToAabb(block: MapBlock): Aabb {
   let hz = sz / 2;
 
   const rot = block.rotationY ?? 0;
+  let footprint: Footprint | undefined;
+
   if (rot !== 0) {
-    const cos = Math.abs(Math.cos(rot));
-    const sin = Math.abs(Math.sin(rot));
-    const rx = hx * cos + hz * sin;
-    const rz = hx * sin + hz * cos;
+    const cos = Math.cos(rot);
+    const sin = Math.sin(rot);
+    footprint = (
+      [
+        [-hx, -hz],
+        [hx, -hz],
+        [hx, hz],
+        [-hx, hz],
+      ] as Footprint
+    ).map(([lx, lz]) => [cx + lx * cos - lz * sin, cz + lx * sin + lz * cos]);
+
+    const absCos = Math.abs(cos);
+    const absSin = Math.abs(sin);
+    const rx = hx * absCos + hz * absSin;
+    const rz = hx * absSin + hz * absCos;
     hx = rx;
     hz = rz;
   }
 
   return {
+    footprint,
+    oriented:
+      rot === 0
+        ? undefined
+        : { cx, cz, hx: sx / 2, hz: sz / 2, rot },
     minX: cx - hx,
     minY: cy - sy / 2,
     minZ: cz - hz,
@@ -77,6 +122,79 @@ function playerAabb(pos: PlayerPosition, bounds: PlayerBounds): Aabb {
   };
 }
 
+/**
+ * Memotong sebuah poligon cembung dengan satu setengah-bidang sejajar sumbu.
+ *
+ * Dipakai dua kali untuk mengurung tapak ke dalam pita yang ditempati badan
+ * pemain. Yang tersisa sesudahnya adalah bagian penghalang yang benar-benar
+ * berhadapan dengan pemain, dan hanya bagian itulah yang boleh mendorongnya.
+ */
+function clipHalfPlane(
+  poly: Footprint,
+  sumbu: 0 | 1,
+  batas: number,
+  simpanYangLebihBesar: boolean,
+): Footprint {
+  const didalam = (t: [number, number]) =>
+    simpanYangLebihBesar ? t[sumbu] >= batas : t[sumbu] <= batas;
+  const hasil: Footprint = [];
+
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i];
+    const b = poly[(i + 1) % poly.length];
+    const aIn = didalam(a);
+    const bIn = didalam(b);
+
+    if (aIn) hasil.push(a);
+    if (aIn !== bIn) {
+      const t = (batas - a[sumbu]) / (b[sumbu] - a[sumbu]);
+      hasil.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+  }
+  return hasil;
+}
+
+/**
+ * Rentang tapak pada satu sumbu, dibatasi pita yang ditempati pemain pada
+ * sumbu lainnya. Null berarti keduanya sama sekali tidak berhadapan.
+ */
+function rentangDalamPita(
+  footprint: Footprint,
+  sumbuPita: 0 | 1,
+  pitaMin: number,
+  pitaMax: number,
+): [number, number] | null {
+  let poly = clipHalfPlane(footprint, sumbuPita, pitaMin, true);
+  if (poly.length === 0) return null;
+  poly = clipHalfPlane(poly, sumbuPita, pitaMax, false);
+  if (poly.length === 0) return null;
+
+  const lain = sumbuPita === 0 ? 1 : 0;
+  const nilai = poly.map((t) => t[lain]);
+  return [Math.min(...nilai), Math.max(...nilai)];
+}
+
+/**
+ * Benar bila badan pemain benar-benar bersinggungan dengan sebuah penghalang.
+ *
+ * Kotak pembungkus dipakai lebih dulu sebagai saringan murah; hanya penghalang
+ * yang lolos saringan itu dan kebetulan diputar yang diuji terhadap tapak
+ * sebenarnya.
+ */
+function overlapsExact(box: Aabb, collider: Aabb): boolean {
+  if (!overlaps(box, collider)) return false;
+  if (!collider.footprint) return true;
+
+  const rentang = rentangDalamPita(
+    collider.footprint,
+    1,
+    box.minZ + SKIN,
+    box.maxZ - SKIN,
+  );
+  if (!rentang) return false;
+  return rentang[0] < box.maxX - SKIN && rentang[1] > box.minX + SKIN;
+}
+
 function overlaps(a: Aabb, b: Aabb): boolean {
   return (
     a.minX < b.maxX - SKIN &&
@@ -86,6 +204,30 @@ function overlaps(a: Aabb, b: Aabb): boolean {
     a.minZ < b.maxZ - SKIN &&
     a.maxZ > b.minZ + SKIN
   );
+}
+
+/**
+ * Rentang sebuah penghalang pada satu sumbu, sebatas pita yang ditempati
+ * pemain pada sumbu lainnya.
+ *
+ * Untuk penghalang yang tidak diputar ini persis kotaknya. Untuk yang diputar,
+ * yang dipakai adalah bagian yang benar-benar berhadapan dengan pemain —
+ * sehingga pemain didorong keluar tepat di permukaan yang ia lihat, bukan di
+ * sudut kotak pembungkus yang tidak ada wujudnya.
+ */
+function extentPada(
+  collider: Aabb,
+  box: Aabb,
+  axis: "x" | "z",
+): [number, number] {
+  const kotak: [number, number] =
+    axis === "x" ? [collider.minX, collider.maxX] : [collider.minZ, collider.maxZ];
+  if (!collider.footprint) return kotak;
+
+  const sumbuPita = axis === "x" ? 1 : 0;
+  const pitaMin = axis === "x" ? box.minZ : box.minX;
+  const pitaMax = axis === "x" ? box.maxZ : box.maxX;
+  return rentangDalamPita(collider.footprint, sumbuPita, pitaMin, pitaMax) ?? kotak;
 }
 
 /**
@@ -104,19 +246,17 @@ function resolveAxis(
 
   for (const collider of colliders) {
     const box = playerAabb(pos, bounds);
-    if (!overlaps(box, collider)) continue;
+    if (!overlapsExact(box, collider)) continue;
     hit = true;
 
     if (axis === "x") {
+      const [lo, hi] = extentPada(collider, box, "x");
       pos.x =
-        motion > 0
-          ? collider.minX - bounds.radius - SKIN
-          : collider.maxX + bounds.radius + SKIN;
+        motion > 0 ? lo - bounds.radius - SKIN : hi + bounds.radius + SKIN;
     } else if (axis === "z") {
+      const [lo, hi] = extentPada(collider, box, "z");
       pos.z =
-        motion > 0
-          ? collider.minZ - bounds.radius - SKIN
-          : collider.maxZ + bounds.radius + SKIN;
+        motion > 0 ? lo - bounds.radius - SKIN : hi + bounds.radius + SKIN;
     } else {
       pos.y =
         motion > 0
@@ -136,7 +276,7 @@ function isGrounded(
 ): boolean {
   if (pos.y <= 0.02) return true;
   const probe = playerAabb({ ...pos, y: pos.y - 0.06 }, bounds);
-  return colliders.some((collider) => overlaps(probe, collider));
+  return colliders.some((collider) => overlapsExact(probe, collider));
 }
 
 export interface MoveInput {

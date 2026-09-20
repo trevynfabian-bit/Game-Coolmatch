@@ -48,6 +48,42 @@ export function rayHitsAabb(
   box: Aabb,
   maxDistance: number,
 ): number | null {
+  /*
+    Balok yang diputar diuji di kerangkanya SENDIRI: sinarnya yang diputar
+    balik, bukan baloknya yang dilebarkan. Tanpa ini peluru berhenti di sudut
+    kotak pembungkus — ruang kosong yang pada krat tiga satuan bisa menjulur
+    hampir empat puluh sentimeter melewati kratnya, dan pemain melihat
+    tembakannya lenyap di udara tepat di samping penutup.
+
+    Jaraknya tidak perlu diubah kembali: memutar tidak mengubah panjang, jadi
+    jarak di kerangka balok sama persis dengan jarak di dunia.
+  */
+  if (box.oriented) {
+    const { cx, cz, hx, hz, rot } = box.oriented;
+    const cos = Math.cos(-rot);
+    const sin = Math.sin(-rot);
+    const putar = (x: number, z: number): [number, number] => [
+      x * cos - z * sin,
+      x * sin + z * cos,
+    ];
+    const [ox, oz] = putar(origin[0] - cx, origin[2] - cz);
+    const [dx, dz] = putar(direction[0], direction[2]);
+
+    return rayHitsAabb(
+      [ox, origin[1], oz],
+      [dx, direction[1], dz],
+      {
+        minX: -hx,
+        maxX: hx,
+        minY: box.minY,
+        maxY: box.maxY,
+        minZ: -hz,
+        maxZ: hz,
+      },
+      maxDistance,
+    );
+  }
+
   let tMin = 0;
   let tMax = maxDistance;
 
