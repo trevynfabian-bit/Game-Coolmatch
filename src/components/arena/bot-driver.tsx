@@ -10,11 +10,8 @@ import {
   stepBot,
 } from "@/lib/game/bot-ai";
 import {
-  HEADSHOT_SHARE,
-  aimFactor,
   flinchFire,
   freshFireState,
-  hitChance,
   inFiringRange,
   stepFire,
 } from "@/lib/game/bot-combat";
@@ -26,9 +23,9 @@ import {
 } from "@/lib/game/bot-runtime";
 import { buildColliders } from "@/lib/game/collision";
 import { PLAYER_BOUNDS } from "@/lib/game/controls";
-import { resolveShotDamage } from "@/lib/game/damage";
 import { difficultyProfile } from "@/lib/game/difficulty";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
+import { incomingAngle, resolveIncomingShot } from "@/lib/game/incoming-fire";
 import { reportKill } from "@/lib/game/session-runtime";
 import { raycastArena } from "@/lib/game/shooting";
 import { findWeapon } from "@/lib/mock/weapons";
@@ -36,11 +33,6 @@ import { useCombatStore } from "@/lib/store/combat-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { ArenaMapInfo, Difficulty, Vec3 } from "@/types/game";
-
-/** Sudut terpendek antara dua arah, dinormalkan ke rentang -PI..PI. */
-function shortestAngle(from: number, to: number) {
-  return Math.atan2(Math.sin(from - to), Math.cos(from - to));
-}
 
 /** Batas delta agar tab yang sempat tidak aktif tidak melontarkan musuh. */
 const MAX_DELTA = 1 / 15;
@@ -174,18 +166,30 @@ export function BotDriver({
       state.fire = pelatuk.state;
       if (!pelatuk.fire) continue;
 
-      // Peluang kena dipotong dua kali: oleh jarak, dan oleh seberapa jauh
-      // moncongnya masih melenceng. Musuh yang baru berbalik badan menembak ke
-      // arah yang salah dulu sebelum bidikannya benar-benar tertuju.
-      const chance =
-        hitChance(profile, distance) * aimFactor(next.aimOffRadians);
-      if (Math.random() > chance) continue;
+      // Peluru dihitung dari keadaan penembak yang sungguhan: peluang kena
+      // dari ketepatan profil, jarak, dan seberapa jauh moncongnya masih
+      // melenceng; lalu lintasannya ditelusuri ke satu titik di badan pemain
+      // melewati penghalang peta, sehingga bagian badan yang berlindung di
+      // balik krat memang tidak bisa kena, dan kerusakannya meluruh dengan
+      // jarak sesuai senjatanya.
+      const peluru = resolveIncomingShot({
+        shooter: {
+          position: [state.x, state.y, state.z],
+          eyeHeight: BOT_EYE_HEIGHT,
+          weapon,
+          profile,
+          aimOffRadians: next.aimOffRadians,
+        },
+        target: [camera.position.x, local.position[1], camera.position.z],
+        colliders,
+      });
+      if (!peluru.hit) continue;
 
-      const isHeadshot = Math.random() < HEADSHOT_SHARE;
+      const isHeadshot = peluru.isHeadshot;
       const report = match.damageFighter({
         attackerId: fighter.id,
         targetId: local.id,
-        damage: resolveShotDamage(weapon.damage, isHeadshot),
+        damage: peluru.damage,
         isHeadshot,
         weaponName: weapon.name,
       });
@@ -204,12 +208,12 @@ export function BotDriver({
       // yang benar.
       camera.getWorldDirection(forward.current);
       const facing = Math.atan2(forward.current.x, forward.current.z);
-      const toShooter = Math.atan2(
-        state.x - camera.position.x,
-        state.z - camera.position.z,
-      );
       useCombatStore.getState().pushIncomingHit({
-        angleRad: shortestAngle(facing, toShooter),
+        angleRad: incomingAngle(
+          facing,
+          [camera.position.x, 0, camera.position.z],
+          [state.x, 0, state.z],
+        ),
         severity: (report.healthLost + report.armorLost) / local.maxHealth,
         attackerName: fighter.name,
       });

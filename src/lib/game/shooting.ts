@@ -10,6 +10,17 @@ const FIGHTER_HEIGHT = 1.97;
 /** Bagian teratas badan yang dihitung sebagai kepala. */
 const HEAD_ZONE = 0.36;
 
+/**
+ * Kotak badan petarung yang sama, dibuka untuk tembakan MASUK: peluru musuh
+ * dibidikkan ke titik di dalam kotak ini, jadi kepala dan badan yang bisa
+ * dikenai musuh persis sama dengan yang bisa dikenai pemain.
+ */
+export const FIGHTER_HITBOX = {
+  radius: FIGHTER_RADIUS,
+  height: FIGHTER_HEIGHT,
+  headZone: HEAD_ZONE,
+} as const;
+
 export interface FighterTarget {
   id: string;
   box: Aabb;
