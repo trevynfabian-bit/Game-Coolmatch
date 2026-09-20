@@ -14,6 +14,7 @@ import {
 import type {
   Fighter,
   KillFeedEntry,
+  MatchResult,
   MatchRoundResult,
   MatchSnapshot,
   RoundState,
@@ -52,6 +53,12 @@ interface MatchState {
    * menunjukkan jalannya pertandingan, hanya angka akhirnya.
    */
   roundResults: MatchRoundResult[];
+  /**
+   * Hasil akhir dari sudut pandang pemain, sebagaimana disimpulkan sesi saat
+   * pertandingan ditutup; null selama pertandingan masih berjalan. Bila sesi
+   * tidak menjawab, disimpulkan sendiri dengan aturan yang sama.
+   */
+  matchResult: MatchResult | null;
 
   /** Epoch milidetik saat pertandingan disiapkan; dipakai menghitung durasinya. */
   startedAt: number;
@@ -140,6 +147,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
   fighters: [],
   killFeed: [],
   roundResults: [],
+  matchResult: null,
   startedAt: 0,
   endedAt: null,
   round: {
@@ -163,6 +171,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       killFeed: [...snapshot.killFeed],
       round: { ...snapshot.round },
       roundResults: [],
+      matchResult: null,
       startedAt: Date.now(),
       endedAt: null,
     })),
@@ -173,6 +182,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       matchId: snapshot.matchId,
       killFeed: [],
       roundResults: [],
+      matchResult: null,
       startedAt: Date.now(),
       endedAt: null,
       fighters: snapshot.fighters.map((fighter) => ({
@@ -309,6 +319,8 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       let fighters: Fighter[];
       let isDecided: boolean;
       let matchWinnerName: string | null;
+      let matchResult: MatchResult | null;
+      const localName = state.fighters.find((f) => f.isLocal)?.name ?? null;
 
       if (outcome) {
         /*
@@ -333,6 +345,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
         });
         isDecided = outcome.matchEnded;
         matchWinnerName = outcome.matchWinner;
+        matchResult = outcome.result;
       } else {
         const winner = findRoundWinner(state.fighters);
         winnerName = winner?.name ?? null;
@@ -357,6 +370,13 @@ export const useMatchStore = create<MatchState>((set, get) => ({
         matchWinnerName = isDecided
           ? (findMatchWinner(fighters)?.name ?? null)
           : null;
+        matchResult = !isDecided
+          ? null
+          : !matchWinnerName
+            ? "seri"
+            : matchWinnerName === localName
+              ? "menang"
+              : "kalah";
       }
 
       /**
@@ -380,6 +400,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       return {
         fighters,
         roundResults: [...state.roundResults, roundResult],
+        matchResult: isDecided ? matchResult : null,
         endedAt: isDecided ? Date.now() : state.endedAt,
         round: {
           ...state.round,

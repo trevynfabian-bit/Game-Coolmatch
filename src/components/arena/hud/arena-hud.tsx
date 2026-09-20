@@ -76,6 +76,7 @@ export function ArenaHud({
   const killFeed = useMatchStore((state) => state.killFeed);
   const round = useMatchStore((state) => state.round);
   const roundResults = useMatchStore((state) => state.roundResults);
+  const matchResult = useMatchStore((state) => state.matchResult);
   const startedAt = useMatchStore((state) => state.startedAt);
   const endedAt = useMatchStore((state) => state.endedAt);
 
@@ -133,6 +134,7 @@ export function ArenaHud({
       <RoundBanner
         round={activeRound}
         fighters={fighters.length > 0 ? fighters : match.fighters}
+        lastResult={roundResults[roundResults.length - 1] ?? null}
       />
 
       <MatchEndScreen
@@ -142,6 +144,7 @@ export function ArenaHud({
         map={match.map}
         snapshot={match}
         roundResults={roundResults}
+        matchResult={matchResult}
         startedAt={startedAt}
         endedAt={endedAt}
       />

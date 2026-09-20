@@ -20,10 +20,19 @@ import {
 import type {
   ArenaMapInfo,
   Fighter,
+  MatchResult,
   MatchRoundResult,
   MatchSnapshot,
   RoundState,
 } from "@/types/game";
+
+/** Kata untuk hasil akhir dari sudut pandang pemain. */
+const RESULT_LABEL: Record<MatchResult, string> = {
+  menang: "Kamu menang",
+  kalah: "Kamu kalah",
+  seri: "Seri",
+  ditinggal: "Ditinggalkan",
+};
 
 /**
  * Ringkasan akhir pertandingan.
@@ -49,6 +58,7 @@ export function MatchEndScreen({
   map,
   snapshot,
   roundResults,
+  matchResult = null,
   startedAt,
   endedAt,
   isTrial = false,
@@ -65,6 +75,8 @@ export function MatchEndScreen({
    * data apa pun.
    */
   roundResults: MatchRoundResult[];
+  /** Hasil akhir dari sudut pandang pemain, sebagaimana disimpulkan sesi. */
+  matchResult?: MatchResult | null;
   /** Epoch milidetik mulai dan selesai; nol/null berarti jamnya tidak terisi. */
   startedAt: number;
   endedAt: number | null;
@@ -155,6 +167,16 @@ export function MatchEndScreen({
               size="lg"
             />
           </div>
+          {matchResult ? (
+            <p
+              className={`mt-2 text-xs font-semibold tracking-[0.2em] uppercase ${
+                matchResult === "menang" ? "text-emerald-300" : "text-slate-300"
+              }`}
+              data-hasil={matchResult}
+            >
+              {RESULT_LABEL[matchResult]}
+            </p>
+          ) : null}
           <p className="mt-2 text-sm text-slate-400">
             {map.name}
             <span className="text-slate-600"> · </span>
