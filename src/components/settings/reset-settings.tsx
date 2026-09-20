@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { isDefaultCombatMix } from "@/lib/game/combat-audio";
 import { isDefaultSettings } from "@/lib/game/settings";
 import { isDefaultBindings } from "@/lib/game/keybinds";
 import { useKeybindStore } from "@/lib/store/keybind-store";
 import { useSettingsStore } from "@/lib/store/settings-store";
 
 /**
- * Mengembalikan SELURUH pengaturan ke bawaan: suara, tombol, dan tampilan.
+ * Mengembalikan SELURUH pengaturan ke bawaan: suara beserta campuran
+ * tempurnya, tombol, dan tampilan.
  *
  * Satu tombol untuk semuanya, bukan satu per bagian. Pemain yang menekan
  * "kembalikan" biasanya sedang menyerah pada eksperimennya dan ingin berhenti
@@ -27,7 +29,10 @@ export function ResetSettings() {
   const bindings = useKeybindStore((state) => state.bindings);
   const [bertanya, setBertanya] = useState(false);
 
-  const utuh = isDefaultSettings(settings) && isDefaultBindings(bindings);
+  const utuh =
+    isDefaultSettings(settings) &&
+    isDefaultCombatMix(settings.combatMix) &&
+    isDefaultBindings(bindings);
   if (utuh) {
     return (
       <p className="text-[11px] text-slate-600">

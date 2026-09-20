@@ -1,3 +1,9 @@
+import {
+  COMBAT_CHANNELS,
+  DEFAULT_COMBAT_MIX,
+  channelLevels,
+  type CombatChannel,
+} from "@/lib/game/combat-audio";
 import type { WeaponType } from "@/types/game";
 
 /**
@@ -19,6 +25,12 @@ interface Engine {
   ctx: AudioContext;
   effects: GainNode;
   music: GainNode;
+  /**
+   * Satu bus per kanal tempur, semuanya bermuara ke `effects`. Tembakan,
+   * denting kena, dan latar arena masuk lewat bus masing-masing, jadi
+   * pemain bisa memelankan letupannya sendiri tanpa kehilangan denting kena.
+   */
+  channels: Record<CombatChannel, GainNode>;
   noise: AudioBuffer;
   musicNodes: { stop: () => void } | null;
 }
@@ -26,6 +38,10 @@ interface Engine {
 let engine: Engine | null = null;
 let effectsVolume = 0;
 let musicVolume = 0;
+/** Pengali 0..1 tiap kanal tempur; dipegang di sini juga supaya bunyi yang
+ * kanalnya nol bisa dilewati tanpa membangun node yang tidak akan terdengar. */
+let channelMix: Record<CombatChannel, number> =
+  channelLevels(DEFAULT_COMBAT_MIX);
 
 /** Derau putih sepanjang dua detik, dipakai ulang untuk semua letupan. */
 function buildNoise(ctx: AudioContext): AudioBuffer {
@@ -67,7 +83,22 @@ function ensureEngine(): Engine | null {
   effects.connect(ctx.destination);
   music.connect(ctx.destination);
 
-  engine = { ctx, effects, music, noise: buildNoise(ctx), musicNodes: null };
+  const channels = {} as Record<CombatChannel, GainNode>;
+  for (const channel of COMBAT_CHANNELS) {
+    const bus = ctx.createGain();
+    bus.gain.value = channelMix[channel];
+    bus.connect(effects);
+    channels[channel] = bus;
+  }
+
+  engine = {
+    ctx,
+    effects,
+    music,
+    channels,
+    noise: buildNoise(ctx),
+    musicNodes: null,
+  };
   return engine;
 }
 
@@ -82,6 +113,28 @@ export function setAudioVolumes(effects: number, music: number) {
   // saat ditarik.
   engine.effects.gain.setTargetAtTime(effects, now, 0.02);
   engine.music.gain.setTargetAtTime(music * 0.3, now, 0.05);
+}
+
+/** Pengali 0..1 tiap kanal tempur, di bawah volume efek. */
+export function setCombatMix(mix: Record<CombatChannel, number>) {
+  channelMix = { ...mix };
+  if (!engine) return;
+  const now = engine.ctx.currentTime;
+  for (const channel of COMBAT_CHANNELS) {
+    engine.channels[channel].gain.setTargetAtTime(mix[channel], now, 0.02);
+  }
+}
+
+/**
+ * Mesin beserta bus kanal yang diminta, atau null bila tidak akan terdengar:
+ * tanpa Web Audio, volume efek nol, atau kanal itu sendiri dipelankan habis.
+ * Setiap bunyi tempur memulai dari sini supaya aturan "kanal nol berarti
+ * diam" hanya ditulis sekali.
+ */
+function busFor(channel: CombatChannel): (Engine & { bus: GainNode }) | null {
+  const eng = ensureEngine();
+  if (!eng || effectsVolume <= 0 || channelMix[channel] <= 0) return null;
+  return { ...eng, bus: eng.channels[channel] };
 }
 
 /** Watak letupan tiap jenis senjata. */
@@ -103,9 +156,9 @@ const SHOT_VOICE: Record<
  * volumenya.
  */
 export function playShot(type: WeaponType) {
-  const eng = ensureEngine();
-  if (!eng || effectsVolume <= 0) return;
-  const { ctx, effects, noise } = eng;
+  const eng = busFor("tembakan");
+  if (!eng) return;
+  const { ctx, bus, noise } = eng;
   const voice = SHOT_VOICE[type];
   const now = ctx.currentTime;
 
@@ -122,7 +175,7 @@ export function playShot(type: WeaponType) {
   crackGain.gain.setValueAtTime(voice.gain, now);
   crackGain.gain.exponentialRampToValueAtTime(0.0001, now + voice.decay);
 
-  crack.connect(bandpass).connect(crackGain).connect(effects);
+  crack.connect(bandpass).connect(crackGain).connect(bus);
   crack.start(now, Math.random() * 1.5);
   crack.stop(now + voice.decay);
 
@@ -138,16 +191,16 @@ export function playShot(type: WeaponType) {
   thumpGain.gain.setValueAtTime(voice.gain * 0.7, now);
   thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + voice.decay);
 
-  thump.connect(thumpGain).connect(effects);
+  thump.connect(thumpGain).connect(bus);
   thump.start(now);
   thump.stop(now + voice.decay);
 }
 
 /** Nada pendek saat sebuah tembakan kena; lebih tinggi untuk tembakan kepala. */
 export function playHit(isHeadshot: boolean) {
-  const eng = ensureEngine();
-  if (!eng || effectsVolume <= 0) return;
-  const { ctx, effects } = eng;
+  const eng = busFor("kena");
+  if (!eng) return;
+  const { ctx, bus } = eng;
   const now = ctx.currentTime;
 
   const osc = ctx.createOscillator();
@@ -158,16 +211,16 @@ export function playHit(isHeadshot: boolean) {
   gain.gain.setValueAtTime(0.18, now);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
 
-  osc.connect(gain).connect(effects);
+  osc.connect(gain).connect(bus);
   osc.start(now);
   osc.stop(now + 0.09);
 }
 
 /** Dua ketukan kering: magasin dilepas, magasin dipasang. */
 export function playReload() {
-  const eng = ensureEngine();
-  if (!eng || effectsVolume <= 0) return;
-  const { ctx, effects, noise } = eng;
+  const eng = busFor("isiUlang");
+  if (!eng) return;
+  const { ctx, bus, noise } = eng;
 
   for (const [jeda, tinggi] of [
     [0, 900],
@@ -185,7 +238,7 @@ export function playReload() {
     gain.gain.setValueAtTime(0.22, now);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
 
-    click.connect(filter).connect(gain).connect(effects);
+    click.connect(filter).connect(gain).connect(bus);
     click.start(now, Math.random());
     click.stop(now + 0.05);
   }
@@ -193,9 +246,9 @@ export function playReload() {
 
 /** Ketukan tipis saat pelatuk ditarik tanpa peluru. */
 export function playEmpty() {
-  const eng = ensureEngine();
-  if (!eng || effectsVolume <= 0) return;
-  const { ctx, effects, noise } = eng;
+  const eng = busFor("isiUlang");
+  if (!eng) return;
+  const { ctx, bus, noise } = eng;
   const now = ctx.currentTime;
 
   const click = ctx.createBufferSource();
@@ -209,9 +262,82 @@ export function playEmpty() {
   gain.gain.setValueAtTime(0.12, now);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
 
-  click.connect(filter).connect(gain).connect(effects);
+  click.connect(filter).connect(gain).connect(bus);
   click.start(now, Math.random());
   click.stop(now + 0.04);
+}
+
+/**
+ * Tanda eliminasi: dua nada naik yang pendek, ditutup dentum rendah. Naik
+ * untuk lawan yang tumbang, turun untuk pemain sendiri: telinga menangkap
+ * arah nadanya lebih cepat daripada mata membaca umpan kill.
+ */
+export function playElimination(isOwnDeath = false) {
+  const eng = busFor("eliminasi");
+  if (!eng) return;
+  const { ctx, bus } = eng;
+  const now = ctx.currentTime;
+
+  const nada = isOwnDeath ? [660, 440] : [520, 780];
+  nada.forEach((freq, i) => {
+    const at = now + i * 0.11;
+    const osc = ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(freq, at);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.14, at + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
+
+    osc.connect(gain).connect(bus);
+    osc.start(at);
+    osc.stop(at + 0.16);
+  });
+
+  const thud = ctx.createOscillator();
+  thud.type = "sine";
+  thud.frequency.setValueAtTime(120, now);
+  thud.frequency.exponentialRampToValueAtTime(45, now + 0.35);
+  const thudGain = ctx.createGain();
+  thudGain.gain.setValueAtTime(0.3, now);
+  thudGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+  thud.connect(thudGain).connect(bus);
+  thud.start(now);
+  thud.stop(now + 0.35);
+}
+
+/**
+ * Cuplikan suasana arena untuk tombol Dengar: desau angin yang mengembang
+ * lalu surut dalam satu detik. Latar yang sesungguhnya berjalan terus selama
+ * pertandingan; cuplikan ini cukup untuk menilai kerasnya.
+ */
+export function playAmbienceSample() {
+  const eng = busFor("suasana");
+  if (!eng) return;
+  const { ctx, bus, noise } = eng;
+  const now = ctx.currentTime;
+  const durasi = 1.1;
+
+  const wind = ctx.createBufferSource();
+  wind.buffer = noise;
+  wind.loop = true;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(260, now);
+  filter.frequency.linearRampToValueAtTime(720, now + durasi * 0.45);
+  filter.frequency.linearRampToValueAtTime(220, now + durasi);
+  filter.Q.value = 0.9;
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.28, now + durasi * 0.4);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + durasi);
+
+  wind.connect(filter).connect(gain).connect(bus);
+  wind.start(now, Math.random());
+  wind.stop(now + durasi);
 }
 
 /**

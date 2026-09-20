@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { setAudioVolumes } from "@/lib/audio/audio-engine";
+import { setAudioVolumes, setCombatMix } from "@/lib/audio/audio-engine";
+import { channelLevels } from "@/lib/game/combat-audio";
 import { effectiveVolume } from "@/lib/game/settings";
 import { useSettingsStore } from "@/lib/store/settings-store";
 
@@ -16,9 +17,13 @@ import { useSettingsStore } from "@/lib/store/settings-store";
  * `muted` sengaja tidak dikirim terpisah. `effectiveVolume` sudah
  * memperhitungkannya, sehingga mesin audio tidak perlu mengingat sendiri
  * bahwa tombol bisu mengalahkan angka volumenya.
+ *
+ * Campuran tempur disalurkan lewat efek terpisah: menggeser satu kanal tidak
+ * perlu menyentuh volume induk, dan sebaliknya.
  */
 export function useAudioSettings() {
   const audio = useSettingsStore((state) => state.audio);
+  const combatMix = useSettingsStore((state) => state.combatMix);
 
   useEffect(() => {
     setAudioVolumes(
@@ -26,4 +31,8 @@ export function useAudioSettings() {
       effectiveVolume(audio, "music"),
     );
   }, [audio]);
+
+  useEffect(() => {
+    setCombatMix(channelLevels(combatMix));
+  }, [combatMix]);
 }

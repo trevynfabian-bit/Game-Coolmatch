@@ -5,6 +5,7 @@ import {
   MusicPreview,
 } from "@/components/settings/audio-preview";
 import { ChoiceSetting } from "@/components/settings/choice-setting";
+import { CombatAudioPanel } from "@/components/settings/combat-audio-panel";
 import { KeybindSection } from "@/components/settings/keybind-section";
 import { ResetSettings } from "@/components/settings/reset-settings";
 import {
@@ -172,6 +173,8 @@ export function SettingsScreen() {
               <MusicPreview disabled={audio.muted} />
             </div>
           </SettingsRow>
+
+          <CombatAudioPanel disabled={audio.muted} />
         </SettingsSection>
 
         <SettingsSection

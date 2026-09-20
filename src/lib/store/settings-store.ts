@@ -13,6 +13,14 @@ import {
   type GameSettings,
   type QualityLevel,
 } from "@/lib/game/settings";
+import {
+  DEFAULT_COMBAT_MIX,
+  clampChannel,
+  sanitizeCombatMix,
+  sameCombatMix,
+  type CombatChannel,
+  type CombatMix,
+} from "@/lib/game/combat-audio";
 
 /** Kunci penyimpanan; diawali nama game supaya tidak bentrok di domain yang sama. */
 const STORAGE_KEY = STORAGE_KEYS.settings;
@@ -69,7 +77,17 @@ function sanitizeControls(value: unknown): ControlSettings {
   };
 }
 
-interface SettingsState extends GameSettings {
+/**
+ * Yang benar-benar ditulis ke perangkat. Campuran tempur ikut di sini tetapi
+ * BUKAN bagian dari `GameSettings`: endpoint pengaturan di server belum
+ * mengenalnya, dan memasukkannya ke bentuk yang dikirim ke sana akan membuat
+ * setiap penyimpanan ditolak sampai servernya menyusul.
+ */
+interface PersistedSettings extends GameSettings {
+  combatMix: CombatMix;
+}
+
+interface SettingsState extends PersistedSettings {
   setEffectsVolume: (value: number) => void;
   setMusicVolume: (value: number) => void;
   setMuted: (muted: boolean) => void;
@@ -77,6 +95,10 @@ interface SettingsState extends GameSettings {
   setRenderScale: (value: number) => void;
   setShowFps: (show: boolean) => void;
   setSensitivity: (value: number) => void;
+  /** Menyetel satu kanal campuran tempur, 0..100. */
+  setCombatChannel: (channel: CombatChannel, value: number) => void;
+  /** Mengganti seluruh campuran sekaligus, mis. dari preset. */
+  applyCombatMix: (mix: CombatMix) => void;
   /** Mengembalikan seluruh pengaturan ke bawaan. */
   resetSettings: () => void;
 }
@@ -99,6 +121,7 @@ export const useSettingsStore = create<SettingsState>()(
       audio: DEFAULT_SETTINGS.audio,
       display: DEFAULT_SETTINGS.display,
       controls: DEFAULT_SETTINGS.controls,
+      combatMix: DEFAULT_COMBAT_MIX,
 
       setEffectsVolume: (value) =>
         set((state) => {
@@ -153,29 +176,48 @@ export const useSettingsStore = create<SettingsState>()(
             : { controls: { ...state.controls, sensitivity } };
         }),
 
+      setCombatChannel: (channel, value) =>
+        set((state) => {
+          const level = clampChannel(channel, value);
+          return level === state.combatMix[channel]
+            ? state
+            : { combatMix: { ...state.combatMix, [channel]: level } };
+        }),
+
+      applyCombatMix: (mix) =>
+        set((state) => {
+          const combatMix = sanitizeCombatMix(mix);
+          return sameCombatMix(combatMix, state.combatMix)
+            ? state
+            : { combatMix };
+        }),
+
       resetSettings: () =>
         set({
           audio: DEFAULT_SETTINGS.audio,
           display: DEFAULT_SETTINGS.display,
           controls: DEFAULT_SETTINGS.controls,
+          combatMix: DEFAULT_COMBAT_MIX,
         }),
     }),
     {
       name: STORAGE_KEY,
       version: STORAGE_VERSION,
       storage: createJSONStorage(() => localStorage),
-      partialize: (state): GameSettings => ({
+      partialize: (state): PersistedSettings => ({
         audio: state.audio,
         display: state.display,
         controls: state.controls,
+        combatMix: state.combatMix,
       }),
       merge: (persisted, current): SettingsState => {
-        const saved = (persisted ?? {}) as Partial<GameSettings>;
+        const saved = (persisted ?? {}) as Partial<PersistedSettings>;
         return {
           ...current,
           audio: sanitizeAudio(saved.audio),
           display: sanitizeDisplay(saved.display),
           controls: sanitizeControls(saved.controls),
+          combatMix: sanitizeCombatMix(saved.combatMix),
         };
       },
     },
