@@ -107,6 +107,18 @@ const SEPARATION_RADIUS = 2.2;
 const SEPARATION_WEIGHT = 1.1;
 
 /**
+ * Rentang waktu sebelum arah orbit seorang musuh berbalik, dalam detik.
+ *
+ * Tanpa ini semua musuh mengitari pemain searah — diukur, 5095 langkah
+ * berlawanan jarum jam melawan 281 searah — dan pemain yang sudah membaca
+ * polanya tinggal menggeser bidikannya ke satu arah. Arah yang berbalik pada
+ * saat yang berbeda-beda untuk tiap musuh membuat mereka bersilangan, dan
+ * itulah yang membuat pertarungan tiga lawan satu terasa mengepung.
+ */
+const STRAFE_MIN_SECONDS = 2.2;
+const STRAFE_MAX_SECONDS = 4.8;
+
+/**
  * Patokan kecepatan bidik, dalam radian per detik dikali detik reaksi.
  *
  * Kecepatan bidik diturunkan dari waktu reaksi profil, bukan ditulis sendiri
@@ -144,6 +156,9 @@ export interface BotBrain {
   /** Sisa waktu menyusur samping setelah tersangkut, dan ke arah mana. */
   detourSeconds: number;
   detourSign: 1 | -1;
+  /** Arah orbit saat menjaga jarak, dan sisa waktu sebelum berbalik. */
+  strafeSign: 1 | -1;
+  strafeSeconds: number;
   /** Total waktu tersangkut saat menuju waypoint sekarang. */
   stuckSeconds: number;
   /**
@@ -221,6 +236,10 @@ export function freshBrain(random: () => number = Math.random): BotBrain {
     waypoint: -1,
     detourSeconds: 0,
     detourSign: 1,
+    strafeSign: random() < 0.5 ? -1 : 1,
+    strafeSeconds:
+      STRAFE_MIN_SECONDS +
+      random() * (STRAFE_MAX_SECONDS - STRAFE_MIN_SECONDS),
     stuckSeconds: 0,
     lastSeen: null,
   };
@@ -321,6 +340,14 @@ export function stepBot(input: BotStepInput): BotStepResult {
   let detourSeconds = Math.max(0, input.brain.detourSeconds - delta);
   let detourSign = input.brain.detourSign;
   let stuckSeconds = input.brain.stuckSeconds;
+  let strafeSign = input.brain.strafeSign;
+  let strafeSeconds = input.brain.strafeSeconds - delta;
+  if (strafeSeconds <= 0) {
+    strafeSign = strafeSign === 1 ? -1 : 1;
+    strafeSeconds =
+      STRAFE_MIN_SECONDS +
+      random() * (STRAFE_MAX_SECONDS - STRAFE_MIN_SECONDS);
+  }
   let headingX = 0;
   let headingZ = 0;
   let speed = 0;
@@ -328,21 +355,37 @@ export function stepBot(input: BotStepInput): BotStepResult {
   if (engaged && distance > 0.001) {
     const want = preferredRange(profile);
     const toward = { x: toTargetX / distance, z: toTargetZ / distance };
+    // Menyamping selalu tegak lurus garis ke pemain, ke arah orbit musuh ini.
+    const sampingX = -toward.z * strafeSign;
+    const sampingZ = toward.x * strafeSign;
 
-    if (distance > want + RANGE_BAND) {
+    if (detourSeconds > 0) {
+      /*
+        Tertahan sesuatu saat terlibat — krat, pilar, musuh lain. Mendorongnya
+        terus hanya menjadikan musuh sasaran diam: diukur, musuh yang terlibat
+        berdiri diam sampai 85 persen waktunya di lorong pabrik. Menyamping
+        beberapa saat membawanya memutari penghalang sambil tetap menghadap
+        pemain, dan garis tembaknya terbuka lagi.
+      */
+      headingX = sampingX;
+      headingZ = sampingZ;
+      speed = CHASE_SPEED * 0.8;
+    } else if (distance > want + RANGE_BAND) {
       // Terlalu jauh: mendekat. Yang berani menyerbu lebih cepat.
       headingX = toward.x;
       headingZ = toward.z;
       speed = profile.aggression >= 0.6 ? RUSH_SPEED : CHASE_SPEED;
     } else if (distance < want - RANGE_BAND) {
-      // Terlalu dekat: mundur sambil tetap menghadap pemain.
-      headingX = -toward.x;
-      headingZ = -toward.z;
+      // Terlalu dekat: mundur miring — separuh menjauh, separuh menyamping —
+      // sambil tetap menghadap pemain. Mundur lurus berakhir dengan punggung
+      // menempel tembok; mundur miring membawanya memutar.
+      headingX = -toward.x * 0.7 + sampingX * 0.7;
+      headingZ = -toward.z * 0.7 + sampingZ * 0.7;
       speed = CHASE_SPEED;
     } else {
       // Pada jarak yang pas: bergeser menyamping supaya tidak jadi sasaran diam.
-      headingX = -toward.z;
-      headingZ = toward.x;
+      headingX = sampingX;
+      headingZ = sampingZ;
       speed = CHASE_SPEED * 0.6;
     }
   } else if (waypoints.length > 0) {
@@ -463,6 +506,11 @@ export function stepBot(input: BotStepInput): BotStepResult {
         detourSeconds = DETOUR_SECONDS;
       }
     }
+  } else if (moved.blocked && engaged && detourSeconds <= 0) {
+    // Tertahan saat terlibat: menyamping sebentar, dan kalau menyamping ke
+    // arah ini pun tertahan, giliran berikutnya ke arah sebaliknya.
+    strafeSign = strafeSign === 1 ? -1 : 1;
+    detourSeconds = DETOUR_SECONDS;
   }
 
   // Saat mengejar, musuh menghadap pemain; saat berkeliling, menghadap arah
@@ -494,6 +542,8 @@ export function stepBot(input: BotStepInput): BotStepResult {
       waypoint,
       detourSeconds,
       detourSign,
+      strafeSign,
+      strafeSeconds,
       stuckSeconds,
       lastSeen,
     },
