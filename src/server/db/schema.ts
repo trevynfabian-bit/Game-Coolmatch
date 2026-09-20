@@ -386,6 +386,186 @@ export const matchScores = sqliteTable(
   ],
 );
 
+/** Jenis senjata; sama dengan tipe `WeaponType` di klien. */
+export const WEAPON_TYPES = [
+  "pistol",
+  "smg",
+  "rifle",
+  "shotgun",
+  "sniper",
+] as const;
+
+/**
+ * Katalog senjata yang bisa dibawa bertanding.
+ *
+ * Polanya sama persis dengan `maps`, dan alasannya sama: tabel ini adalah
+ * PROYEKSI katalog yang hidup di kode, bukan sumber kebenarannya. Satu penulis
+ * menyalin seluruh katalog ke sini; tidak ada jalur lain yang menyentuhnya.
+ *
+ * Yang ikut hanyalah keterangan yang dibaca manusia dan server — nama, jenis,
+ * dan tiga angka yang muncul di daftar pilihan. Angka penyetel rasa tembak
+ * seperti sebaran, sentakan, lama isi ulang, dan jumlah butir sengaja TIDAK
+ * ikut: ketiganya dibaca sistem tembak di browser tiap frame, dan menyalinnya
+ * ke sini berarti dua sumber yang bisa berselisih — yang kalah adalah rasa
+ * tembakan yang tidak lagi cocok dengan angka yang tertulis di layar.
+ *
+ * Senjata yang ditarik dari katalog ditandai tidak tersedia, BUKAN dihapus.
+ * Barisnya masih diacu `player_weapons`, dan koleksi yang tiba-tiba kehilangan
+ * senjata yang pernah dibuka pemain lebih buruk daripada baris yang tidak lagi
+ * muncul di daftar pilihan.
+ */
+export const weapons = sqliteTable(
+  "weapons",
+  {
+    /** Memakai id senjata dari kode, misalnya "wpn-rifle-garuda". */
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    type: text("type", { enum: WEAPON_TYPES }).notNull(),
+
+    /** Kerusakan per peluru saat kena badan. */
+    damage: integer("damage").notNull(),
+    /** Peluru per menit. */
+    fireRate: integer("fire_rate").notNull(),
+    magazineSize: integer("magazine_size").notNull(),
+
+    imageUrl: text("image_url"),
+
+    /** Urutan tampil di katalog; mengikuti urutan katalog di kode. */
+    sortOrder: integer("sort_order").notNull().default(0),
+
+    isAvailable: integer("is_available", { mode: "boolean" })
+      .notNull()
+      .default(true),
+
+    /**
+     * Kapan baris ini terakhir disegarkan dari katalog. NOT NULL, berbeda
+     * dengan kolom serupa di `maps` — kolom itu terpaksa boleh kosong karena
+     * ditambahkan ke tabel yang sudah berisi, sementara tabel ini dibuat baru
+     * sehingga nilai bawaannya bisa ditegakkan sejak awal.
+     */
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (table) => [
+    // Katalog selalu dibaca sebagai "yang tersedia, urut tampil".
+    index("weapons_katalog_idx").on(table.isAvailable, table.sortOrder),
+
+    /*
+      Batasan ditulis sejak tabelnya dibuat, bukan ditambahkan nanti. SQLite
+      tidak bisa menambahkan CHECK tanpa menyalin ulang tabelnya, dan tabel ini
+      akan diacu `player_weapons` — persis keadaan yang membuat migrasi 0003
+      harus ditulis tangan agar tidak menghapus data. Sekarang gratis; nanti
+      mahal.
+    */
+    check(
+      "weapons_type_dikenal",
+      sql`${table.type} IN ('pistol', 'smg', 'rifle', 'shotgun', 'sniper')`,
+    ),
+    check(
+      "weapons_angka_wajar",
+      sql`${table.damage} > 0 AND ${table.fireRate} > 0 AND ${table.magazineSize} > 0`,
+    ),
+  ],
+);
+
+/**
+ * Progres bermain seorang pemain: seberapa sering ia bertanding dan apa
+ * hasilnya.
+ *
+ * Satu baris per pemain, bukan riwayat. Riwayat tiap pertandingan sudah ada di
+ * `matches` dan `match_scores`; tabel ini adalah jumlah berjalannya, disimpan
+ * terpisah supaya layar Koleksi tidak perlu menghitung ulang seluruh riwayat
+ * tiap kali dibuka.
+ *
+ * Angka-angka inilah yang menentukan senjata mana yang terbuka. Karena itu
+ * ketiganya diberi CHECK: kemajuan yang mustahil — kemenangan lebih banyak
+ * daripada pertandingan, atau angka negatif — tidak sekadar membuat statistik
+ * terbaca aneh, ia langsung membuka senjata yang belum diperoleh siapa pun.
+ */
+export const playerStats = sqliteTable(
+  "player_stats",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+
+    matchesPlayed: integer("matches_played").notNull().default(0),
+    wins: integer("wins").notNull().default(0),
+    totalKills: integer("total_kills").notNull().default(0),
+    totalDeaths: integer("total_deaths").notNull().default(0),
+
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (table) => [
+    // Satu pemain satu baris progres. Indeks unik ini juga yang membuat
+    // penambahan bisa ditulis sebagai satu upsert alih-alih "cek dulu, baru
+    // insert atau update" yang bisa berlomba dengan dirinya sendiri.
+    uniqueIndex("player_stats_pemain_unik").on(table.playerId),
+    check(
+      "player_stats_angka_wajar",
+      sql`${table.matchesPlayed} >= 0 AND ${table.wins} >= 0 AND ${table.totalKills} >= 0 AND ${table.totalDeaths} >= 0`,
+    ),
+    check(
+      "player_stats_menang_masuk_akal",
+      sql`${table.wins} <= ${table.matchesPlayed}`,
+    ),
+  ],
+);
+
+/**
+ * Senjata yang sudah terbuka untuk seorang pemain.
+ *
+ * SYARAT membukanya tidak disimpan di sini — "kumpulkan 60 kill" hidup di kode
+ * bersama katalog senjatanya, dan sudah dipakai layar Koleksi untuk
+ * menggambar bar kemajuan. Yang dicatat tabel ini adalah HASILNYA: senjata ini
+ * sudah jadi milik pemain ini, sejak kapan. Menyimpan syaratnya juga berarti
+ * menaikkan ambang sebuah senjata akan diam-diam menutup kembali senjata yang
+ * sudah dibuka orang.
+ *
+ * `weapon_id` mengacu dengan restrict, jadi senjata yang pernah dibuka tidak
+ * bisa hilang dari katalog begitu saja; yang ditarik ditandai tidak tersedia.
+ */
+export const playerWeapons = sqliteTable(
+  "player_weapons",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    weaponId: text("weapon_id")
+      .notNull()
+      .references(() => weapons.id, { onDelete: "restrict" }),
+
+    isUnlocked: integer("is_unlocked", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    /** Kosong selama senjatanya belum terbuka. */
+    unlockedAt: integer("unlocked_at"),
+  },
+  (table) => [
+    // Satu baris per pasangan pemain-senjata. Tanpa ini, penyimpanan yang
+    // terkirim dua kali akan mencatat senjata yang sama dua kali dan membuat
+    // hitungan "berapa yang sudah terbuka" salah.
+    uniqueIndex("player_weapons_pasangan_unik").on(
+      table.playerId,
+      table.weaponId,
+    ),
+    // Daftar koleksi selalu dibaca per pemain.
+    index("player_weapons_pemain_idx").on(table.playerId),
+
+    /*
+      Dua kolomnya harus sepakat. Baris "sudah terbuka" tanpa waktu membuatnya
+      adalah catatan yang tidak bisa mengurutkan senjata terbaru, sedangkan
+      waktu terbuka pada baris yang masih terkunci adalah catatan yang
+      membantah dirinya sendiri.
+    */
+    check(
+      "player_weapons_waktu_sepakat",
+      sql`(${table.isUnlocked} = 1 AND ${table.unlockedAt} IS NOT NULL) OR (${table.isUnlocked} = 0 AND ${table.unlockedAt} IS NULL)`,
+    ),
+  ],
+);
+
 export type PlayerRow = typeof players.$inferSelect;
 export type MapRow = typeof maps.$inferSelect;
 export type MatchRow = typeof matches.$inferSelect;
@@ -395,5 +575,11 @@ export type NewMatchRoundRow = typeof matchRounds.$inferInsert;
 export type MatchScoreRow = typeof matchScores.$inferSelect;
 export type NewMatchScoreRow = typeof matchScores.$inferInsert;
 export type MapSelectionRow = typeof mapSelections.$inferSelect;
+export type WeaponRow = typeof weapons.$inferSelect;
+export type NewWeaponRow = typeof weapons.$inferInsert;
+export type PlayerStatsRow = typeof playerStats.$inferSelect;
+export type NewPlayerStatsRow = typeof playerStats.$inferInsert;
+export type PlayerWeaponRow = typeof playerWeapons.$inferSelect;
+export type NewPlayerWeaponRow = typeof playerWeapons.$inferInsert;
 export type OpponentSettingsRow = typeof opponentSettings.$inferSelect;
 export type NewOpponentSettingsRow = typeof opponentSettings.$inferInsert;

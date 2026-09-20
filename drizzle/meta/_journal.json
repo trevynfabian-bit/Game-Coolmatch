@@ -50,6 +50,13 @@
       "when": 1789626895083,
       "tag": "0006_secret_lionheart",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789894988716,
+      "tag": "0007_tough_captain_flint",
+      "breakpoints": true
     }
   ]
 }
