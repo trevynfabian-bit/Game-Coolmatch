@@ -1,4 +1,9 @@
 import type { UnlockRequirement } from "@/lib/game/unlock";
+import { progressValue } from "@/lib/game/unlock-event";
+import {
+  WEAPON_UNLOCK_RULES,
+  meetsUnlockRule,
+} from "@/lib/game/weapon-unlock-rules";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 
 /**
@@ -29,32 +34,36 @@ export interface WeaponOwnership {
   requirement: UnlockRequirement | null;
 }
 
-const WINS_FOR_SHOTGUN = 5;
-const KILLS_FOR_SNIPER = 60;
-
-export const MOCK_PLAYER_WEAPONS: WeaponOwnership[] = [
-  { weaponId: "wpn-pistol-p9", isUnlocked: true, requirement: null },
-  { weaponId: "wpn-smg-vektor", isUnlocked: true, requirement: null },
-  { weaponId: "wpn-rifle-garuda", isUnlocked: true, requirement: null },
-  {
-    weaponId: "wpn-shotgun-badai",
-    isUnlocked: false,
-    requirement: {
-      kind: "wins",
-      current: MOCK_PLAYER_PROGRESS.wins,
-      target: WINS_FOR_SHOTGUN,
-    },
+/**
+ * Kepemilikan tiruan, DITURUNKAN dari aturan buka senjata dan kemajuan di
+ * atas — bukan ditulis ulang sebagai daftar tersendiri.
+ *
+ * Sebelumnya ambang "5 kemenangan" dan "60 kill" ditulis di sini, terpisah
+ * dari aturan yang nanti dipakai server. Dua salinan aturan yang sama adalah
+ * dua angka yang bisa berselisih, dan yang kalah adalah pemain yang melihat
+ * bar kemajuannya penuh di layar Koleksi sementara servernya tetap menganggap
+ * senjatanya terkunci.
+ *
+ * `current` diisi dari kemajuan tiruan supaya bar kemajuannya bergerak;
+ * aturannya sendiri tidak menyimpan potret itu.
+ */
+export const MOCK_PLAYER_WEAPONS: WeaponOwnership[] = WEAPON_UNLOCK_RULES.map(
+  (rule) => {
+    if (!rule.requirement) {
+      return { weaponId: rule.weaponId, isUnlocked: true, requirement: null };
+    }
+    const requirement: UnlockRequirement = {
+      kind: rule.requirement.kind,
+      current: progressValue(rule.requirement.kind, MOCK_PLAYER_PROGRESS),
+      target: rule.requirement.target,
+    };
+    return {
+      weaponId: rule.weaponId,
+      isUnlocked: meetsUnlockRule(rule, MOCK_PLAYER_PROGRESS),
+      requirement,
+    };
   },
-  {
-    weaponId: "wpn-sniper-elang",
-    isUnlocked: false,
-    requirement: {
-      kind: "kills",
-      current: MOCK_PLAYER_PROGRESS.totalKills,
-      target: KILLS_FOR_SNIPER,
-    },
-  },
-];
+);
 
 const byId = new Map(MOCK_PLAYER_WEAPONS.map((item) => [item.weaponId, item]));
 
