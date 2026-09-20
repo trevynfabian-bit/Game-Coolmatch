@@ -1,10 +1,11 @@
+import { respawnOutlook, respawnSentence } from "@/lib/game/respawn-rules";
 import {
   ARMOR_PER_ROUND,
   armorHint,
   displayArmor,
   displayHealth,
 } from "@/lib/game/vitals";
-import type { Fighter, Weapon } from "@/types/game";
+import type { Fighter, RoundState, Weapon } from "@/types/game";
 
 /** Bar horizontal generik untuk nyawa dan rompi. */
 function StatBar({
@@ -39,11 +40,15 @@ function StatBar({
 export function VitalsPanel({
   fighter,
   weapon,
+  round,
 }: {
   fighter: Fighter;
   weapon: Weapon;
+  /** Keadaan ronde, untuk mengatakan kapan pemain yang tumbang kembali. */
+  round: Pick<RoundState, "status" | "secondsLeft">;
 }) {
   const health = displayHealth(fighter);
+  const kembali = respawnSentence(respawnOutlook(fighter, round));
   const armor = displayArmor(fighter);
   const hint = armorHint(fighter);
   const critical = health <= 30;
@@ -100,9 +105,7 @@ export function VitalsPanel({
             <p className="text-[10px] tracking-[0.2em] text-rose-400 uppercase">
               Kamu tumbang
             </p>
-            <p className="font-mono text-2xl font-bold text-white">
-              Muncul lagi dalam {fighter.respawnInSeconds ?? 0}s
-            </p>
+            <p className="font-mono text-2xl font-bold text-white">{kembali}</p>
           </div>
         )}
 

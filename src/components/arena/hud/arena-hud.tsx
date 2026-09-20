@@ -117,7 +117,7 @@ export function ArenaHud({
         <DamageNumbers />
         <ControlHints />
         <StanceBadge />
-        <VitalsPanel fighter={local} weapon={weapon} />
+        <VitalsPanel fighter={local} weapon={weapon} round={activeRound} />
         <AmmoPanel weapon={weapon} />
         <WeaponSlots />
         <MatchInfoStrip match={match} />

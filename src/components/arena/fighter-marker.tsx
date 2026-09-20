@@ -19,6 +19,7 @@ import {
 import { getBot, livePosition, liveYaw } from "@/lib/game/bot-runtime";
 import { secondsSinceHit } from "@/lib/game/fighter-runtime";
 import { playerRuntime } from "@/lib/game/player-runtime";
+import { respawnOutlook, respawnTag } from "@/lib/game/respawn-rules";
 import { findWeapon } from "@/lib/mock/weapons";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
@@ -83,6 +84,8 @@ const SPAWN_RING_SCALE = 1.8;
  * menghadap kamera. Petarung yang sedang mati dirender tembus pandang.
  */
 export function FighterMarker({ fighter }: { fighter: Fighter }) {
+  const round = useMatchStore((state) => state.round);
+  const tag = respawnTag(respawnOutlook(fighter, round));
   const healthRatio = Math.max(
     0,
     Math.min(1, fighter.health / fighter.maxHealth),
@@ -332,9 +335,9 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
                 }}
               />
             </span>
-            {!fighter.isAlive && fighter.respawnInSeconds !== null ? (
+            {tag ? (
               <span className="rounded bg-black/70 px-1 text-[10px] text-amber-300">
-                respawn {fighter.respawnInSeconds}s
+                {tag}
               </span>
             ) : null}
           </div>
