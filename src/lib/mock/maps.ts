@@ -413,6 +413,293 @@ const ATAP_LIGHTING: MapLighting = {
   fill: { color: "#ff9d5c", intensity: 0.55, position: [14, 4, 18] },
 };
 
+/* --------------------------------------------------------------------------
+ * Silo Kembar — dua panggung tinggi yang saling berhadapan menyilang arena.
+ * ----------------------------------------------------------------------- */
+
+const SILO_WALL = "#5c6152";
+const SILO_PANGGUNG = "#717c64";
+const SILO_KRAT = "#8f7a48";
+
+/**
+ * Satu panggung silo beserta dua tangganya.
+ *
+ * Tangganya selalu di dua sisi yang MENGHADAP PUSAT arena, dan itu yang
+ * menentukan cara peta ini dimainkan. Satu tangga saja membuat panggung nyaris
+ * mustahil direbut — penyerang hanya punya satu mulut untuk dijaga, dan yang
+ * di atas tinggal menunggu. Dua tangga memaksa pemegang panggung memilih sisi
+ * mana yang ia tinggalkan.
+ */
+function siloPanggung(nama: string, cx: number, cz: number): MapBlock[] {
+  // Arah ke pusat: panggung di kuadran negatif menatap ke positif, dan
+  // sebaliknya. Tandanya diturunkan dari posisinya sendiri supaya menambah
+  // silo ketiga nanti tidak menuntut tabel arah yang ditulis tangan.
+  const ax = cx < 0 ? 1 : -1;
+  const az = cz < 0 ? 1 : -1;
+
+  return [
+    {
+      id: `${nama}-panggung`,
+      kind: "platform",
+      position: [cx, 1, cz],
+      size: [11, 2, 11],
+      color: SILO_PANGGUNG,
+    },
+    {
+      id: `${nama}-tangga-x-atas`,
+      kind: "ramp",
+      position: [cx + ax * 7, 0.75, cz],
+      size: [3, 1.5, 7],
+      color: SILO_PANGGUNG,
+    },
+    {
+      id: `${nama}-tangga-x-bawah`,
+      kind: "ramp",
+      position: [cx + ax * 10, 0.375, cz],
+      size: [3, 0.75, 7],
+      color: SILO_PANGGUNG,
+    },
+    {
+      id: `${nama}-tangga-z-atas`,
+      kind: "ramp",
+      position: [cx, 0.75, cz + az * 7],
+      size: [7, 1.5, 3],
+      color: SILO_PANGGUNG,
+    },
+    {
+      id: `${nama}-tangga-z-bawah`,
+      kind: "ramp",
+      position: [cx, 0.375, cz + az * 10],
+      size: [7, 0.75, 3],
+      color: SILO_PANGGUNG,
+    },
+  ];
+}
+
+/**
+ * Penghalang di tengah arena.
+ *
+ * Kedua silo berdiri di diagonal barat-laut dan tenggara, dan tanpa apa pun di
+ * antaranya garis tembak diagonal itu menjadi satu-satunya permainan: siapa
+ * yang lebih dulu mengintip menang, berulang-ulang. Deretan ini memotongnya
+ * tepat di tengah, jadi menyeberang tetap mungkin tetapi tidak pernah dalam
+ * satu garis lurus yang terus terlihat.
+ */
+const siloTengah: MapBlock[] = [
+  {
+    id: "silo-cover-tengah-a",
+    kind: "wall",
+    position: [-3, 1.6, 3],
+    size: [9, 3.2, 1],
+    rotationY: Math.PI / 4,
+    color: SILO_WALL,
+  },
+  {
+    id: "silo-cover-tengah-b",
+    kind: "wall",
+    position: [3, 1.6, -3],
+    size: [9, 3.2, 1],
+    rotationY: Math.PI / 4,
+    color: SILO_WALL,
+  },
+  {
+    id: "silo-pilar-timur",
+    kind: "pillar",
+    position: [12, 2.5, -12],
+    size: [1.6, 5, 1.6],
+    color: PILLAR_COLOR,
+  },
+  {
+    id: "silo-pilar-barat",
+    kind: "pillar",
+    position: [-12, 2.5, 12],
+    size: [1.6, 5, 1.6],
+    color: PILLAR_COLOR,
+  },
+  {
+    id: "silo-krat-timur",
+    kind: "crate",
+    position: [15, 0.9, -6],
+    size: [1.8, 1.8, 1.8],
+    rotationY: Math.PI / 8,
+    color: SILO_KRAT,
+  },
+  {
+    id: "silo-krat-barat",
+    kind: "crate",
+    position: [-15, 0.9, 6],
+    size: [1.8, 1.8, 1.8],
+    rotationY: -Math.PI / 7,
+    color: SILO_KRAT,
+  },
+  {
+    id: "silo-krat-utara",
+    kind: "crate",
+    position: [6, 1.1, -16],
+    size: [2.2, 2.2, 2.2],
+    color: SILO_KRAT,
+  },
+  {
+    id: "silo-krat-selatan",
+    kind: "crate",
+    position: [-6, 1.1, 16],
+    size: [2.2, 2.2, 2.2],
+    rotationY: Math.PI / 5,
+    color: SILO_KRAT,
+  },
+];
+
+/**
+ * Sore berkabut di antara dua silo: matahari rendah dari barat, bayangan
+ * panjang. Bayangan panjang itu yang penting di sini — ia menandai kedua
+ * panggung dari jauh, sehingga pemain tahu ke arah mana ia sedang menyeberang.
+ */
+const SILO_LIGHTING: MapLighting = {
+  skyLight: "#b6bcc4",
+  groundLight: "#43423a",
+  hemisphereIntensity: 1.05,
+  ambientIntensity: 0.48,
+  key: {
+    color: "#ffcf9e",
+    intensity: 1.7,
+    position: [-24, 18, 8],
+    shadowBox: { left: -28, right: 28, top: 28, bottom: -28, far: 68 },
+  },
+  fill: { color: "#8fb0cf", intensity: 0.45, position: [16, 12, -14] },
+};
+
+/* --------------------------------------------------------------------------
+ * Halaman Tengah — satu bangunan padat yang harus dikelilingi.
+ * ----------------------------------------------------------------------- */
+
+const HALAMAN_WALL = "#6a6459";
+const HALAMAN_BLOK = "#7b7468";
+
+/**
+ * Bangunan tengah yang TIDAK bisa ditembus maupun dinaiki.
+ *
+ * Tingginya sengaja sama dengan tembok keliling. Bangunan yang lebih pendek
+ * akan mengundang pemain mencoba memanjatnya, dan begitu ada yang berhasil,
+ * ia berdiri di atap tanpa penutup sambil mengawasi seluruh cincin — persis
+ * kebalikan dari yang diinginkan peta ini. Karena tidak bisa dilewati sama
+ * sekali, tidak ada satu pun garis tembak yang melintasi pusat, dan seluruh
+ * pertarungan berpindah ke tikungan.
+ */
+const halamanBangunan: MapBlock[] = [
+  {
+    id: "halaman-inti",
+    kind: "wall",
+    position: [0, 3.5, 0],
+    size: [15, 7, 15],
+    color: HALAMAN_BLOK,
+  },
+];
+
+/**
+ * Penutup di cincin sekeliling bangunan.
+ *
+ * Tiap sisi mendapat satu tembok setengah badan yang digeser dari tengah, tidak
+ * ditaruh simetris. Penutup yang persis di tengah tiap sisi membuat keempat
+ * tikungan terasa identik, dan pemain kehilangan satu-satunya cara mengetahui
+ * ia sedang berada di sisi yang mana.
+ */
+const halamanCincin: MapBlock[] = [
+  {
+    id: "halaman-cover-utara",
+    kind: "wall",
+    position: [-5, 1.1, -12],
+    size: [8, 2.2, 1],
+    color: HALAMAN_WALL,
+  },
+  {
+    id: "halaman-cover-selatan",
+    kind: "wall",
+    position: [5, 1.1, 12],
+    size: [8, 2.2, 1],
+    color: HALAMAN_WALL,
+  },
+  {
+    id: "halaman-cover-barat",
+    kind: "wall",
+    position: [-12, 1.1, 5],
+    size: [1, 2.2, 8],
+    color: HALAMAN_WALL,
+  },
+  {
+    id: "halaman-cover-timur",
+    kind: "wall",
+    position: [12, 1.1, -5],
+    size: [1, 2.2, 8],
+    color: HALAMAN_WALL,
+  },
+  {
+    id: "halaman-krat-bl",
+    kind: "crate",
+    position: [-15.5, 1, -15.5],
+    size: [2.4, 2, 2.4],
+    rotationY: Math.PI / 9,
+    color: CRATE_COLOR,
+  },
+  {
+    id: "halaman-krat-br",
+    kind: "crate",
+    position: [15.5, 1, -15.5],
+    size: [2.4, 2, 2.4],
+    color: CRATE_COLOR,
+  },
+  {
+    id: "halaman-krat-tl",
+    kind: "crate",
+    position: [-15.5, 1, 15.5],
+    size: [2.4, 2, 2.4],
+    rotationY: -Math.PI / 6,
+    color: CRATE_COLOR,
+  },
+  {
+    id: "halaman-krat-tr",
+    kind: "crate",
+    position: [15.5, 1, 15.5],
+    size: [2.4, 2, 2.4],
+    color: CRATE_COLOR,
+  },
+  {
+    id: "halaman-pilar-bl",
+    kind: "pillar",
+    position: [-11, 2, -11],
+    size: [1.4, 4, 1.4],
+    color: PILLAR_COLOR,
+  },
+  {
+    id: "halaman-pilar-tr",
+    kind: "pillar",
+    position: [11, 2, 11],
+    size: [1.4, 4, 1.4],
+    color: PILLAR_COLOR,
+  },
+];
+
+/**
+ * Siang mendung di halaman terbuka: terang merata, bayangan lembut.
+ *
+ * Kontrasnya paling rendah di antara semua peta, dan itu disengaja. Peta ini
+ * dimenangkan dengan mendengar dan menebak, bukan dengan melihat lebih dulu;
+ * bayangan tajam yang menjulur keluar dari tikungan akan membocorkan posisi
+ * seseorang sebelum ia sendiri sempat mengintip.
+ */
+const HALAMAN_LIGHTING: MapLighting = {
+  skyLight: "#c9d2dc",
+  groundLight: "#4c4a44",
+  hemisphereIntensity: 1.25,
+  ambientIntensity: 0.66,
+  key: {
+    color: "#eef1f5",
+    intensity: 1.05,
+    position: [10, 34, 12],
+    shadowBox: { left: -30, right: 30, top: 30, bottom: -30, far: 74 },
+  },
+  fill: { color: "#a9b6c4", intensity: 0.42, position: [-16, 10, -10] },
+};
+
 export const MOCK_MAPS: ArenaMapInfo[] = [
   {
     id: "map-gudang-senja",
@@ -438,7 +725,10 @@ export const MOCK_MAPS: ArenaMapInfo[] = [
     // ruang terbuka dan berjauhan satu sama lain.
     spawnPoints: [
       [-18.5, 0, 18.5],
-      [-15, 0, -16],
+      // Dulu [-15, -16], hanya 3,6 satuan dari titik di sudut barat-laut —
+      // cukup dekat untuk membuat dua orang saling melihat sebelum sempat
+      // melangkah, dan itu bukan awal yang adil bagi keduanya.
+      [-9, 0, -16],
       [15, 0, -16],
       [18, 0, 7],
       [-18, 0, -4],
@@ -511,6 +801,70 @@ export const MOCK_MAPS: ArenaMapInfo[] = [
       [-23, 0, 0],
       [23, 0, 0],
       [-12, 0, 0],
+    ],
+  },
+  {
+    id: "map-silo-kembar",
+    name: "Silo Kembar",
+    description:
+      "Dua panggung tinggi berhadapan menyilang arena, masing-masing bisa dinaiki dari dua tangga. Yang memegang panggung menguasai pandangan, tetapi tidak bisa menjaga kedua tangganya sekaligus.",
+    previewUrl: null,
+    floorSize: [41, 41],
+    playableBounds: boundsInside(20),
+    skyColor: "#141821",
+    fogColor: "#333a42",
+    fogRange: [26, 88],
+    floorColor: "#514f45",
+    lighting: SILO_LIGHTING,
+    blocks: [
+      ...perimeterWalls(20, 7, SILO_WALL),
+      ...siloPanggung("silo-barat", -11, -11),
+      ...siloPanggung("silo-timur", 11, 11),
+      ...siloTengah,
+    ],
+    // Delapan titik, semuanya di cincin luar dan jauh dari kedua panggung:
+    // muncul tepat di kaki tangga lawan bukan awal yang adil bagi siapa pun.
+    spawnPoints: [
+      [-17, 0, 17],
+      [17, 0, -17],
+      [0, 0, 17.5],
+      [0, 0, -17.5],
+      [17.5, 0, 0],
+      [-17.5, 0, 0],
+      [17, 0, 17],
+      [-17, 0, -17],
+    ],
+  },
+  {
+    id: "map-halaman-tengah",
+    name: "Halaman Tengah",
+    description:
+      "Satu bangunan padat berdiri di tengah dan tidak bisa dilewati, jadi seluruh arena adalah cincin mengelilinginya. Tidak ada tembakan yang melintasi pusat — yang menentukan adalah siapa lebih dulu sampai di tikungan.",
+    previewUrl: null,
+    floorSize: [43, 43],
+    playableBounds: boundsInside(21),
+    skyColor: "#1b1f26",
+    fogColor: "#454a52",
+    fogRange: [30, 96],
+    floorColor: "#585349",
+    lighting: HALAMAN_LIGHTING,
+    blocks: [
+      ...perimeterWalls(21, 7, HALAMAN_WALL),
+      ...halamanBangunan,
+      ...halamanCincin,
+    ],
+    // Delapan titik yang tersebar rata di sekeliling cincin. Pemerataan itu
+    // penting di peta melingkar: dua titik yang berdekatan pada cincin berarti
+    // dua orang yang bertemu sebelum sempat bergerak.
+    spawnPoints: [
+      [-18, 0, -18],
+      [18, 0, -18],
+      [18, 0, 18],
+      [-18, 0, 18],
+      [0, 0, -18.5],
+      [18.5, 0, 0],
+      [0, 0, 18.5],
+      [-18.5, 0, 0],
     ],
   },
 ];
