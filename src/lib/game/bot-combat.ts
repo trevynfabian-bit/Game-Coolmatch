@@ -56,7 +56,10 @@ export function aimFactor(offRadians: number): number {
  * Ketepatan dasar datang dari profil kesulitan — itulah yang paling terasa
  * membedakan Santai dari Susah — lalu dilemahkan oleh jarak.
  */
-export function hitChance(profile: DifficultyProfile, distance: number): number {
+export function hitChance(
+  profile: DifficultyProfile,
+  distance: number,
+): number {
   const span = FALLOFF_END - FALLOFF_START;
   const past = Math.max(0, Math.min(span, distance - FALLOFF_START));
   const falloff = 1 - (1 - FALLOFF_FLOOR) * (past / span);
@@ -293,4 +296,25 @@ export function stepFire(
     },
     fire: true,
   };
+}
+
+/**
+ * Tambahan waktu membidik ulang sesudah terhuyung berakhir, dalam detik.
+ *
+ * Musuh yang kena tembak kehilangan bidikannya, bukan hanya pijakannya:
+ * tembakan yang sudah dijadwalkan diundur sampai ia pulih dan sempat
+ * membidik lagi. Tanpa ini musuh bisa membalas tepat di tengah huyungannya,
+ * dan keunggulan pemain yang memukul duluan tidak terasa sama sekali.
+ */
+const FLINCH_REAIM_SECONDS = 0.25;
+
+/**
+ * Pelatuk sesudah musuh terhuyung sampai `staggerEndsAt`: tembakan yang sudah
+ * dijadwalkan diundur; yang belum mengunci sasaran tidak berubah, sebab ia
+ * toh masih menunggu satu jeda bidik penuh.
+ */
+export function flinchFire(state: FireState, staggerEndsAt: number): FireState {
+  const until = staggerEndsAt + FLINCH_REAIM_SECONDS;
+  if (state.nextShotAt === 0 || state.nextShotAt >= until) return state;
+  return { ...state, nextShotAt: until };
 }

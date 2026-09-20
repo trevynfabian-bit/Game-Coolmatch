@@ -1,5 +1,5 @@
-import { freshBrain } from "@/lib/game/bot-ai";
-import type { BotBrain } from "@/lib/game/bot-ai";
+import { composeStagger, freshBrain } from "@/lib/game/bot-ai";
+import type { BotBrain, Stagger } from "@/lib/game/bot-ai";
 import type { FireState } from "@/lib/game/bot-combat";
 import { fighterCollider } from "@/lib/game/collision";
 import type { Aabb, PlayerBounds } from "@/lib/game/collision";
@@ -35,6 +35,13 @@ export interface BotRuntimeState {
    * runtime ini sengaja tidak tahu-menahu soal katalog senjata.
    */
   fire: FireState | null;
+  /** Terhuyung yang sedang berjalan sesudah kena tembak; null bila tidak. */
+  stagger: Stagger | null;
+  /**
+   * Tempat penembak berdiri saat peluru terakhir mengenainya. Dipakai sekali
+   * oleh penggerak musuh untuk menyadarkan otaknya, lalu dikosongkan.
+   */
+  noticed: Vec3 | null;
 }
 
 const bots = new Map<string, BotRuntimeState>();
@@ -45,7 +52,11 @@ export function resetBotRuntime(): void {
 }
 
 /** Menempatkan seorang musuh di titik tertentu dan menyegarkan otaknya. */
-export function placeBot(id: string, position: Vec3, yaw: number): BotRuntimeState {
+export function placeBot(
+  id: string,
+  position: Vec3,
+  yaw: number,
+): BotRuntimeState {
   const state: BotRuntimeState = {
     x: position[0],
     y: position[1],
@@ -55,6 +66,8 @@ export function placeBot(id: string, position: Vec3, yaw: number): BotRuntimeSta
     brain: freshBrain(),
     engaged: false,
     fire: null,
+    stagger: null,
+    noticed: null,
   };
   bots.set(id, state);
   return state;
@@ -62,6 +75,22 @@ export function placeBot(id: string, position: Vec3, yaw: number): BotRuntimeSta
 
 export function getBot(id: string): BotRuntimeState | undefined {
   return bots.get(id);
+}
+
+/**
+ * Mencatat satu peluru yang mengenai seorang musuh: arah larinya peluru
+ * menjadi dorongan terhuyung, dan tempat penembak berdiri menjadi hal yang
+ * disadari musuh pada frame berikutnya. Aman dipanggil untuk petarung yang
+ * bukan musuh otomatis; tidak terjadi apa-apa.
+ */
+export function noteBotHit(
+  id: string,
+  hit: { direction: Vec3; damage: number; from: Vec3 },
+): void {
+  const state = bots.get(id);
+  if (!state) return;
+  state.stagger = composeStagger(state.stagger, hit.direction, hit.damage);
+  state.noticed = [hit.from[0], hit.from[1], hit.from[2]];
 }
 
 /**

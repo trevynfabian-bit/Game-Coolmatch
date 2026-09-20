@@ -3,16 +3,27 @@
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Vector3 } from "three";
-import { BOT_EYE_HEIGHT, PLAYER_CHEST_HEIGHT, stepBot } from "@/lib/game/bot-ai";
+import {
+  BOT_EYE_HEIGHT,
+  PLAYER_CHEST_HEIGHT,
+  alertBrain,
+  stepBot,
+} from "@/lib/game/bot-ai";
 import {
   HEADSHOT_SHARE,
   aimFactor,
+  flinchFire,
   freshFireState,
   hitChance,
   inFiringRange,
   stepFire,
 } from "@/lib/game/bot-combat";
-import { getBot, liveColliders, livePosition, syncBots } from "@/lib/game/bot-runtime";
+import {
+  getBot,
+  liveColliders,
+  livePosition,
+  syncBots,
+} from "@/lib/game/bot-runtime";
 import { buildColliders } from "@/lib/game/collision";
 import { PLAYER_BOUNDS } from "@/lib/game/controls";
 import { resolveShotDamage } from "@/lib/game/damage";
@@ -32,7 +43,6 @@ function shortestAngle(from: number, to: number) {
 
 /** Batas delta agar tab yang sempat tidak aktif tidak melontarkan musuh. */
 const MAX_DELTA = 1 / 15;
-
 
 /**
  * Menjalankan semua musuh otomatis tiap frame: berjalan, membidik, menembak.
@@ -94,11 +104,19 @@ export function BotDriver({
         ? hasLineOfSight([state.x, state.y + BOT_EYE_HEIGHT, state.z], target)
         : false;
 
+      // Kena tembak sejak frame lalu: musuh sadar dari mana peluru datang.
+      let brain = state.brain;
+      if (state.noticed) {
+        brain = alertBrain(brain, state.noticed, profile);
+        state.noticed = null;
+      }
+
       const next = stepBot({
         position: { x: state.x, y: state.y, z: state.z },
         yaw: state.yaw,
         verticalVelocity: state.verticalVelocity,
-        brain: state.brain,
+        brain,
+        stagger: state.stagger,
         target,
         canSeeTarget,
         profile,
@@ -129,6 +147,7 @@ export function BotDriver({
       state.verticalVelocity = next.verticalVelocity;
       state.brain = next.brain;
       state.engaged = next.engaged;
+      state.stagger = next.stagger;
 
       // Membidik dan menembak. Memburu saja tidak cukup: garis pandang harus
       // terbuka SAAT INI JUGA, jadi berlindung tetap memutus tembakan
@@ -136,7 +155,12 @@ export function BotDriver({
       // dan jaraknya harus masuk jangkauan senjata yang dibawanya.
       const weapon = findWeapon(fighter.weaponId);
       const distance = Math.hypot(target[0] - state.x, target[2] - state.z);
-      const pelatuk = stepFire(state.fire ?? freshFireState(weapon), {
+      let fire = state.fire ?? freshFireState(weapon);
+      // Terhuyung mengundur tembakan yang sudah dijadwalkan sampai ia pulih.
+      if (next.stagger && next.stagger.remaining > 0) {
+        fire = flinchFire(fire, now + next.stagger.remaining);
+      }
+      const pelatuk = stepFire(fire, {
         now,
         canFire:
           next.engaged &&

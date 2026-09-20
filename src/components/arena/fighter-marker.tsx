@@ -33,6 +33,18 @@ const HIT_FLASH_SECONDS = 0.14;
 const PITCH_FOLLOW = 9;
 
 /**
+ * Seberapa jauh badan mencondong saat terhuyung, dalam radian, pada dorongan
+ * sebesar `STAGGER_FULL_TILT_SPEED` atau lebih. Condongnya ke arah larinya
+ * peluru, berporos di kaki — seperti orang yang terdorong, bukan patung yang
+ * digeser. Condongnya naik cepat di awal huyungan lalu pulih bersama
+ * dorongannya yang meluruh.
+ */
+const STAGGER_TILT = 0.34;
+const STAGGER_FULL_TILT_SPEED = 2;
+/** Bagian awal huyungan yang dipakai untuk mencondong. */
+const STAGGER_ATTACK = 0.25;
+
+/**
  * Penanda satu petarung di arena: badan kapsul low-poly, kepala, laras senjata
  * sebagai petunjuk arah hadap, plus papan nama + bar nyawa yang selalu
  * menghadap kamera. Petarung yang sedang mati dirender tembus pandang.
@@ -45,6 +57,7 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
   const dimmed = !fighter.isAlive;
 
   const group = useRef<Group>(null);
+  const lurch = useRef<Group>(null);
   const weaponPitch = useRef<Group>(null);
   const bodyMaterial = useRef<MeshStandardMaterial>(null);
   const headMaterial = useRef<MeshStandardMaterial>(null);
@@ -61,11 +74,38 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
       group.current.rotation.y = liveYaw(fighter);
     }
 
+    const bot = fighter.isBot ? getBot(fighter.id) : undefined;
+
+    // Terhuyung: badan, kepala, dan senjata mencondong bersama ke arah
+    // larinya peluru lalu pulih. Arah dorongannya ada di ruang dunia dan
+    // pembungkus ini sudah diputar sebesar yaw, jadi arahnya diputar balik ke
+    // kerangka badan dulu; condong ke +Z lokal berarti memutar sumbu X, ke +X
+    // lokal berarti memutar sumbu Z ke arah negatif.
+    if (lurch.current) {
+      const stagger = bot?.stagger ?? null;
+      let tilt = 0;
+      let lx = 0;
+      let lz = 0;
+      if (stagger && stagger.remaining > 0) {
+        const t = 1 - stagger.remaining / stagger.duration;
+        const attack = Math.min(1, t / STAGGER_ATTACK);
+        tilt =
+          STAGGER_TILT *
+          Math.min(1, stagger.velocity / STAGGER_FULL_TILT_SPEED) *
+          attack;
+        const yaw = group.current?.rotation.y ?? 0;
+        lx = stagger.dirX * Math.cos(yaw) - stagger.dirZ * Math.sin(yaw);
+        lz = stagger.dirX * Math.sin(yaw) + stagger.dirZ * Math.cos(yaw);
+      }
+      lurch.current.rotation.x = tilt * lz;
+      lurch.current.rotation.z = -tilt * lx;
+      lurch.current.position.y = -tilt * 0.22;
+    }
+
     // Senjata ikut MENGANGKAT ke dada pemain saat musuh terlibat; badannya
     // sendiri sudah berputar ke pemain lewat yaw. Saat berpatroli senjata
     // diturunkan sedikit, seperti orang yang berjalan, bukan mendatar kaku.
     if (weaponPitch.current) {
-      const bot = fighter.isBot ? getBot(fighter.id) : undefined;
       const target =
         bot?.engaged && fighter.isAlive
           ? aimPitch(
@@ -97,33 +137,35 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
       position={fighter.position}
       rotation={[0, fighter.rotationY, 0]}
     >
-      <mesh position={[0, 0.8, 0]} castShadow>
-        <capsuleGeometry args={[0.35, 0.9, 4, 12]} />
-        <meshStandardMaterial
-          ref={bodyMaterial}
-          color={fighter.color}
-          roughness={0.6}
-          emissive="#ffffff"
-          emissiveIntensity={0}
-          transparent={dimmed}
-          opacity={dimmed ? 0.25 : 1}
-        />
-      </mesh>
+      {/* Badan, kepala, dan senjata terhuyung bersama; cincin dan papan nama tidak. */}
+      <group ref={lurch}>
+        <mesh position={[0, 0.8, 0]} castShadow>
+          <capsuleGeometry args={[0.35, 0.9, 4, 12]} />
+          <meshStandardMaterial
+            ref={bodyMaterial}
+            color={fighter.color}
+            roughness={0.6}
+            emissive="#ffffff"
+            emissiveIntensity={0}
+            transparent={dimmed}
+            opacity={dimmed ? 0.25 : 1}
+          />
+        </mesh>
 
-      <mesh position={[0, 1.75, 0]} castShadow>
-        <sphereGeometry args={[0.22, 12, 12]} />
-        <meshStandardMaterial
-          ref={headMaterial}
-          color={fighter.color}
-          roughness={0.5}
-          emissive="#ffffff"
-          emissiveIntensity={0}
-          transparent={dimmed}
-          opacity={dimmed ? 0.25 : 1}
-        />
-      </mesh>
+        <mesh position={[0, 1.75, 0]} castShadow>
+          <sphereGeometry args={[0.22, 12, 12]} />
+          <meshStandardMaterial
+            ref={headMaterial}
+            color={fighter.color}
+            roughness={0.5}
+            emissive="#ffffff"
+            emissiveIntensity={0}
+            transparent={dimmed}
+            opacity={dimmed ? 0.25 : 1}
+          />
+        </mesh>
 
-      {/*
+        {/*
         Senjata di tangan kanan, setinggi dada, dan cukup ke samping supaya
         badannya tidak tenggelam di dalam kapsul badan — dilihat dari samping,
         yang tersisa dari senjata yang tenggelam hanya laras dan popornya, dan
@@ -133,15 +175,16 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
         ditulis ke pembungkus dalam, di kerangka modelnya, supaya "terangkat"
         selalu berarti moncong naik apa pun arah hadap badannya.
       */}
-      {!dimmed ? (
-        <group position={[0.44, 1.2, 0.18]} rotation={[0, Math.PI, 0]}>
-          <group ref={weaponPitch} rotation={[REST_PITCH, 0, 0]}>
-            <group scale={0.9}>
-              <WeaponMesh weapon={weapon} />
+        {!dimmed ? (
+          <group position={[0.44, 1.2, 0.18]} rotation={[0, Math.PI, 0]}>
+            <group ref={weaponPitch} rotation={[REST_PITCH, 0, 0]}>
+              <group scale={0.9}>
+                <WeaponMesh weapon={weapon} />
+              </group>
             </group>
           </group>
-        </group>
-      ) : null}
+        ) : null}
+      </group>
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
         <ringGeometry args={[0.45, 0.6, 20]} />

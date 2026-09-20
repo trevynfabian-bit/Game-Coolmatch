@@ -17,12 +17,22 @@ export interface FighterTarget {
   headMinY: number;
 }
 
-/** Kotak sasaran untuk semua petarung yang masih hidup dan bukan pemain lokal. */
-export function buildFighterTargets(fighters: Fighter[]): FighterTarget[] {
+/**
+ * Kotak sasaran untuk semua petarung yang masih hidup dan bukan pemain lokal.
+ *
+ * `positionOf` menjawab di mana seorang petarung BERADA SEKARANG. Bawaannya
+ * posisi di store, yaitu tempat ia diletakkan; arena yang musuhnya berjalan
+ * harus memberikan posisi hidupnya, sebab peluru yang diuji terhadap titik
+ * spawn hanya mengenai musuh yang kebetulan masih berdiri di sana.
+ */
+export function buildFighterTargets(
+  fighters: Fighter[],
+  positionOf: (fighter: Fighter) => Vec3 = (fighter) => fighter.position,
+): FighterTarget[] {
   return fighters
     .filter((fighter) => !fighter.isLocal && fighter.isAlive)
     .map((fighter) => {
-      const [x, y, z] = fighter.position;
+      const [x, y, z] = positionOf(fighter);
       return {
         id: fighter.id,
         box: {

@@ -8,6 +8,7 @@ import {
   ShotEffects,
   type ShotEffectsHandle,
 } from "@/components/arena/shot-effects";
+import { livePosition, noteBotHit } from "@/lib/game/bot-runtime";
 import { buildColliders } from "@/lib/game/collision";
 import { type MoveAction } from "@/lib/game/controls";
 import { playerRuntime } from "@/lib/game/player-runtime";
@@ -202,7 +203,9 @@ export function WeaponSystem({
     const base: Vec3 = [forward.x, forward.y, forward.z];
     const originVec: Vec3 = [origin.x, origin.y, origin.z];
     const matchState = useMatchStore.getState();
-    const targets = buildFighterTargets(matchState.fighters);
+    // Sasaran diuji pada posisi HIDUP tiap musuh, bukan tempat ia diletakkan:
+    // musuh berjalan, dan peluru harus mengejar badannya, bukan bekas spawn-nya.
+    const targets = buildFighterTargets(matchState.fighters, livePosition);
     const shooterId = matchState.fighters.find((f) => f.isLocal)?.id ?? "";
     let bestHitOnFighter: { fighterId: string; isHeadshot: boolean } | null =
       null;
@@ -244,6 +247,13 @@ export function WeaponSystem({
             // tembakan tidak pernah berbunyi berkali-kali.
             playHit(isHeadshot);
             markFighterHit(hit.fighterId);
+            // Musuh yang kena terhuyung ke arah larinya peluru dan sadar dari
+            // mana peluru itu datang.
+            noteBotHit(hit.fighterId, {
+              direction,
+              damage,
+              from: originVec,
+            });
             useCombatStore.getState().pushDamagePop({
               amount: report.healthLost + report.armorLost,
               isHeadshot,

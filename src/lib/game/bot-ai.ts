@@ -1,10 +1,6 @@
 import { MOVEMENT } from "@/lib/game/controls";
 import { movePlayer } from "@/lib/game/collision";
-import type {
-  Aabb,
-  PlayerBounds,
-  PlayerPosition,
-} from "@/lib/game/collision";
+import type { Aabb, PlayerBounds, PlayerPosition } from "@/lib/game/collision";
 import type { DifficultyProfile } from "@/lib/game/difficulty";
 import type { ArenaBounds, Vec3 } from "@/types/game";
 
@@ -198,6 +194,132 @@ export interface BotBrain {
   lastSeen: Vec3 | null;
 }
 
+/**
+ * Terhuyung sesudah kena tembak.
+ *
+ * Kena peluru harus TERASA pada musuhnya, bukan cuma pada angka nyawanya:
+ * badannya terdorong sesaat ke arah larinya peluru, langkahnya sendiri
+ * terhenti, dan putarannya melambat — pemain yang memukul duluan memenangkan
+ * sepersekian detik, dan itu terasa adil. Dorongannya diukur dari kerusakan,
+ * dibatasi supaya senapan runduk tidak melontarkan musuh seperti ledakan, dan
+ * dijalankan lewat resolver tabrakan yang sama dengan langkah biasa: musuh
+ * yang terdorong ke krat berhenti di krat, bukan menembusnya.
+ *
+ * Sesudah pulih musuh KEBAL sebentar terhadap huyungan berikutnya. Tanpa
+ * itu, SMG yang menembak lima belas kali sedetik mengunci musuh selamanya:
+ * ia tidak pernah melangkah, tidak pernah membalas, dan terseret menyeberangi
+ * arena — diukur, empat satuan per detik, lebih cepat dari jalannya sendiri.
+ * Dengan masa kebal, rentetan tanpa henti menghuyungkannya empat puluh persen
+ * waktu, dan sisanya ia sempat melawan.
+ */
+const STAGGER_SECONDS = 0.3;
+const STAGGER_GRACE_SECONDS = 0.45;
+/** Kecepatan dorongan per satu poin kerusakan, satuan dunia per detik. */
+const STAGGER_SPEED_PER_DAMAGE = 2 / 33;
+/** Batas kecepatan dorongan, juga saat beberapa peluru datang beruntun. */
+const STAGGER_MAX_SPEED = 4.5;
+/** Pengali laju putar selama terhuyung. */
+const STAGGER_TURN_FACTOR = 0.35;
+
+export interface Stagger {
+  /** Arah dorongan mendatar, panjang satu. */
+  dirX: number;
+  dirZ: number;
+  /** Kecepatan dorongan SAAT INI; meluruh lurus ke nol saat sisa waktu habis. */
+  velocity: number;
+  /** Sisa waktu terdorong, dalam detik. Nol berarti sedang masa kebal. */
+  remaining: number;
+  duration: number;
+  /** Sisa masa kebal sesudah pulih, dalam detik. */
+  grace: number;
+}
+
+/**
+ * Terhuyung sesudah satu peluru lagi mengenai musuh, digabung dengan huyungan
+ * yang mungkin masih berjalan.
+ *
+ * Peluru yang datang saat musuh masih terdorong menambah dorongannya — butir
+ * shotgun yang tiba bersamaan mendorong lebih keras daripada satu butir —
+ * tetapi tidak memperpanjang waktunya, dan jumlahnya tetap dibatasi. Peluru
+ * yang datang pada masa kebal tidak mengubah apa-apa.
+ */
+export function composeStagger(
+  current: Stagger | null,
+  direction: Vec3,
+  damage: number,
+): Stagger {
+  if (current && current.remaining <= 0) return current;
+
+  const datar = Math.hypot(direction[0], direction[2]);
+  const dirX = datar > 1e-6 ? direction[0] / datar : 0;
+  const dirZ = datar > 1e-6 ? direction[2] / datar : 0;
+  const added = Math.min(STAGGER_MAX_SPEED, damage * STAGGER_SPEED_PER_DAMAGE);
+
+  if (!current) {
+    return {
+      dirX,
+      dirZ,
+      velocity: added,
+      remaining: STAGGER_SECONDS,
+      duration: STAGGER_SECONDS,
+      grace: 0,
+    };
+  }
+
+  const x = current.dirX * current.velocity + dirX * added;
+  const z = current.dirZ * current.velocity + dirZ * added;
+  const n = Math.hypot(x, z);
+  return {
+    ...current,
+    dirX: n > 1e-6 ? x / n : current.dirX,
+    dirZ: n > 1e-6 ? z / n : current.dirZ,
+    velocity: Math.min(STAGGER_MAX_SPEED, current.velocity + added),
+  };
+}
+
+/** Terhuyung sesudah `delta` detik berlalu; null bila sudah benar-benar usai. */
+function tickStagger(stagger: Stagger, delta: number): Stagger | null {
+  if (stagger.remaining > 0) {
+    const remaining = stagger.remaining - delta;
+    if (remaining <= 0) {
+      return {
+        ...stagger,
+        velocity: 0,
+        remaining: 0,
+        grace: STAGGER_GRACE_SECONDS,
+      };
+    }
+    return {
+      ...stagger,
+      velocity: stagger.velocity * (remaining / stagger.remaining),
+      remaining,
+    };
+  }
+  const grace = stagger.grace - delta;
+  return grace > 0 ? { ...stagger, grace } : null;
+}
+
+/**
+ * Otak sesudah musuh kena tembak dari `from`.
+ *
+ * Ditembak adalah rangsangan yang tidak bisa diabaikan: musuh langsung tahu
+ * dari mana peluru datang, seberapa lamban pun profilnya. Kalau penembaknya
+ * terlihat ia berbalik dan terlibat; kalau tidak, ingatannya meluruh seperti
+ * biasa dan ia pergi memeriksa arah datangnya tembakan — bukan melanjutkan
+ * patroli seolah tidak terjadi apa-apa.
+ */
+export function alertBrain(
+  brain: BotBrain,
+  from: Vec3,
+  profile: DifficultyProfile,
+): BotBrain {
+  return {
+    ...brain,
+    lastSeen: [from[0], from[1], from[2]],
+    seenSeconds: Math.max(brain.seenSeconds, profile.reactionSeconds),
+  };
+}
+
 export interface BotStepInput {
   position: PlayerPosition;
   /** Arah hadap sekarang, dalam radian. */
@@ -222,6 +344,8 @@ export interface BotStepInput {
   waypoints?: readonly Vec3[];
   /** Posisi musuh LAIN yang hidup, untuk dijauhi sedikit saat berdekatan. */
   others?: readonly Vec3[];
+  /** Terhuyung yang sedang berjalan sesudah kena tembak, bila ada. */
+  stagger?: Stagger | null;
   /** Disuntikkan supaya pemeriksaan bisa dibuat pasti. */
   random?: () => number;
 }
@@ -239,6 +363,8 @@ export interface BotStepResult {
    * benar tertuju ke pemain saat ia menarik pelatuk.
    */
   aimOffRadians: number;
+  /** Sisa terhuyung sesudah langkah ini; null bila sudah pulih. */
+  stagger: Stagger | null;
 }
 
 /** Jarak yang ingin dijaga musuh, diturunkan dari keberanian profilnya. */
@@ -252,7 +378,8 @@ export function rollRoam(
 ): Pick<BotBrain, "roamSeconds" | "roamOffset"> {
   return {
     roamOffset: (random() * 2 - 1) * ROAM_SPREAD,
-    roamSeconds: ROAM_MIN_SECONDS + random() * (ROAM_MAX_SECONDS - ROAM_MIN_SECONDS),
+    roamSeconds:
+      ROAM_MIN_SECONDS + random() * (ROAM_MAX_SECONDS - ROAM_MIN_SECONDS),
   };
 }
 
@@ -266,8 +393,7 @@ export function freshBrain(random: () => number = Math.random): BotBrain {
     detourSign: 1,
     strafeSign: random() < 0.5 ? -1 : 1,
     strafeSeconds:
-      STRAFE_MIN_SECONDS +
-      random() * (STRAFE_MAX_SECONDS - STRAFE_MIN_SECONDS),
+      STRAFE_MIN_SECONDS + random() * (STRAFE_MAX_SECONDS - STRAFE_MIN_SECONDS),
     stuckSeconds: 0,
     lastSeen: null,
   };
@@ -294,7 +420,10 @@ export function pickWaypoint(
     .map((w, i) => ({ i, d: Math.hypot(w[0] - from.x, w[2] - from.z) }))
     .filter((k) => k.i !== current)
     .sort((a, b) => a.d - b.d);
-  const buang = Math.min(kandidat.length - 1, Math.floor(kandidat.length * 0.3));
+  const buang = Math.min(
+    kandidat.length - 1,
+    Math.floor(kandidat.length * 0.3),
+  );
   const jauh = kandidat.slice(buang);
   return jauh[Math.floor(random() * jauh.length)].i;
 }
@@ -340,6 +469,7 @@ export function stepBot(input: BotStepInput): BotStepResult {
     delta,
     waypoints = [],
     others = [],
+    stagger = null,
     random = Math.random,
   } = input;
 
@@ -356,7 +486,9 @@ export function stepBot(input: BotStepInput): BotStepResult {
   // Tempat pemain terakhir terlihat hanya diperbarui saat ia BENAR-BENAR
   // terlihat, bukan tiap frame. Kalau diperbarui tiap frame, musuh yang
   // kehilangan pemain di tikungan tetap tahu ke mana ia pergi sesudahnya.
-  const lastSeen: Vec3 | null = canSeeTarget ? [...target] : input.brain.lastSeen;
+  const lastSeen: Vec3 | null = canSeeTarget
+    ? [...target]
+    : input.brain.lastSeen;
 
   const toTargetX = target[0] - position.x;
   const toTargetZ = target[2] - position.z;
@@ -373,8 +505,7 @@ export function stepBot(input: BotStepInput): BotStepResult {
   if (strafeSeconds <= 0) {
     strafeSign = strafeSign === 1 ? -1 : 1;
     strafeSeconds =
-      STRAFE_MIN_SECONDS +
-      random() * (STRAFE_MAX_SECONDS - STRAFE_MIN_SECONDS);
+      STRAFE_MIN_SECONDS + random() * (STRAFE_MAX_SECONDS - STRAFE_MIN_SECONDS);
   }
   let headingX = 0;
   let headingZ = 0;
@@ -508,12 +639,26 @@ export function stepBot(input: BotStepInput): BotStepResult {
     }
   }
 
+  // Terhuyung: langkahnya sendiri terhenti, badannya terdorong ke arah
+  // larinya peluru dengan dorongan yang meluruh lurus ke nol. Dorongan lewat
+  // resolver tabrakan yang sama, jadi musuh yang terdorong ke krat berhenti
+  // di krat.
+  const shoved = stagger !== null && stagger.remaining > 0;
+  let shoveX = 0;
+  let shoveZ = 0;
+  if (stagger && shoved) {
+    shoveX = stagger.dirX * stagger.velocity;
+    shoveZ = stagger.dirZ * stagger.velocity;
+    speed = 0;
+  }
+  const nextStagger = stagger ? tickStagger(stagger, delta) : null;
+
   const moved = movePlayer(
     position,
     {
-      dx: headingX * speed * delta,
+      dx: (headingX * speed + shoveX) * delta,
       dy: verticalVelocity * delta,
-      dz: headingZ * speed * delta,
+      dz: (headingZ * speed + shoveZ) * delta,
     },
     verticalVelocity - MOVEMENT.gravity * delta,
     colliders,
@@ -523,7 +668,10 @@ export function stepBot(input: BotStepInput): BotStepResult {
 
   // Menabrak dinding saat menjelajah berarti simpangan itu buntu — ambil yang
   // lain pada frame berikutnya alih-alih terus mendorong tembok.
-  if (moved.blocked && !engaged) {
+  if (moved.blocked && shoved) {
+    // Tertahan oleh dorongan peluru, bukan oleh langkahnya sendiri: bukan
+    // alasan mengganti arah patroli atau menyamping.
+  } else if (moved.blocked && !engaged) {
     roamSeconds = 0;
     if (waypoints.length > 0) {
       stuckSeconds += delta;
@@ -547,7 +695,8 @@ export function stepBot(input: BotStepInput): BotStepResult {
     ? Math.atan2(toTargetX, toTargetZ)
     : Math.atan2(headingX, headingZ);
   const turn = angleDelta(yaw, wantYaw);
-  const maxTurn = aimSpeed(profile) * delta;
+  const maxTurn =
+    aimSpeed(profile) * delta * (shoved ? STAGGER_TURN_FACTOR : 1);
 
   const nextYaw = yaw + Math.max(-maxTurn, Math.min(maxTurn, turn));
   // Diukur dari posisi SESUDAH melangkah, karena di situlah musuh berada saat
@@ -577,5 +726,6 @@ export function stepBot(input: BotStepInput): BotStepResult {
     },
     engaged,
     aimOffRadians: Math.abs(angleDelta(nextYaw, towardTargetYaw)),
+    stagger: nextStagger,
   };
 }
