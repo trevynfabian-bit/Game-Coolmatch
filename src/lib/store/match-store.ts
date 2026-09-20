@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { RoundOutcome } from "@/lib/game/match-session";
 import {
   STARTING_ARMOR,
   applyDamageToFighter,
@@ -118,7 +119,13 @@ interface MatchState {
    * Menutup ronde berjalan: menetapkan pemenangnya, menambah roundWins, lalu
    * masuk jeda antar ronde. Bila ini ronde terakhir, pertandingan diakhiri.
    */
-  finishRound: () => void;
+  /**
+   * Menutup ronde yang berjalan. Bila sesi sudah menyimpulkannya, kesimpulan
+   * itu yang dipakai: pemenang ronde, roster (kill, kematian, skor,
+   * kemenangan ronde), dan apakah pertandingan selesai. Tanpa kesimpulan sesi,
+   * arena menyimpulkan sendiri dengan aturan yang sama.
+   */
+  finishRound: (outcome?: RoundOutcome) => void;
 
   /**
    * Memulai ronde berikutnya: semua petarung hidup penuh di titik spawn yang
@@ -294,29 +301,63 @@ export const useMatchStore = create<MatchState>((set, get) => ({
     );
   },
 
-  finishRound: () =>
+  finishRound: (outcome) =>
     set((state) => {
       if (state.round.status !== "live") return state;
 
-      const winner = findRoundWinner(state.fighters);
-      const fighters = winner
-        ? state.fighters.map((fighter) =>
-            fighter.id === winner.id
-              ? { ...fighter, roundWins: fighter.roundWins + 1 }
-              : fighter,
-          )
-        : state.fighters;
+      let winnerName: string | null;
+      let fighters: Fighter[];
+      let isDecided: boolean;
+      let matchWinnerName: string | null;
 
-      /**
-       * Pertandingan selesai bukan hanya saat ronde habis, tetapi juga begitu
-       * gelar tidak bisa berpindah lagi. Memainkan sisa ronde yang sudah tidak
-       * mengubah apa pun cuma menahan pemain di arena yang hasilnya sudah
-       * ditentukan.
-       */
-      const isLastRound = state.round.current >= state.round.total;
-      const isDecided =
-        isLastRound ||
-        hasClinchedMatch(fighters, state.round.current, state.round.total);
+      if (outcome) {
+        /*
+          Roster dari sesi: perolehan tiap petarung disalin dari baris
+          bernama sama. Sesilah yang memegang kebenaran perolehan; arena
+          hanya menampilkan dan melaporkan fakta.
+        */
+        winnerName = outcome.roundWinner;
+        fighters = state.fighters.map((fighter) => {
+          const line = outcome.scoreboard.find(
+            (c) => c.participantName === fighter.name,
+          );
+          return line
+            ? {
+                ...fighter,
+                kills: line.kills,
+                deaths: line.deaths,
+                score: line.score,
+                roundWins: line.roundWins,
+              }
+            : fighter;
+        });
+        isDecided = outcome.matchEnded;
+        matchWinnerName = outcome.matchWinner;
+      } else {
+        const winner = findRoundWinner(state.fighters);
+        winnerName = winner?.name ?? null;
+        fighters = winner
+          ? state.fighters.map((fighter) =>
+              fighter.id === winner.id
+                ? { ...fighter, roundWins: fighter.roundWins + 1 }
+                : fighter,
+            )
+          : state.fighters;
+
+        /**
+         * Pertandingan selesai bukan hanya saat ronde habis, tetapi juga
+         * begitu gelar tidak bisa berpindah lagi. Memainkan sisa ronde yang
+         * sudah tidak mengubah apa pun cuma menahan pemain di arena yang
+         * hasilnya sudah ditentukan.
+         */
+        const isLastRound = state.round.current >= state.round.total;
+        isDecided =
+          isLastRound ||
+          hasClinchedMatch(fighters, state.round.current, state.round.total);
+        matchWinnerName = isDecided
+          ? (findMatchWinner(fighters)?.name ?? null)
+          : null;
+      }
 
       /**
        * Sebab ronde ini berakhir. Diperiksa pada keadaan SEBELUM ronde ditutup
@@ -325,7 +366,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
        */
       const roundResult: MatchRoundResult = {
         roundNumber: state.round.current,
-        winnerName: winner?.name ?? null,
+        winnerName,
         endedReason: hasReachedScoreLimit(
           state.fighters,
           state.round.scoreLimit,
@@ -344,10 +385,8 @@ export const useMatchStore = create<MatchState>((set, get) => ({
           ...state.round,
           secondsLeft: isDecided ? 0 : state.round.intermissionSeconds,
           status: isDecided ? "ended" : "intermission",
-          lastRoundWinner: winner?.name ?? null,
-          matchWinner: isDecided
-            ? (findMatchWinner(fighters)?.name ?? null)
-            : null,
+          lastRoundWinner: winnerName,
+          matchWinner: matchWinnerName,
         },
       };
     }),

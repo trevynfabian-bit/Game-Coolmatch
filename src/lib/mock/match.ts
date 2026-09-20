@@ -230,7 +230,7 @@ export function snapshotFromSession(
 
     return {
       id: competitor.isLocal ? LOCAL_FIGHTER.id : `ftr-bot-${botIndex}`,
-      name: competitor.name,
+      name: competitor.participantName,
       team: competitor.isLocal ? "alpha" : "bravo",
       isLocal: competitor.isLocal,
       isBot: competitor.isBot,
@@ -244,7 +244,9 @@ export function snapshotFromSession(
       roundWins: competitor.roundWins,
       isAlive: true,
       respawnInSeconds: null,
-      weaponId: competitor.isLocal ? weapon.id : botWeaponFor(competitor.name),
+      weaponId: competitor.isLocal
+        ? weapon.id
+        : botWeaponFor(competitor.participantName),
       color: competitor.color,
       position,
       rotationY: competitor.isLocal

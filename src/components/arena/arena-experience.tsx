@@ -15,10 +15,8 @@ import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
-import {
-  stubMatchSessionSource,
-  type MatchSession,
-} from "@/lib/game/match-session";
+import type { MatchSession } from "@/lib/game/match-session";
+import { openSession } from "@/lib/game/session-runtime";
 import { findMap } from "@/lib/mock/maps";
 import {
   buildStartRequest,
@@ -179,29 +177,29 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
   const [session, setSession] = useState<MatchSession | null>(null);
 
   /*
-    Sesi diminta SEKALI sesudah hidrasi. Sumbernya masih tiruan — menjawab
-    seketika dengan daftar pesaing yang sama persis dengan permintaannya —
-    tetapi jalurnya sudah jalur sesi: arena tidak menyusun daftar pesaingnya
-    sendiri, ia membangunnya dari jawaban sesi. Mengganti sumber tiruan dengan
-    pemanggil API tidak menyentuh apa pun di bawah baris ini.
+    Sesi diminta SEKALI sesudah hidrasi lewat runtime sesi, yang juga
+    menjadikannya sesi aktif tempat kill dan penutupan ronde dilaporkan.
+    Sumbernya masih tiruan — menjawab seketika dengan daftar pesaing yang sama
+    persis dengan permintaannya — tetapi jalurnya sudah jalur sesi: arena tidak
+    menyusun daftar pesaingnya sendiri, ia membangunnya dari jawaban sesi.
+    Mengganti sumber tiruan dengan pemanggil API tidak menyentuh apa pun di
+    bawah baris ini.
   */
   useEffect(() => {
     if (match || !hydrated) return;
     let batal = false;
-    stubMatchSessionSource
-      .start(
-        buildStartRequest({
-          difficulty: entry.difficulty,
-          botCount: entry.botCount,
-          playerName: entry.playerName,
-          map: findMap(entry.mapId),
-          rules: entry.rules,
-          isTrial: entry.isTrial,
-        }),
-      )
-      .then((hasil) => {
-        if (!batal) setSession(hasil);
-      });
+    openSession(
+      buildStartRequest({
+        difficulty: entry.difficulty,
+        botCount: entry.botCount,
+        playerName: entry.playerName,
+        map: findMap(entry.mapId),
+        rules: entry.rules,
+        isTrial: entry.isTrial,
+      }),
+    ).then((hasil) => {
+      if (!batal) setSession(hasil);
+    });
     return () => {
       batal = true;
     };

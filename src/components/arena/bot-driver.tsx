@@ -29,6 +29,7 @@ import { PLAYER_BOUNDS } from "@/lib/game/controls";
 import { resolveShotDamage } from "@/lib/game/damage";
 import { difficultyProfile } from "@/lib/game/difficulty";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
+import { reportKill } from "@/lib/game/session-runtime";
 import { raycastArena } from "@/lib/game/shooting";
 import { findWeapon } from "@/lib/mock/weapons";
 import { useCombatStore } from "@/lib/store/combat-store";
@@ -190,6 +191,13 @@ export function BotDriver({
       });
       if (!report) continue;
 
+      if (report.isLethal) {
+        reportKill({
+          killerName: fighter.name,
+          victimName: local.name,
+          isHeadshot,
+        });
+      }
       markFighterHit(local.id);
 
       // Sudut penyerang relatif arah pandang, supaya busur menunjuk ke arah

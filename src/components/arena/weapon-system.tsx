@@ -23,6 +23,7 @@ import {
   type ShotHit,
 } from "@/lib/game/shooting";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
+import { reportKill } from "@/lib/game/session-runtime";
 import { resolveShotDamage } from "@/lib/game/damage";
 import { useCombatStore } from "@/lib/store/combat-store";
 import { useMatchStore } from "@/lib/store/match-store";
@@ -242,6 +243,17 @@ export function WeaponSystem({
           // Null berarti sasaran sudah tumbang lebih dulu — misalnya butir
           // shotgun berikutnya yang datang sesudah butir yang mematikan.
           if (report) {
+            // Tumbang: dilaporkan ke sesi sebagai fakta, dengan nama —
+            // sesi mengenal peserta dari namanya, bukan id petarung.
+            if (report.isLethal) {
+              reportKill({
+                killerName:
+                  matchState.fighters.find((f) => f.id === shooterId)?.name ??
+                  "",
+                victimName: report.targetName,
+                isHeadshot,
+              });
+            }
             // Denting kena menemani penanda kena di layar. Butir shotgun yang
             // datang sesudah sasaran tumbang tidak sampai ke sini, jadi satu
             // tembakan tidak pernah berbunyi berkali-kali.

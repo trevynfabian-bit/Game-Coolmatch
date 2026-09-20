@@ -3,6 +3,7 @@ import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { resetBotRuntime } from "@/lib/game/bot-runtime";
+import { reopenSessionFor } from "@/lib/game/session-runtime";
 import { pickSpawnPoint } from "@/lib/game/spawn";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
@@ -36,6 +37,10 @@ export function spreadSpawns(
  */
 export function restartMatch(map: ArenaMapInfo, snapshot: MatchSnapshot) {
   const spawns = spreadSpawns(map, snapshot.fighters);
+
+  // Pertandingan baru berarti sesi baru: sesi yang lama sudah ditutup
+  // kesimpulannya sendiri dan tidak menerima ronde lagi.
+  void reopenSessionFor(snapshot);
 
   resetFighterHits();
   resetRespawnTimers();

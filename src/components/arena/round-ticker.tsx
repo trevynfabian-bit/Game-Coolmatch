@@ -6,6 +6,7 @@ import { setRoundClock, tickRoundClock } from "@/lib/game/round-runtime";
 import { refillActiveWeapon } from "@/lib/game/arm-player";
 import { spreadSpawns } from "@/lib/game/match-reset";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
+import { closeRound } from "@/lib/game/session-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { ArenaMapInfo } from "@/types/game";
@@ -35,6 +36,12 @@ export function RoundTicker({ map }: { map: ArenaMapInfo }) {
    * matchId.
    */
   const seededFor = useRef<string | null>(null);
+  /**
+   * Benar selagi fakta ronde sudah dikirim ke sesi dan kesimpulannya belum
+   * kembali. Rondenya masih "live" selama itu, jadi tanpa penanda ini frame
+   * berikutnya akan mengirim ronde yang sama sekali lagi.
+   */
+  const closing = useRef(false);
 
   useFrame((_state, rawDelta) => {
     const match = useMatchStore.getState();
@@ -42,6 +49,7 @@ export function RoundTicker({ map }: { map: ArenaMapInfo }) {
     const seedKey = `${match.matchId}:${match.generation}`;
     if (seededFor.current !== seedKey) {
       seededFor.current = seedKey;
+      closing.current = false;
       setRoundClock(match.round.secondsLeft);
       return;
     }
@@ -74,8 +82,30 @@ export function RoundTicker({ map }: { map: ArenaMapInfo }) {
     match.setRoundClock(Math.ceil(remaining));
 
     if (status === "live") {
-      if (match.shouldEndRound()) {
-        match.finishRound();
+      if (closing.current || !match.shouldEndRound()) return;
+      closing.current = true;
+
+      /*
+        Fakta ronde ini — siapa membunuh berapa kali — dikirim ke sesi, dan
+        kesimpulan sesilah yang menutup rondenya: pemenang, roster, dan apakah
+        pertandingan selesai. Arena tidak mengklaim "si anu menang". Bila sesi
+        tidak menjawab, arena menyimpulkan sendiri dengan aturan yang sama
+        supaya pertandingan tidak tersangkut di ujung ronde.
+      */
+      const seed = seedKey;
+      void closeRound({
+        roundNumber: match.round.current,
+        kills: match.fighters.map((fighter) => ({
+          participantName: fighter.name,
+          roundKills: fighter.roundKills,
+        })),
+      }).then((outcome) => {
+        closing.current = false;
+        const now = useMatchStore.getState();
+        // Pertandingan sudah diganti selagi menunggu: kesimpulannya basi.
+        if (`${now.matchId}:${now.generation}` !== seed) return;
+
+        now.finishRound(outcome ?? undefined);
         // finishRound sudah menetapkan panjang jeda; jam disetel ulang ke sana.
         const after = useMatchStore.getState().round;
         setRoundClock(after.secondsLeft);
@@ -85,7 +115,7 @@ export function RoundTicker({ map }: { map: ArenaMapInfo }) {
         if (after.status === "ended" && document.pointerLockElement) {
           document.exitPointerLock();
         }
-      }
+      });
       return;
     }
 
