@@ -108,6 +108,10 @@ export function BotDriver({
         bounds: PLAYER_BOUNDS,
         arena: map.playableBounds,
         delta,
+        // Titik spawn dipakai sebagai titik patroli: semuanya sudah dijamin
+        // terbuka, terjangkau, dan tersebar ke seluruh arena oleh
+        // pemeriksaan geometri peta.
+        waypoints: map.spawnPoints,
       });
 
       state.x = next.position.x;
