@@ -42,6 +42,8 @@ export interface SessionParticipant {
   name: string;
   isBot: boolean;
   color: string;
+  /** Senjata yang dibawanya, supaya daftar pesaing sesi sudah lengkap. */
+  weaponId?: string | null;
 }
 
 /**
@@ -152,6 +154,7 @@ export const stubMatchSessionSource: MatchSessionSource = {
         roundWins: 0,
         isWinner: false,
         color: p.color,
+        weaponId: p.weaponId ?? null,
       })),
     };
     stubSessions.set(session.matchId, { session, roundsPlayed: 0 });

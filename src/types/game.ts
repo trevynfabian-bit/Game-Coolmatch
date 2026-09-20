@@ -252,6 +252,11 @@ export interface MatchScoreLine {
   isWinner: boolean;
   /** Warna penanda, sama dengan yang dipakai petarung ini di arena. */
   color: string;
+  /**
+   * Senjata yang dibawa peserta saat pertandingan dibuka; kosong pada catatan
+   * lama yang ditulis sebelum kolomnya ada.
+   */
+  weaponId?: string | null;
 }
 
 /** Hasil akhir pertandingan dari sudut pandang pemain; sama dengan kolom `result`. */

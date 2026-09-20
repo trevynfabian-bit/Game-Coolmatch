@@ -278,11 +278,25 @@ export const matches = sqliteTable(
 
     startedAt: integer("started_at").notNull().default(now),
     endedAt: integer("ended_at"),
+    /**
+     * Saat terakhir sesi ini menerima kejadian — kill atau penutupan ronde.
+     * Pertandingan yang dibuka lalu ditinggalkan tanpa peluit tidak pernah
+     * menutup dirinya sendiri; kolom inilah yang membedakan sesi yang masih
+     * dimainkan dari sesi yang sudah lama sunyi, tanpa perlu menebak dari
+     * waktu mulainya.
+     *
+     * Bawaannya nol, bukan `now`: SQLite menolak menambah kolom berbawaan
+     * ekspresi ke tabel yang sudah ada, jadi nilainya ditulis eksplisit saat
+     * pertandingan dibuka dan diisi ulang dari `started_at` oleh migrasinya.
+     */
+    lastActivityAt: integer("last_activity_at").notNull().default(0),
   },
   (table) => [
     // Riwayat pertandingan selalu dibaca per pemain dan urut dari yang terbaru.
     index("matches_pemain_waktu_idx").on(table.playerId, table.startedAt),
     index("matches_peta_idx").on(table.mapId),
+    // Sesi yang masih terbuka dicari per pemain: ended_at kosong.
+    index("matches_sesi_terbuka_idx").on(table.playerId, table.endedAt),
 
     /*
       Isi kolom-kolom ini datang dari klien saat pertandingan usai, dan pilihan
@@ -378,6 +392,14 @@ export const matchScores = sqliteTable(
      * tengah daftar.
      */
     color: text("color").notNull().default("#94a3b8"),
+    /**
+     * Senjata yang dibawa peserta saat pertandingan dibuka. Kosong pada
+     * catatan lama yang ditulis sebelum kolom ini ada. Disimpan supaya
+     * daftar pesaing yang disajikan sesi sudah lengkap — arena tidak perlu
+     * menebak senjata bot dari namanya, dan riwayat tahu senjata apa yang
+     * dipakai pemain hari itu.
+     */
+    weaponId: text("weapon_id"),
 
     kills: integer("kills").notNull().default(0),
     deaths: integer("deaths").notNull().default(0),

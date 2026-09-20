@@ -32,6 +32,8 @@ export interface ParticipantInput {
   name: string;
   isBot: boolean;
   color: string;
+  /** Senjata yang dibawanya; boleh kosong bila klien belum menyebutkannya. */
+  weaponId?: string | null;
 }
 
 export interface StartMatchInput {
@@ -152,7 +154,24 @@ export function parseStartMatch(body: unknown): Parsed<StartMatchRequest> {
     if (!nonEmptyString(p.color)) {
       return { ok: false, message: `Peserta "${p.name}" harus punya warna.` };
     }
-    participants.push({ name: p.name, isBot: p.isBot, color: p.color });
+    // Senjata boleh tidak disebutkan, tetapi kalau disebutkan harus berupa
+    // teks berisi: senjata kosong bukan "tanpa senjata", melainkan salah bentuk.
+    if (
+      p.weaponId !== undefined &&
+      p.weaponId !== null &&
+      !nonEmptyString(p.weaponId)
+    ) {
+      return {
+        ok: false,
+        message: `Senjata peserta "${p.name}" harus berupa id yang berisi.`,
+      };
+    }
+    participants.push({
+      name: p.name,
+      isBot: p.isBot,
+      color: p.color,
+      weaponId: nonEmptyString(p.weaponId) ? p.weaponId : null,
+    });
   }
 
   const names = new Set(participants.map((p) => p.name));
@@ -249,6 +268,7 @@ export function startMatch(playerId: number, input: StartMatchInput): number {
         scoreLimit: input.scoreLimit,
         roundSeconds: input.roundSeconds,
         isTrial: input.isTrial ?? false,
+        lastActivityAt: sql`(unixepoch() * 1000)`,
       })
       .returning()
       .all();
@@ -260,6 +280,7 @@ export function startMatch(playerId: number, input: StartMatchInput): number {
           participantName: p.name,
           isBot: p.isBot,
           color: p.color,
+          weaponId: p.weaponId ?? null,
         })),
       )
       .run();
@@ -290,6 +311,21 @@ export type RecordKillResult =
  * tengah jalan. Pertandingan yang selesai dengan wajar ditutup dengan total
  * akhir dari arena, yang menimpa akumulasi di sini.
  */
+/**
+ * Mencatat bahwa sesi ini baru saja menerima kejadian. Dipanggil di dalam
+ * transaksi yang sama dengan kejadiannya, jadi tidak pernah ada kill yang
+ * tercatat tanpa jejak waktunya.
+ */
+function touchMatch(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  matchId: number,
+): void {
+  tx.update(matches)
+    .set({ lastActivityAt: sql`(unixepoch() * 1000)` })
+    .where(eq(matches.id, matchId))
+    .run();
+}
+
 /**
  * Benar bila pemain punya pertandingan yang belum ditutup.
  *
@@ -385,6 +421,8 @@ export function recordKill(
       .returning()
       .all();
 
+    touchMatch(tx, matchId);
+
     const ringkas = (row: typeof killer): ScoreLineSnapshot => ({
       participantName: row.participantName,
       kills: row.kills,
@@ -419,6 +457,8 @@ export interface LiveScoreboard {
   winnerName: string | null;
   startedAt: number;
   endedAt: number | null;
+  /** Saat terakhir sesi menerima kill atau penutupan ronde. */
+  lastActivityAt: number;
   /** Ronde yang sudah selesai; diturunkan dari catatan ronde, bukan disimpan. */
   roundsPlayed: number;
   /** Hasil tiap ronde, urut dari ronde pertama. */
@@ -478,6 +518,7 @@ export function loadLiveScoreboard(matchId: number): LiveScoreboard | null {
         roundWins: line.roundWins,
         isWinner: line.isWinner,
         color: line.color,
+        weaponId: line.weaponId,
       }),
     ),
   );
@@ -499,6 +540,7 @@ export function loadLiveScoreboard(matchId: number): LiveScoreboard | null {
     winnerName: match.winnerName,
     startedAt: match.startedAt,
     endedAt: match.endedAt,
+    lastActivityAt: match.lastActivityAt,
     roundsPlayed: rounds.length,
     rounds: rounds.map((row) => ({
       roundNumber: row.roundNumber,
@@ -694,6 +736,7 @@ export function finishRound(
         playerKills: standings.find((s) => !s.isBot)?.roundKills ?? 0,
       })
       .run();
+    touchMatch(tx, matchId);
 
     if (winner) {
       tx.update(matchScores)

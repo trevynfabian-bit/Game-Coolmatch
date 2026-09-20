@@ -163,6 +163,7 @@ export function buildMatchSnapshot({
 export function buildStartRequest({
   difficulty,
   botCount,
+  weaponId,
   map = DEFAULT_MAP,
   rules,
   playerName = DEFAULT_PLAYER_NAME,
@@ -170,6 +171,7 @@ export function buildStartRequest({
 }: MatchSetup & { isTrial?: boolean }): StartSessionRequest {
   const bots = Math.min(clampBotCount(botCount), maxBotsForMap(map));
   const aturan: MatchRules = { ...DEFAULT_MATCH_RULES, ...rules };
+  const weapon = findWeapon(weaponId ?? LOCAL_FIGHTER.weaponId);
   return {
     mapId: map.id,
     difficulty,
@@ -178,8 +180,16 @@ export function buildStartRequest({
     scoreLimit: aturan.scoreLimit,
     roundSeconds: aturan.roundSeconds,
     participants: [
-      { name: playerName, isBot: false, color: LOCAL_FIGHTER.color },
-      ...botParticipants(bots, map),
+      {
+        name: playerName,
+        isBot: false,
+        color: LOCAL_FIGHTER.color,
+        weaponId: weapon.id,
+      },
+      ...botParticipants(bots, map).map((p) => ({
+        ...p,
+        weaponId: botWeaponFor(p.name),
+      })),
     ],
     isTrial,
   };
@@ -244,9 +254,11 @@ export function snapshotFromSession(
       roundWins: competitor.roundWins,
       isAlive: true,
       respawnInSeconds: null,
+      // Senjata dari sesi bila ada; catatan lama tanpa senjata jatuh ke
+      // pilihan pemain (untuk pemain) atau template (untuk bot).
       weaponId: competitor.isLocal
         ? weapon.id
-        : botWeaponFor(competitor.participantName),
+        : (competitor.weaponId ?? botWeaponFor(competitor.participantName)),
       color: competitor.color,
       position,
       rotationY: competitor.isLocal
