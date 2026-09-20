@@ -1,3 +1,4 @@
+import { botTuning } from "@/lib/game/bot-tuning";
 import type { DifficultyProfile } from "@/lib/game/difficulty";
 import type { Weapon, WeaponType } from "@/types/game";
 
@@ -63,7 +64,7 @@ export function hitChance(
   const span = FALLOFF_END - FALLOFF_START;
   const past = Math.max(0, Math.min(span, distance - FALLOFF_START));
   const falloff = 1 - (1 - FALLOFF_FLOOR) * (past / span);
-  return profile.accuracy * falloff;
+  return botTuning(profile).accuracy * falloff;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { MOVEMENT } from "@/lib/game/controls";
 import { movePlayer } from "@/lib/game/collision";
 import type { Aabb, PlayerBounds, PlayerPosition } from "@/lib/game/collision";
+import { botTuning } from "@/lib/game/bot-tuning";
 import type { DifficultyProfile } from "@/lib/game/difficulty";
 import type { ArenaBounds, Vec3 } from "@/types/game";
 
@@ -15,40 +16,15 @@ import type { ArenaBounds, Vec3 } from "@/types/game";
  * aturan yang sama.
  */
 
-/** Musuh berjalan sedikit lebih lambat dari pemain, jadi pemain bisa kabur. */
-const CHASE_SPEED = MOVEMENT.walkSpeed * 0.78;
-/** Saat menyerbu dari jauh, musuh yang berani boleh berlari. */
-const RUSH_SPEED = MOVEMENT.walkSpeed * 0.95;
-/** Kecepatan saat berkeliling tanpa tahu di mana pemain. */
-const ROAM_SPEED = MOVEMENT.walkSpeed * 0.55;
-
 /**
- * Jarak yang ingin dijaga musuh terhadap pemain, dalam satuan dunia.
+ * Kecepatan, jarak jaga, ingatan, dan laju putar musuh semuanya diturunkan
+ * dari profil kesulitan oleh `botTuning`; otak ini tidak menyimpan tabel per
+ * tingkatnya sendiri.
  *
- * Makin berani, makin dekat ia mau berdiri: Santai berhenti jauh dan menembak
- * dari seberang, Susah menempel. Pita `RANGE_BAND` mencegah musuh maju-mundur
- * gelisah tepat di garis batas — ia baru mendekat lagi setelah pemain menjauh
- * melewati pita itu.
+ * Pita `RANGE_BAND` mencegah musuh maju-mundur gelisah tepat di garis jarak
+ * jaganya — ia baru mendekat lagi setelah pemain menjauh melewati pita itu.
  */
-const FAR_RANGE = 14;
-const NEAR_RANGE = 6;
 const RANGE_BAND = 2.5;
-
-/**
- * Lama musuh tetap memburu pemain setelah kehilangan garis pandang, dalam
- * detik.
- *
- * Tanpa ingatan ini, kesadaran musuh kembali nol setiap kali pemain lewat di
- * balik pilar atau krat — dan di gudang sepadat ini itu terjadi terus-menerus.
- * Akibatnya paling terasa pada Santai, yang butuh 1,1 detik penglihatan
- * beruntun: dalam percobaan satu menit ia tidak pernah sekali pun sempat
- * mengunci sasaran, sehingga arena terasa mati justru di tingkat yang paling
- * sering dipilih pemain baru.
- *
- * Ingatan ini hanya membuat musuh terus MEMBURU. Ia tetap tidak boleh menembak
- * tanpa garis pandang; syarat itu diperiksa terpisah saat menarik pelatuk.
- */
-const MEMORY_SECONDS = 2.5;
 
 /** Lama satu simpangan jelajah dipertahankan sebelum diganti, dalam detik. */
 const ROAM_MIN_SECONDS = 1.4;
@@ -114,20 +90,9 @@ const SEPARATION_WEIGHT = 1.1;
 const STRAFE_MIN_SECONDS = 2.2;
 const STRAFE_MAX_SECONDS = 4.8;
 
-/**
- * Patokan kecepatan bidik, dalam radian per detik dikali detik reaksi.
- *
- * Kecepatan bidik diturunkan dari waktu reaksi profil, bukan ditulis sendiri
- * per tingkat, supaya "kesigapan" hanya punya satu sumber kebenaran: musuh
- * yang lambat menyadari pemain juga lambat mengayunkan moncongnya. Santai
- * berputar sekitar 2,2 radian per detik — hampir satu detik untuk memutar
- * badan setengah lingkaran — sementara Susah mengunci hampir seketika.
- */
-const AIM_SPEED_BASE = 2.4;
-
 /** Kecepatan ayun bidikan musuh, dalam radian per detik. */
 export function aimSpeed(profile: DifficultyProfile): number {
-  return AIM_SPEED_BASE / profile.reactionSeconds;
+  return botTuning(profile).turnSpeed;
 }
 
 /**
@@ -369,7 +334,7 @@ export interface BotStepResult {
 
 /** Jarak yang ingin dijaga musuh, diturunkan dari keberanian profilnya. */
 export function preferredRange(profile: DifficultyProfile): number {
-  return FAR_RANGE - (FAR_RANGE - NEAR_RANGE) * profile.aggression;
+  return botTuning(profile).preferredRange;
 }
 
 /** Simpangan jelajah baru beserta lamanya. */
@@ -473,11 +438,17 @@ export function stepBot(input: BotStepInput): BotStepResult {
     random = Math.random,
   } = input;
 
+  const tuning = botTuning(profile);
+
   // Kesadaran naik selama pemain terlihat dan luruh saat tidak. Batas atasnya
   // menentukan berapa lama ingatan itu bertahan setelah pemain menghilang:
-  // musuh yang sempat menatap penuh masih memburu selama MEMORY_SECONDS, lalu
-  // menyerah dan kembali menjelajah.
-  const awarenessCap = profile.reactionSeconds + MEMORY_SECONDS;
+  // musuh yang sempat menatap penuh masih memburu selama ingatannya — makin
+  // berani makin lama — lalu menyerah dan kembali menjelajah. Tanpa ingatan
+  // ini kesadaran kembali nol tiap kali pemain lewat di balik krat, dan Santai
+  // yang butuh 1,1 detik penglihatan beruntun tidak pernah sempat mengunci
+  // sasaran. Ingatan hanya membuat musuh terus MEMBURU; ia tetap tidak boleh
+  // menembak tanpa garis pandang.
+  const awarenessCap = profile.reactionSeconds + tuning.memorySeconds;
   const seenSeconds = canSeeTarget
     ? Math.min(awarenessCap, input.brain.seenSeconds + delta)
     : Math.max(0, input.brain.seenSeconds - delta);
@@ -512,7 +483,7 @@ export function stepBot(input: BotStepInput): BotStepResult {
   let speed = 0;
 
   if (engaged && distance > 0.001) {
-    const want = preferredRange(profile);
+    const want = tuning.preferredRange;
     const toward = { x: toTargetX / distance, z: toTargetZ / distance };
     // Menyamping selalu tegak lurus garis ke pemain, ke arah orbit musuh ini.
     const sampingX = -toward.z * strafeSign;
@@ -528,24 +499,24 @@ export function stepBot(input: BotStepInput): BotStepResult {
       */
       headingX = sampingX;
       headingZ = sampingZ;
-      speed = CHASE_SPEED * 0.8;
+      speed = tuning.approachSpeed * 0.8;
     } else if (distance > want + RANGE_BAND) {
       // Terlalu jauh: mendekat. Yang berani menyerbu lebih cepat.
       headingX = toward.x;
       headingZ = toward.z;
-      speed = profile.aggression >= 0.6 ? RUSH_SPEED : CHASE_SPEED;
+      speed = tuning.approachSpeed;
     } else if (distance < want - RANGE_BAND) {
       // Terlalu dekat: mundur miring — separuh menjauh, separuh menyamping —
       // sambil tetap menghadap pemain. Mundur lurus berakhir dengan punggung
       // menempel tembok; mundur miring membawanya memutar.
       headingX = -toward.x * 0.7 + sampingX * 0.7;
       headingZ = -toward.z * 0.7 + sampingZ * 0.7;
-      speed = CHASE_SPEED;
+      speed = tuning.approachSpeed;
     } else {
       // Pada jarak yang pas: bergeser menyamping supaya tidak jadi sasaran diam.
       headingX = sampingX;
       headingZ = sampingZ;
-      speed = CHASE_SPEED * 0.6;
+      speed = tuning.strafeSpeed;
     }
   } else if (waypoints.length > 0) {
     /*
@@ -598,7 +569,7 @@ export function stepBot(input: BotStepInput): BotStepResult {
       headingX = lurusX;
       headingZ = lurusZ;
     }
-    speed = ROAM_SPEED;
+    speed = tuning.roamSpeed;
   } else {
     // Cadangan bila peta tidak punya waypoint: mendekat lewat jalan berbelok.
     // Simpangannya diganti tiap kali waktunya habis, jadi musuh datang dari
@@ -613,7 +584,7 @@ export function stepBot(input: BotStepInput): BotStepResult {
     const heading = towardTarget + roamOffset;
     headingX = Math.sin(heading);
     headingZ = Math.cos(heading);
-    speed = ROAM_SPEED;
+    speed = tuning.roamSpeed;
   }
 
   // Menjauhi musuh lain yang terlalu dekat. Hanya arahnya yang dibelokkan;

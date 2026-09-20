@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
+import { describeTuning } from "@/lib/game/bot-tuning";
 import {
   DIFFICULTY_ORDER,
   DIFFICULTY_PROFILES,
@@ -169,6 +170,9 @@ export function OpponentSetup() {
                       </span>
                     </span>
                   ))}
+                </span>
+                <span className="mt-2.5 block text-[10px] leading-relaxed text-slate-500">
+                  {describeTuning(item).join(" · ")}
                 </span>
               </button>
             );
