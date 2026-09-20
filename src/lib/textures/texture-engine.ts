@@ -64,15 +64,32 @@ const WORLD_UNITS_PER_TILE: Record<SurfaceKind, number> = {
   wall: 4,
   floor: 4,
   crate: 1.2,
+  crateTop: 1.2,
   pillar: 3,
   metal: 2.5,
 };
+
+/**
+ * Jenis yang satu teksturnya mewakili SATU BENDA UTUH, bukan bahan yang
+ * dipotong sepanjang berapa pun.
+ *
+ * Beton adalah bahan: dua puluh satuan tembok berarti lima petak beton, dan
+ * itu benar. Peti bukan — gambarnya sudah memuat sabuk atas dan sabuk bawah
+ * sebuah peti, jadi mengulangnya tiga kali pada peti setinggi tiga satuan
+ * menghasilkan tiga peti kecil bertumpuk di dalam satu peti besar. Berapa pun
+ * ukurannya, satu peti tetap satu peti.
+ */
+const SATU_BENDA: ReadonlySet<SurfaceKind> = new Set<SurfaceKind>([
+  "crate",
+  "crateTop",
+]);
 
 /** Benih tiap jenis, supaya beton dan kayu tidak berbagi pola yang sama persis. */
 const SEED: Record<SurfaceKind, number> = {
   wall: 0x5ea11,
   floor: 0x10074,
   crate: 0xc4a7e,
+  crateTop: 0x707c4a,
   pillar: 0x9111a,
   metal: 0x37a11,
 };
@@ -189,6 +206,7 @@ export function tileRepeat(
   lebar: number,
   tinggi: number,
 ): [number, number] {
+  if (SATU_BENDA.has(kind)) return [1, 1];
   const petak = WORLD_UNITS_PER_TILE[kind];
   return [
     Math.max(1, Math.round(Math.abs(lebar) / petak)),

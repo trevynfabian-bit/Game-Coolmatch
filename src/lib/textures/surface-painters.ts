@@ -15,7 +15,13 @@ import { fractalNoise } from "@/lib/textures/noise";
  * yang toh hilang begitu dinding dilihat dari seberang arena.
  */
 
-export type SurfaceKind = "wall" | "floor" | "crate" | "pillar" | "metal";
+export type SurfaceKind =
+  | "wall"
+  | "floor"
+  | "crate"
+  | "crateTop"
+  | "pillar"
+  | "metal";
 
 export interface PaintContext {
   ctx: CanvasRenderingContext2D;
@@ -134,8 +140,8 @@ function paintFloor(p: PaintContext): void {
   isiDerau(p, { dasar: 138, kontras: 40, grid: 5, lapis: 4 });
 
   // Dua kali dua lempeng. Garisnya jatuh tepat di 0, setengah, dan penuh,
-  // jadi petak yang bersebelahan menyambungkan natnya sendiri tanpa
-  // perhitungan tambahan.
+  // jadi petak yang bersebelahan menyambungkan natnya sendiri.
+  //
   // Tiap garis digambar SEKALI. Nat di tepi 0 dan tepi `size` adalah dua
   // separuh dari satu garis yang sama: separuh bawahnya jatuh di petak ini,
   // separuh atasnya di petak sebelahnya. Menggambar salah satunya dua kali —
@@ -263,6 +269,80 @@ function paintCrate(p: PaintContext): void {
   noda(p, 5, 0.14);
 }
 
+/**
+ * Tutup peti: bilah melintang, bingkai keliling, dan siku di keempat sudut.
+ *
+ * Bukan tekstur sisi yang diputar. Sisi sebuah peti diikat dua sabuk mendatar
+ * di tepi atas dan bawahnya; kalau gambar itu ikut dipasang di tutupnya, sabuk
+ * yang semestinya melingkari peti malah tergeletak membelah tutup, dan peti
+ * terbaca seperti tiga kotak yang ditumpuk.
+ *
+ * Bilahnya juga sengaja melintang terhadap bilah sisi. Peti sungguhan memang
+ * dipaku begitu — papan tutup menyilang papan dinding supaya kotaknya kaku —
+ * dan perbedaan arah itu yang membuat tepi atas peti terbaca sebagai sudut,
+ * bukan sebagai lipatan.
+ */
+function paintCrateTop(p: PaintContext): void {
+  const { ctx, size } = p;
+  isiDerau(p, { dasar: 144, kontras: 30, grid: 3, lapis: 3 });
+
+  // Bilah melintang.
+  const bilah = 4;
+  const tinggi = size / bilah;
+  for (let i = 0; i < bilah; i += 1) {
+    const y = i * tinggi;
+
+    const beda = (p.rand() - 0.5) * 0.12;
+    ctx.fillStyle =
+      beda >= 0
+        ? `rgba(255,255,255,${beda.toFixed(3)})`
+        : `rgba(0,0,0,${(-beda).toFixed(3)})`;
+    ctx.fillRect(0, y, size, tinggi);
+
+    ctx.fillStyle = "rgba(0,0,0,0.36)";
+    ctx.fillRect(0, y, size, Math.max(1, size * 0.01));
+    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    ctx.fillRect(0, y + Math.max(1, size * 0.01), size, Math.max(1, size * 0.006));
+
+    const serat = 5 + Math.floor(p.rand() * 5);
+    for (let s = 0; s < serat; s += 1) {
+      const sy = y + tinggi * (0.15 + p.rand() * 0.7);
+      ctx.fillStyle = `rgba(0,0,0,${(0.05 + p.rand() * 0.1).toFixed(3)})`;
+      ctx.fillRect(0, sy, size, Math.max(1, size * 0.004));
+    }
+  }
+
+  // Bingkai keliling: papan tepi yang menutup ujung bilah.
+  const bingkai = size * 0.09;
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.fillRect(0, 0, size, bingkai);
+  ctx.fillRect(0, size - bingkai, size, bingkai);
+  ctx.fillRect(0, 0, bingkai, size);
+  ctx.fillRect(size - bingkai, 0, bingkai, size);
+  ctx.strokeStyle = "rgba(0,0,0,0.30)";
+  ctx.lineWidth = Math.max(1, size * 0.01);
+  ctx.strokeRect(bingkai, bingkai, size - bingkai * 2, size - bingkai * 2);
+
+  // Siku logam di keempat sudut.
+  const siku = size * 0.16;
+  const tebal = size * 0.05;
+  for (const [sx, sy] of [
+    [0, 0],
+    [size - siku, 0],
+    [0, size - siku],
+    [size - siku, size - siku],
+  ]) {
+    ctx.fillStyle = "rgba(255,255,255,0.14)";
+    ctx.fillRect(sx, sy, siku, tebal);
+    ctx.fillRect(sx, sy, tebal, siku);
+    ctx.fillStyle = "rgba(0,0,0,0.22)";
+    ctx.fillRect(sx, sy + tebal - Math.max(1, size * 0.008), siku, Math.max(1, size * 0.008));
+    ctx.fillRect(sx + tebal - Math.max(1, size * 0.008), sy, Math.max(1, size * 0.008), siku);
+  }
+
+  noda(p, 5, 0.14);
+}
+
 /** Pilar beton: guratan tegak dan kaki yang lebih kotor. */
 function paintPillar(p: PaintContext): void {
   const { ctx, size } = p;
@@ -358,6 +438,7 @@ const PELUKIS: Record<SurfaceKind, (p: PaintContext) => void> = {
   wall: paintWall,
   floor: paintFloor,
   crate: paintCrate,
+  crateTop: paintCrateTop,
   pillar: paintPillar,
   metal: paintMetal,
 };
@@ -382,6 +463,7 @@ export const ROUGHNESS_PROFILE: Record<
   wall: { min: 0.78, max: 0.98, terbalik: true },
   floor: { min: 0.74, max: 0.96, terbalik: true },
   crate: { min: 0.68, max: 0.92, terbalik: true },
+  crateTop: { min: 0.68, max: 0.92, terbalik: true },
   pillar: { min: 0.76, max: 0.97, terbalik: true },
   metal: { min: 0.32, max: 0.72, terbalik: false },
 };

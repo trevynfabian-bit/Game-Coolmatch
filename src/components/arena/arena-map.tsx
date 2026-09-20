@@ -30,6 +30,21 @@ const BAHAN: Record<MapBlock["kind"], SurfaceKind> = {
 };
 
 /**
+ * Bahan keenam sisi sebuah balok, urut seperti yang diminta BoxGeometry:
+ * +X, -X, +Y, -Y, +Z, -Z.
+ *
+ * Hampir semua balok memakai satu bahan untuk semua sisinya. Peti tidak: sisi
+ * atas dan bawahnya adalah TUTUP, dan tutup peti dipaku melintang terhadap
+ * dinding petinya. Memakai gambar sisi untuk tutup menaruh sabuk yang
+ * semestinya melingkari peti jadi tergeletak membelah tutupnya.
+ */
+function bahanSisi(kind: MapBlock["kind"]): SurfaceKind[] {
+  const dasar = BAHAN[kind];
+  if (kind !== "crate") return [dasar, dasar, dasar, dasar, dasar, dasar];
+  return ["crate", "crate", "crateTop", "crateTop", "crate", "crate"];
+}
+
+/**
  * Satu balok penghalang, bertekstur per sisi.
  *
  * Enam material, bukan satu, karena satu balok punya enam sisi yang ukurannya
@@ -44,15 +59,12 @@ const BAHAN: Record<MapBlock["kind"], SurfaceKind> = {
  * masih yang menentukan rasa arenanya.
  */
 function Block({ block }: { block: MapBlock }) {
-  const bahan = BAHAN[block.kind];
-
-  const sisi = useMemo(
-    () =>
-      boxFaceSizes(block.size).map(([lebar, tinggi]) =>
-        tiledTextures(bahan, lebar, tinggi),
-      ),
-    [bahan, block.size],
-  );
+  const sisi = useMemo(() => {
+    const bahan = bahanSisi(block.kind);
+    return boxFaceSizes(block.size).map(([lebar, tinggi], i) =>
+      tiledTextures(bahan[i], lebar, tinggi),
+    );
+  }, [block.kind, block.size]);
 
   return (
     <mesh
