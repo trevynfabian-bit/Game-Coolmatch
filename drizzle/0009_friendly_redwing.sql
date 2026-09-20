@@ -1,0 +1,1 @@
+ALTER TABLE `matches` ADD `is_trial` integer DEFAULT false NOT NULL;

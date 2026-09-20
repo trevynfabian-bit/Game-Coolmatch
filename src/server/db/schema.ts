@@ -256,6 +256,22 @@ export const matches = sqliteTable(
     scoreLimit: integer("score_limit").notNull(),
     roundSeconds: integer("round_seconds").notNull(),
 
+    /**
+     * Benar bila pertandingan ini uji coba senjata, bukan pertandingan yang
+     * dihitung.
+     *
+     * Uji coba tetap DICATAT — riwayat yang melompati sebagian pertandingan
+     * bukan riwayat — tetapi tidak pernah menambah kemajuan pemain maupun
+     * membuka senjata. Tanpa kolom ini, mencoba sebuah senjata jadi cara
+     * memanen kill: aturannya pendek, lawannya sedikit, dan kemenangannya
+     * murah.
+     *
+     * Boleh kosong menurut SQLite sebab ditambahkan ke tabel yang mungkin
+     * sudah berisi, tetapi nilai bawaannya tetap: pertandingan lama yang
+     * ditulis sebelum kolom ini ada memang bukan uji coba.
+     */
+    isTrial: integer("is_trial", { mode: "boolean" }).notNull().default(false),
+
     /** Kosong selama pertandingan masih berjalan. */
     result: text("result", { enum: MATCH_RESULTS }),
     winnerName: text("winner_name"),

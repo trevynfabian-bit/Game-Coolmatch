@@ -64,6 +64,13 @@
       "when": 1789896777070,
       "tag": "0008_omniscient_luminals",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1789897288917,
+      "tag": "0009_friendly_redwing",
+      "breakpoints": true
     }
   ]
 }

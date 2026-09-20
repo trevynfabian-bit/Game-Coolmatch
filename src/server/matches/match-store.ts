@@ -19,9 +19,13 @@ import { matchRounds, matchScores, matches } from "@/server/db/schema";
 import { ensureMapCatalogue, findMapName } from "@/server/maps/map-store";
 import {
   addMatchToProgress,
+  loadPlayerProgress,
   loadTotalDeaths,
 } from "@/server/players/stats-store";
-import { evaluateWeaponUnlocks } from "@/server/weapons/unlock-store";
+import {
+  evaluateWeaponUnlocks,
+  readUnlockedWeaponIds,
+} from "@/server/weapons/unlock-store";
 
 /** Satu peserta pertandingan saat pertandingan dimulai. */
 export interface ParticipantInput {
@@ -42,6 +46,8 @@ export interface StartMatchInput {
   scoreLimit: number;
   roundSeconds: number;
   participants: ParticipantInput[];
+  /** Benar untuk pertandingan uji coba senjata; bawaannya tidak. */
+  isTrial?: boolean;
 }
 
 export interface KillInput {
@@ -242,6 +248,7 @@ export function startMatch(playerId: number, input: StartMatchInput): number {
         totalRounds: input.totalRounds,
         scoreLimit: input.scoreLimit,
         roundSeconds: input.roundSeconds,
+        isTrial: input.isTrial ?? false,
       })
       .returning()
       .all();
@@ -881,7 +888,7 @@ export type FinishMatchResult =
  */
 /** Hasil bagian yang berjalan di dalam transaksi penutupan. */
 type ClosedMatch =
-  | { ok: true; summary: LiveScoreboard; playerId: number }
+  | { ok: true; summary: LiveScoreboard; playerId: number; isTrial: boolean }
   | { ok: false; status: 404 | 409; message: string };
 
 function closeMatch(matchId: number, input: FinishMatchInput): ClosedMatch {
@@ -1013,7 +1020,17 @@ function closeMatch(matchId: number, input: FinishMatchInput): ClosedMatch {
       pertandingan yang sedang kalah jadi cara gratis menjaga tingkat
       kemenangan tetap tinggi.
     */
-    if (local) {
+    /*
+      Pertandingan UJI COBA tidak pernah menambah kemajuan. Aturannya sengaja
+      pendek dan lawannya sedikit; menghitungnya sama saja menjadikan "coba
+      senjata" cara termurah memanen kill dan kemenangan, dan seluruh syarat
+      buka senjata kehilangan artinya dalam semalam.
+
+      Yang dilewati hanya penghitungannya. Pertandingannya sendiri tetap
+      tercatat lengkap dengan ronde dan klasemennya — riwayat yang melompati
+      sebagian pertandingan bukan riwayat.
+    */
+    if (local && !match.isTrial) {
       addMatchToProgress(
         match.playerId,
         { kills: local.kills, deaths: local.deaths, won: result === "menang" },
@@ -1025,6 +1042,7 @@ function closeMatch(matchId: number, input: FinishMatchInput): ClosedMatch {
       ok: true,
       summary: loadLiveScoreboard(matchId)!,
       playerId: match.playerId,
+      isTrial: match.isTrial,
     };
   });
 }
@@ -1048,7 +1066,19 @@ export function finishMatch(
   const closed = closeMatch(matchId, input);
   if (!closed.ok) return closed;
 
-  const evaluation = evaluateWeaponUnlocks(closed.playerId);
+  /*
+    Uji coba juga tidak dinilai syarat bukanya. Kemajuannya memang tidak
+    bertambah, jadi penilaian tidak akan menemukan apa pun yang baru — tetapi
+    melewatinya membuat maksudnya terbaca di kode, bukan hanya kebetulan
+    benar karena angka yang tidak berubah.
+  */
+  const evaluation = closed.isTrial
+    ? {
+        progress: loadPlayerProgress(closed.playerId),
+        unlocked: readUnlockedWeaponIds(closed.playerId),
+        newlyUnlocked: [] as string[],
+      }
+    : evaluateWeaponUnlocks(closed.playerId);
 
   return {
     ok: true,

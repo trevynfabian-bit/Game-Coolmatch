@@ -1,25 +1,16 @@
 import { create } from "zustand";
-import { DEFAULT_MATCH_RULES, type MatchRules } from "@/lib/mock/match";
-import type { Difficulty } from "@/types/game";
 
-/**
- * Aturan pertandingan uji coba.
- *
- * Jauh lebih singkat daripada pertandingan biasa: satu ronde, batas kill
- * rendah, dan waktu yang cukup untuk merasakan senjata tanpa mengikat pemain
- * selama belasan menit. Mencoba rasa sebuah senjata memang tidak butuh lima
- * ronde penuh.
- */
-export const TRIAL_RULES: MatchRules = {
-  ...DEFAULT_MATCH_RULES,
-  totalRounds: 1,
-  scoreLimit: 7,
-  roundSeconds: 120,
-};
-
-/** Lawan pada pertandingan uji: cukup untuk ada yang ditembak, tidak menyesakkan. */
-export const TRIAL_BOT_COUNT = 3;
-export const TRIAL_DIFFICULTY: Difficulty = "normal";
+/*
+  Aturan uji coba TIDAK lagi ditulis di sini. Ia sudah diangkat ke
+  `lib/game/trial-rules` karena server ikut menyusun pertandingan uji, dan dua
+  salinan aturan yang sama adalah dua angka yang bisa berselisih. Store ini
+  kembali mengurus satu hal saja: niat pemain untuk mencoba sebuah senjata.
+*/
+export {
+  TRIAL_BOT_COUNT,
+  TRIAL_DIFFICULTY,
+  TRIAL_RULES,
+} from "@/lib/game/trial-rules";
 
 export interface TrialMatch {
   weaponId: string;
