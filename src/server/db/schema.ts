@@ -541,6 +541,23 @@ export const playerWeapons = sqliteTable(
       .default(false),
     /** Kosong selama senjatanya belum terbuka. */
     unlockedAt: integer("unlocked_at"),
+
+    /**
+     * Kapan terbukanya senjata ini sudah DIBERITAHUKAN kepada pemain.
+     *
+     * Kosong berarti pemain belum pernah melihat kabarnya. Tanpa kolom ini,
+     * satu-satunya kesempatan memberitahu adalah jawaban permintaan yang
+     * membukanya — dan jawaban itu bisa hilang: jaringan putus, tab ditutup
+     * tepat saat peluit berbunyi, atau layar ringkasannya gagal dirender.
+     * Sesudah itu senjatanya memang sudah jadi milik pemain, tetapi tidak
+     * akan pernah ada yang mengabarkan bahwa ia terbuka. Dengan penanda ini,
+     * kabar yang belum tersampaikan tetap menunggu.
+     *
+     * Boleh kosong dan dibiarkan tanpa CHECK: ia ditambahkan ke tabel yang
+     * mungkin sudah berisi, dan SQLite menolak menambahkan batasan tanpa
+     * menyalin ulang tabelnya.
+     */
+    announcedAt: integer("announced_at"),
   },
   (table) => [
     // Satu baris per pasangan pemain-senjata. Tanpa ini, penyimpanan yang

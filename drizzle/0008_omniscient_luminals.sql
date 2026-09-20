@@ -1,0 +1,1 @@
+ALTER TABLE `player_weapons` ADD `announced_at` integer;

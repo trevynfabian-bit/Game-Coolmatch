@@ -57,6 +57,13 @@
       "when": 1789894988716,
       "tag": "0007_tough_captain_flint",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789896777070,
+      "tag": "0008_omniscient_luminals",
+      "breakpoints": true
     }
   ]
 }

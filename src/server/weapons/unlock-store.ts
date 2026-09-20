@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { PlayerProgress } from "@/lib/game/collection";
 import type { UnlockKind } from "@/lib/game/unlock";
 import { progressValue } from "@/lib/game/unlock-event";
@@ -120,8 +120,22 @@ export function evaluateWeaponUnlocks(playerId: number): UnlockEvaluation {
         belum diberikan. Dengan upsert, yang datang belakangan cukup menimpa
         alih-alih gagal karena indeks unik.
       */
+      /*
+        Senjata awal langsung ditandai sudah dikabarkan. Pemain baru tidak
+        perlu disambut tiga layar "senjata baru terbuka!" untuk perlengkapan
+        yang memang sudah jadi miliknya sejak menit pertama; yang layak
+        dirayakan hanyalah yang benar-benar ia peroleh.
+      */
+      const announcedAt = unlockRuleFor(weaponId).requirement ? null : now;
+
       tx.insert(playerWeapons)
-        .values({ playerId, weaponId, isUnlocked: true, unlockedAt: now })
+        .values({
+          playerId,
+          weaponId,
+          isUnlocked: true,
+          unlockedAt: now,
+          announcedAt,
+        })
         .onConflictDoUpdate({
           target: [playerWeapons.playerId, playerWeapons.weaponId],
           // `unlocked_at` hanya diisi bila masih kosong: senjata yang sudah
@@ -245,4 +259,103 @@ export function listWeaponCollection(playerId: number): CollectionPayload {
       };
     }),
   };
+}
+
+/** Satu kabar senjata terbuka yang belum pernah dilihat pemain. */
+export interface WeaponAnnouncement {
+  id: string;
+  name: string;
+  type: string;
+  damage: number;
+  fireRate: number;
+  magazineSize: number;
+  imageUrl: string | null;
+  unlockedAt: number | null;
+  /** Syarat yang barusan terpenuhi; itulah yang membuat kabarnya berarti. */
+  requirement: { kind: UnlockKind; target: number } | null;
+}
+
+/**
+ * Senjata yang sudah terbuka tetapi kabarnya belum pernah sampai ke pemain.
+ *
+ * Senjata TANPA syarat tidak pernah masuk daftar ini, apa pun isi penanda
+ * kabarnya. Aturan itu yang menanggung baris-baris yang ditulis sebelum kolom
+ * penandanya ada — semuanya berpenanda kosong — sehingga pemain lama tidak
+ * tiba-tiba disambut perayaan atas pistol yang sudah dipegangnya sejak awal.
+ */
+export function listPendingAnnouncements(
+  playerId: number,
+): WeaponAnnouncement[] {
+  ensureWeaponCatalogue();
+
+  const rows = db
+    .select({
+      weaponId: playerWeapons.weaponId,
+      unlockedAt: playerWeapons.unlockedAt,
+      name: weapons.name,
+      type: weapons.type,
+      damage: weapons.damage,
+      fireRate: weapons.fireRate,
+      magazineSize: weapons.magazineSize,
+      imageUrl: weapons.imageUrl,
+    })
+    .from(playerWeapons)
+    .innerJoin(weapons, eq(weapons.id, playerWeapons.weaponId))
+    .where(
+      and(
+        eq(playerWeapons.playerId, playerId),
+        eq(playerWeapons.isUnlocked, true),
+        isNull(playerWeapons.announcedAt),
+      ),
+    )
+    .orderBy(asc(playerWeapons.unlockedAt), asc(weapons.sortOrder))
+    .all();
+
+  return rows
+    .map((row) => ({ row, rule: unlockRuleFor(row.weaponId) }))
+    .filter(({ rule }) => rule.requirement !== null)
+    .map(({ row, rule }) => ({
+      id: row.weaponId,
+      name: row.name,
+      type: row.type,
+      damage: row.damage,
+      fireRate: row.fireRate,
+      magazineSize: row.magazineSize,
+      imageUrl: row.imageUrl,
+      unlockedAt: row.unlockedAt,
+      requirement: rule.requirement,
+    }));
+}
+
+/**
+ * Menandai kabar senjata sudah tersampaikan.
+ *
+ * Dipanggil klien SESUDAH pemain benar-benar melihatnya, bukan saat kabarnya
+ * dikirim. Itulah inti rancangan ini: kabar yang dikirim tetapi tidak sempat
+ * terlihat — jaringan putus, tab ditutup tepat saat peluit berbunyi, layar
+ * ringkasannya gagal dirender — tetap menunggu di permintaan berikutnya alih-
+ * alih hilang selamanya.
+ *
+ * Mengembalikan berapa baris yang benar-benar berubah, sehingga pemanggil
+ * bisa membedakan "sudah ditandai sejak tadi" dari "id yang tidak dikenal".
+ */
+export function markAnnounced(
+  playerId: number,
+  weaponIds: readonly string[],
+): number {
+  if (weaponIds.length === 0) return 0;
+
+  const hasil = db
+    .update(playerWeapons)
+    .set({ announcedAt: Date.now() })
+    .where(
+      and(
+        eq(playerWeapons.playerId, playerId),
+        inArray(playerWeapons.weaponId, [...weaponIds]),
+        isNull(playerWeapons.announcedAt),
+      ),
+    )
+    .run();
+
+  return hasil.changes;
 }
