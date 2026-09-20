@@ -6,8 +6,12 @@ import { finishMatch, parseFinishMatch } from "@/server/matches/match-store";
  * benar-benar selesai maupun karena ditinggal pemain di tengah jalan.
  *
  * Jawabannya adalah ringkasan akhir lengkap — aturan pertandingan, hasil tiap
- * ronde, dan klasemen akhir yang sudah terurut — sehingga layar ringkasan
- * tidak perlu memanggil apa pun lagi sesudah ini.
+ * ronde, dan klasemen akhir yang sudah terurut — DITAMBAH kemajuan pemain
+ * sesudah pertandingan ini beserta senjata yang terbuka karenanya. Ketiganya
+ * dikirim sekaligus supaya layar ringkasan tidak perlu memanggil apa pun lagi:
+ * ia sudah ingin merayakan senjata baru tepat saat peluit berbunyi, dan
+ * permintaan kedua di saat itu berarti perayaan yang datang terlambat — atau
+ * tidak datang sama sekali kalau permintaannya gagal.
  */
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -41,5 +45,8 @@ export async function POST(
     return jsonError(hasil.status, hasil.message);
   }
 
-  return jsonOk(hasil.summary, { headers: { "Cache-Control": "no-store" } });
+  return jsonOk(
+    { ...hasil.summary, progress: hasil.progress },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }

@@ -17,6 +17,11 @@ import type {
 import { db } from "@/server/db/client";
 import { matchRounds, matchScores, matches } from "@/server/db/schema";
 import { ensureMapCatalogue, findMapName } from "@/server/maps/map-store";
+import {
+  addMatchToProgress,
+  loadTotalDeaths,
+} from "@/server/players/stats-store";
+import { evaluateWeaponUnlocks } from "@/server/weapons/unlock-store";
 
 /** Satu peserta pertandingan saat pertandingan dimulai. */
 export interface ParticipantInput {
@@ -830,8 +835,29 @@ export function parseFinishMatch(body: unknown): Parsed<FinishMatchInput> {
   return { ok: true, value: { reason: b.reason, scores } };
 }
 
+/**
+ * Kemajuan pemain sesudah pertandingan ini, beserta senjata yang terbuka
+ * karenanya.
+ *
+ * Ikut pada jawaban penutupan pertandingan, bukan dibiarkan dijemput
+ * permintaan terpisah: layar ringkasan akhir sudah ingin merayakan senjata
+ * baru tepat saat peluit berbunyi, dan permintaan kedua di saat itu berarti
+ * perayaan yang datang terlambat — atau tidak datang sama sekali kalau
+ * permintaannya gagal.
+ */
+export interface MatchProgress {
+  matchesPlayed: number;
+  wins: number;
+  totalKills: number;
+  totalDeaths: number;
+  /** Seluruh senjata yang dimiliki pemain sesudah pertandingan ini. */
+  unlockedWeaponIds: string[];
+  /** Yang baru terbuka karena pertandingan ini; kosong bila tidak ada. */
+  newlyUnlockedWeaponIds: string[];
+}
+
 export type FinishMatchResult =
-  | { ok: true; summary: LiveScoreboard }
+  | { ok: true; summary: LiveScoreboard; progress: MatchProgress }
   | { ok: false; status: 404 | 409; message: string };
 
 /**
@@ -853,10 +879,12 @@ export type FinishMatchResult =
  * Juara dihitung `findMatchWinner`, aturan yang sama dengan arena. Server tidak
  * menerima klaim juara dari klien — hanya angkanya.
  */
-export function finishMatch(
-  matchId: number,
-  input: FinishMatchInput,
-): FinishMatchResult {
+/** Hasil bagian yang berjalan di dalam transaksi penutupan. */
+type ClosedMatch =
+  | { ok: true; summary: LiveScoreboard; playerId: number }
+  | { ok: false; status: 404 | 409; message: string };
+
+function closeMatch(matchId: number, input: FinishMatchInput): ClosedMatch {
   return db.transaction((tx) => {
     const [match] = tx
       .select()
@@ -972,6 +1000,66 @@ export function finishMatch(
         .run();
     }
 
-    return { ok: true, summary: loadLiveScoreboard(matchId)! };
+    /*
+      Kemajuan pemain ditambahkan DI DALAM transaksi yang sama dengan
+      penutupan pertandingannya. Pertandingan yang tercatat selesai tetapi
+      tidak menambah kemajuan adalah riwayat yang membantah statistiknya
+      sendiri, dan pemain yang menghitung ulang akan selalu menemukan selisih
+      yang tidak bisa dijelaskan.
+
+      Pertandingan yang DITINGGAL tetap dihitung sebagai pertandingan yang
+      dimainkan — pemain memang memainkannya — tetapi tidak pernah menambah
+      kemenangan. Kalau ditinggal tidak dihitung sama sekali, keluar dari
+      pertandingan yang sedang kalah jadi cara gratis menjaga tingkat
+      kemenangan tetap tinggi.
+    */
+    if (local) {
+      addMatchToProgress(
+        match.playerId,
+        { kills: local.kills, deaths: local.deaths, won: result === "menang" },
+        tx,
+      );
+    }
+
+    return {
+      ok: true,
+      summary: loadLiveScoreboard(matchId)!,
+      playerId: match.playerId,
+    };
   });
+}
+
+/**
+ * Menutup pertandingan, menambah kemajuan pemain, lalu menilai senjata yang
+ * terbuka karenanya.
+ *
+ * Penilaian senjata berjalan SESUDAH transaksi penutupan selesai, bukan di
+ * dalamnya. Dua alasan: transaksi bersarang tidak dibutuhkan untuk sesuatu
+ * yang bisa diulang, dan penilaian senjata memang dirancang tahan diulang —
+ * ia membandingkan catatan kepemilikan dengan syarat, bukan kemajuan sebelum
+ * dan sesudah. Kalau proses mati tepat di antara keduanya, pertandingan tetap
+ * tercatat selesai dan kemajuannya tetap bertambah; senjata yang belum sempat
+ * diberikan akan menyusul pada penilaian berikutnya, bukan hilang.
+ */
+export function finishMatch(
+  matchId: number,
+  input: FinishMatchInput,
+): FinishMatchResult {
+  const closed = closeMatch(matchId, input);
+  if (!closed.ok) return closed;
+
+  const evaluation = evaluateWeaponUnlocks(closed.playerId);
+
+  return {
+    ok: true,
+    summary: closed.summary,
+    progress: {
+      matchesPlayed: evaluation.progress.matchesPlayed,
+      wins: evaluation.progress.wins,
+      totalKills: evaluation.progress.totalKills,
+      totalDeaths: loadTotalDeaths(closed.playerId),
+      unlockedWeaponIds: evaluation.unlocked,
+      newlyUnlockedWeaponIds: evaluation.newlyUnlocked,
+    },
+  };
 }
