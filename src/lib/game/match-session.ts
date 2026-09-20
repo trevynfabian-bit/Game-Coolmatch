@@ -188,6 +188,10 @@ export const stubMatchSessionSource: MatchSessionSource = {
         "Pertandingan sudah ditutup, ronde baru tidak bisa dicatat.",
       );
     }
+    // Seperti server: fakta ronde harus menyebut kill tiap peserta.
+    if (request.kills.length === 0) {
+      throw new Error("Kill tiap peserta pada ronde ini harus disertakan.");
+    }
     const berikutnya = state.roundsPlayed + 1;
     if (request.roundNumber !== berikutnya) {
       throw new Error(

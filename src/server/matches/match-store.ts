@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import { killScore } from "@/lib/game/damage";
 import {
   findMatchWinner,
@@ -312,6 +312,29 @@ export type RecordKillResult =
  * akhir dari arena, yang menimpa akumulasi di sini.
  */
 /**
+ * Sesi pertandingan seorang pemain yang masih BERJALAN, beserta daftar
+ * pesertanya; null bila tidak ada.
+ *
+ * Yang dikembalikan adalah sesi terbuka yang paling akhir menerima kejadian.
+ * Sesi terbuka bisa lebih dari satu — pertandingan yang ditinggalkan tanpa
+ * peluit tidak menutup dirinya sendiri — dan di antara semuanya, yang paling
+ * baru berdetaklah yang sedang dimainkan. Arena yang dibuka kembali memakai
+ * ini untuk melanjutkan sesi yang sama alih-alih membuka sesi baru di
+ * sebelah sesi yang masih hidup.
+ */
+export function loadOpenSession(playerId: number): LiveScoreboard | null {
+  const [row] = db
+    .select({ id: matches.id })
+    .from(matches)
+    .where(and(eq(matches.playerId, playerId), isNull(matches.endedAt)))
+    .orderBy(desc(matches.lastActivityAt), desc(matches.id))
+    .limit(1)
+    .all();
+  if (!row) return null;
+  return loadLiveScoreboard(row.id);
+}
+
+/**
  * Mencatat bahwa sesi ini baru saja menerima kejadian. Dipanggil di dalam
  * transaksi yang sama dengan kejadiannya, jadi tidak pernah ada kill yang
  * tercatat tanpa jejak waktunya.
@@ -453,6 +476,8 @@ export interface LiveScoreboard {
   roundSeconds: number;
   /** "berjalan" selama `endedAt` masih kosong. */
   status: "berjalan" | "selesai";
+  /** Benar untuk pertandingan uji coba senjata. */
+  isTrial: boolean;
   result: string | null;
   winnerName: string | null;
   startedAt: number;
@@ -536,6 +561,7 @@ export function loadLiveScoreboard(matchId: number): LiveScoreboard | null {
     scoreLimit: match.scoreLimit,
     roundSeconds: match.roundSeconds,
     status: match.endedAt === null ? "berjalan" : "selesai",
+    isTrial: match.isTrial,
     result: match.result,
     winnerName: match.winnerName,
     startedAt: match.startedAt,
