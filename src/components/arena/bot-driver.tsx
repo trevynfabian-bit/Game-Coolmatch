@@ -7,8 +7,10 @@ import { BOT_EYE_HEIGHT, PLAYER_CHEST_HEIGHT, stepBot } from "@/lib/game/bot-ai"
 import {
   HEADSHOT_SHARE,
   aimFactor,
+  freshFireState,
   hitChance,
-  nextFireDelay,
+  inFiringRange,
+  stepFire,
 } from "@/lib/game/bot-combat";
 import { getBot, liveColliders, livePosition, syncBots } from "@/lib/game/bot-runtime";
 import { buildColliders } from "@/lib/game/collision";
@@ -130,23 +132,26 @@ export function BotDriver({
 
       // Membidik dan menembak. Memburu saja tidak cukup: garis pandang harus
       // terbuka SAAT INI JUGA, jadi berlindung tetap memutus tembakan
-      // sepenuhnya walau musuh masih ingat di mana pemain terakhir terlihat.
-      if (!next.engaged || !canSeeTarget || !local.isAlive) {
-        state.nextShotAt = 0;
-        continue;
-      }
+      // sepenuhnya walau musuh masih ingat di mana pemain terakhir terlihat —
+      // dan jaraknya harus masuk jangkauan senjata yang dibawanya.
       const weapon = findWeapon(fighter.weaponId);
-      if (state.nextShotAt === 0) {
-        state.nextShotAt = now + nextFireDelay(profile, weapon.damage);
-        continue;
-      }
-      if (now < state.nextShotAt) continue;
-      state.nextShotAt = now + nextFireDelay(profile, weapon.damage);
+      const distance = Math.hypot(target[0] - state.x, target[2] - state.z);
+      const pelatuk = stepFire(state.fire ?? freshFireState(weapon), {
+        now,
+        canFire:
+          next.engaged &&
+          canSeeTarget &&
+          local.isAlive &&
+          inFiringRange(weapon, distance),
+        profile,
+        weapon,
+      });
+      state.fire = pelatuk.state;
+      if (!pelatuk.fire) continue;
 
       // Peluang kena dipotong dua kali: oleh jarak, dan oleh seberapa jauh
       // moncongnya masih melenceng. Musuh yang baru berbalik badan menembak ke
       // arah yang salah dulu sebelum bidikannya benar-benar tertuju.
-      const distance = Math.hypot(target[0] - state.x, target[2] - state.z);
       const chance =
         hitChance(profile, distance) * aimFactor(next.aimOffRadians);
       if (Math.random() > chance) continue;

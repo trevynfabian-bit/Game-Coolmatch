@@ -1,5 +1,6 @@
 import { freshBrain } from "@/lib/game/bot-ai";
 import type { BotBrain } from "@/lib/game/bot-ai";
+import type { FireState } from "@/lib/game/bot-combat";
 import { fighterCollider } from "@/lib/game/collision";
 import type { Aabb, PlayerBounds } from "@/lib/game/collision";
 import { playerRuntime } from "@/lib/game/player-runtime";
@@ -29,12 +30,11 @@ export interface BotRuntimeState {
   /** Benar bila musuh ini sedang mengejar pemain. */
   engaged: boolean;
   /**
-   * Waktu tembakan berikutnya, dalam detik pada jam yang sama dengan pemanggil.
-   * Nol berarti belum dijadwalkan — musuh yang baru mengunci sasaran menunggu
-   * satu jeda penuh dulu, jadi ia tidak langsung menembak pada frame yang sama
-   * saat pemain muncul di tikungan.
+   * Keadaan pelatuk: sisa rentetan, jadwal tembakan berikutnya, jeda napas.
+   * Null sampai penggerak musuh menyiapkannya dengan senjata yang dibawa;
+   * runtime ini sengaja tidak tahu-menahu soal katalog senjata.
    */
-  nextShotAt: number;
+  fire: FireState | null;
 }
 
 const bots = new Map<string, BotRuntimeState>();
@@ -54,7 +54,7 @@ export function placeBot(id: string, position: Vec3, yaw: number): BotRuntimeSta
     verticalVelocity: 0,
     brain: freshBrain(),
     engaged: false,
-    nextShotAt: 0,
+    fire: null,
   };
   bots.set(id, state);
   return state;
