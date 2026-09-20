@@ -2,6 +2,10 @@ import { DEFAULT_MATCH_SETUP } from "@/lib/game/difficulty";
 import { guardWrite, readOr } from "@/server/api/fallback";
 import { jsonError, jsonOk, readJsonBody } from "@/server/api/json";
 import {
+  BOT_LIMITS,
+  difficultyCatalogue,
+} from "@/server/opponents/difficulty-catalogue";
+import {
   loadOpponentSettings,
   parseOpponentSettings,
   saveOpponentSettings,
@@ -10,7 +14,10 @@ import { ensureLocalPlayer } from "@/server/players/local-player";
 
 /**
  * Endpoint pengaturan lawan: memuat dan menyimpan tingkat kesulitan serta
- * jumlah musuh otomatis pilihan pemain.
+ * jumlah musuh otomatis pilihan pemain, dan menyajikan katalog tingkat
+ * kesulitan — sifat tiap tingkat beserta angka perilaku turunannya — supaya
+ * apa yang dipilih pemain dan apa yang dilakukan musuh datang dari definisi
+ * yang sama di server.
  *
  * Dipaksa dinamis. Handler ini membaca database lewat better-sqlite3, yang
  * merupakan modul asli dan hanya bisa berjalan di runtime Node — bukan sesuatu
@@ -21,7 +28,12 @@ import { ensureLocalPlayer } from "@/server/players/local-player";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/** Pengaturan yang tersimpan, atau bawaan bila pemain belum pernah memilih. */
+/**
+ * Pengaturan yang tersimpan, atau bawaan bila pemain belum pernah memilih,
+ * beserta katalog tingkat (`levels`) dan batas jumlah musuh (`limits`).
+ * Katalognya berasal dari kode, bukan database, jadi ia tetap tersaji walau
+ * pilihannya tidak terbaca.
+ */
 export function GET(): Response {
   // Pengaturan bawaan sudah jadi jawaban yang sah untuk pemain yang belum
   // pernah memilih, jadi ia juga jawaban yang sah ketika pilihannya tidak
@@ -34,7 +46,12 @@ export function GET(): Response {
     cadangan,
   );
 
-  return jsonOk({ ...settings, degraded: settings === cadangan });
+  return jsonOk({
+    ...settings,
+    degraded: settings === cadangan,
+    levels: difficultyCatalogue(),
+    limits: BOT_LIMITS,
+  });
 }
 
 /**

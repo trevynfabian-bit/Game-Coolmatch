@@ -14,6 +14,7 @@ import { buildBotRoster, maxBotsForMap } from "@/lib/mock/bots";
 import { MapThumbnail } from "@/components/maps/map-thumbnail";
 import { findMap } from "@/lib/mock/maps";
 import { findWeapon } from "@/lib/mock/weapons";
+import { useOpponentSettingsSync } from "@/lib/hooks/use-opponent-settings-sync";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useMapStore } from "@/lib/store/map-store";
 import { useMatchSetupStore } from "@/lib/store/match-setup-store";
@@ -41,6 +42,7 @@ export function OpponentSetup() {
   const setBotCount = useMatchSetupStore((state) => state.setBotCount);
   const selectedWeaponId = useLoadoutStore((state) => state.selectedWeaponId);
   const selectedMapId = useMapStore((state) => state.selectedMapId);
+  const syncStatus = useOpponentSettingsSync();
 
   /**
    * Peta yang benar-benar akan dimainkan, bukan peta bawaan. Seluruh layar ini
@@ -79,6 +81,23 @@ export function OpponentSetup() {
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
           Kamu bertanding sendirian melawan lawan yang dikendalikan komputer.
           Atur seberapa pintar mereka dan berapa banyak yang muncul di arena.
+        </p>
+        {/*
+          Status simpanan server, bukan hiasan: pilihan di sini yang dibaca
+          pertandingan yang dicatat, jadi pemain berhak tahu bila pilihannya
+          baru tersimpan di perangkat ini saja.
+        */}
+        <p
+          className="mt-2 text-[11px] text-slate-500"
+          data-sinkron={syncStatus}
+        >
+          {syncStatus === "memuat"
+            ? "Memuat pilihan tersimpan…"
+            : syncStatus === "menyimpan"
+              ? "Menyimpan ke server…"
+              : syncStatus === "tersimpan"
+                ? "Pilihan tersimpan di server."
+                : "Server tidak terjangkau; pilihan tersimpan di perangkat ini saja."}
         </p>
       </header>
 
