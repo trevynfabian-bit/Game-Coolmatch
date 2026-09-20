@@ -4,8 +4,17 @@ import { useRef } from "react";
 import { Billboard, Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import type { Group, MeshStandardMaterial } from "three";
-import { livePosition, liveYaw } from "@/lib/game/bot-runtime";
+import { WeaponMesh } from "@/components/weapons/weapon-mesh";
+import {
+  BOT_EYE_HEIGHT,
+  PLAYER_CHEST_HEIGHT,
+  REST_PITCH,
+  aimPitch,
+} from "@/lib/game/bot-ai";
+import { getBot, livePosition, liveYaw } from "@/lib/game/bot-runtime";
 import { secondsSinceHit } from "@/lib/game/fighter-runtime";
+import { playerRuntime } from "@/lib/game/player-runtime";
+import { findWeapon } from "@/lib/mock/weapons";
 import type { Fighter } from "@/types/game";
 
 /** Tinggi papan nama di atas kepala petarung, dalam satuan dunia. */
@@ -13,6 +22,15 @@ const NAMETAG_HEIGHT = 2.45;
 
 /** Lama badan berkedip putih setelah kena tembak, dalam detik. */
 const HIT_FLASH_SECONDS = 0.14;
+
+/**
+ * Seberapa cepat senjata mengikuti pitch sasarannya, per detik.
+ *
+ * Badan sudah berputar dengan kecepatan bidik profilnya; angka ini hanya
+ * untuk sumbu angkat, dan sengaja cukup cepat supaya senjata tidak terlihat
+ * "mengayun" tertinggal saat pemain melompat.
+ */
+const PITCH_FOLLOW = 9;
 
 /**
  * Penanda satu petarung di arena: badan kapsul low-poly, kepala, laras senjata
@@ -27,18 +45,41 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
   const dimmed = !fighter.isAlive;
 
   const group = useRef<Group>(null);
+  const weaponPitch = useRef<Group>(null);
   const bodyMaterial = useRef<MeshStandardMaterial>(null);
   const headMaterial = useRef<MeshStandardMaterial>(null);
+  const weapon = findWeapon(fighter.weaponId);
 
   // Dua hal dikerjakan langsung di objek Three, bukan lewat state React, supaya
   // musuh yang bergerak dan rentetan tembakan tidak memicu render ulang tiap
   // frame: posisi beserta arah hadap diambil dari runtime musuh, dan kedipan
   // kena tembak ditulis ke material.
-  useFrame(() => {
+  useFrame((_state, delta) => {
+    const [x, y, z] = livePosition(fighter);
     if (group.current) {
-      const [x, y, z] = livePosition(fighter);
       group.current.position.set(x, y, z);
       group.current.rotation.y = liveYaw(fighter);
+    }
+
+    // Senjata ikut MENGANGKAT ke dada pemain saat musuh terlibat; badannya
+    // sendiri sudah berputar ke pemain lewat yaw. Saat berpatroli senjata
+    // diturunkan sedikit, seperti orang yang berjalan, bukan mendatar kaku.
+    if (weaponPitch.current) {
+      const bot = fighter.isBot ? getBot(fighter.id) : undefined;
+      const target =
+        bot?.engaged && fighter.isAlive
+          ? aimPitch(
+              [x, y + BOT_EYE_HEIGHT, z],
+              [
+                playerRuntime.position[0],
+                playerRuntime.position[1] + PLAYER_CHEST_HEIGHT,
+                playerRuntime.position[2],
+              ],
+            )
+          : REST_PITCH;
+      const now = weaponPitch.current.rotation.x;
+      weaponPitch.current.rotation.x =
+        now + (target - now) * Math.min(1, delta * PITCH_FOLLOW);
     }
 
     const since = secondsSinceHit(fighter.id);
@@ -82,16 +123,25 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
         />
       </mesh>
 
-      <mesh position={[0.18, 1.15, -0.5]} castShadow>
-        <boxGeometry args={[0.1, 0.12, 0.85]} />
-        <meshStandardMaterial
-          color="#1f2937"
-          roughness={0.4}
-          metalness={0.5}
-          transparent={dimmed}
-          opacity={dimmed ? 0.25 : 1}
-        />
-      </mesh>
+      {/*
+        Senjata di tangan kanan, setinggi dada, dan cukup ke samping supaya
+        badannya tidak tenggelam di dalam kapsul badan — dilihat dari samping,
+        yang tersisa dari senjata yang tenggelam hanya laras dan popornya, dan
+        jenisnya tidak lagi terbaca. Pembungkus luar dibalik
+        setengah putaran karena model senjata menghadap -Z sementara depan
+        musuh adalah +Z — arah yang sama dengan yaw dari `stepBot`. Pitch
+        ditulis ke pembungkus dalam, di kerangka modelnya, supaya "terangkat"
+        selalu berarti moncong naik apa pun arah hadap badannya.
+      */}
+      {!dimmed ? (
+        <group position={[0.44, 1.2, 0.18]} rotation={[0, Math.PI, 0]}>
+          <group ref={weaponPitch} rotation={[REST_PITCH, 0, 0]}>
+            <group scale={0.9}>
+              <WeaponMesh weapon={weapon} />
+            </group>
+          </group>
+        </group>
+      ) : null}
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
         <ringGeometry args={[0.45, 0.6, 20]} />

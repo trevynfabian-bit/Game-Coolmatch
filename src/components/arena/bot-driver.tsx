@@ -3,7 +3,7 @@
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Vector3 } from "three";
-import { stepBot } from "@/lib/game/bot-ai";
+import { BOT_EYE_HEIGHT, PLAYER_CHEST_HEIGHT, stepBot } from "@/lib/game/bot-ai";
 import {
   HEADSHOT_SHARE,
   aimFactor,
@@ -31,10 +31,6 @@ function shortestAngle(from: number, to: number) {
 /** Batas delta agar tab yang sempat tidak aktif tidak melontarkan musuh. */
 const MAX_DELTA = 1 / 15;
 
-/** Tinggi mata musuh, dipakai sebagai titik asal pemeriksaan garis pandang. */
-const BOT_EYE = 1.55;
-/** Tinggi dada pemain, sasaran pemeriksaan garis pandang. */
-const PLAYER_CHEST = 1.15;
 
 /**
  * Menjalankan semua musuh otomatis tiap frame: berjalan, membidik, menembak.
@@ -81,7 +77,7 @@ export function BotDriver({
     // Pemain diikuti dari kamera, karena di situlah posisi hidupnya berada.
     const target: Vec3 = [
       camera.position.x,
-      local.position[1] + PLAYER_CHEST,
+      local.position[1] + PLAYER_CHEST_HEIGHT,
       camera.position.z,
     ];
 
@@ -93,7 +89,7 @@ export function BotDriver({
       // Pemain yang sudah tumbang tidak bisa dilihat siapa pun; musuh kembali
       // berkeliling sampai ia muncul lagi.
       const canSeeTarget = local.isAlive
-        ? hasLineOfSight([state.x, state.y + BOT_EYE, state.z], target)
+        ? hasLineOfSight([state.x, state.y + BOT_EYE_HEIGHT, state.z], target)
         : false;
 
       const next = stepBot({

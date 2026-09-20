@@ -134,6 +134,34 @@ export function aimSpeed(profile: DifficultyProfile): number {
   return AIM_SPEED_BASE / profile.reactionSeconds;
 }
 
+/**
+ * Tinggi mata musuh dan tinggi dada pemain, dari telapak kaki.
+ *
+ * Diangkat ke sini karena dua tempat memakainya: penggerak musuh untuk garis
+ * pandang, dan penanda musuh untuk arah senjatanya. Kalau keduanya menyimpan
+ * angkanya sendiri, senjata bisa mengarah ke titik yang tidak pernah diperiksa
+ * garis pandangnya.
+ */
+export const BOT_EYE_HEIGHT = 1.55;
+export const PLAYER_CHEST_HEIGHT = 1.15;
+
+/** Pitch senjata saat tidak membidik siapa pun: sedikit menurun, seperti orang berjalan. */
+export const REST_PITCH = -0.32;
+
+/**
+ * Sudut angkat senjata dari `from` ke `to`, dalam radian; positif berarti
+ * moncong terangkat.
+ *
+ * Badan musuh hanya berputar pada sumbu tegak, jadi tanpa ini senjatanya
+ * selalu mendatar: musuh di lantai yang membidik pemain di atas panggung
+ * terlihat menembak ke tembok di bawahnya, dan tembakannya tetap kena —
+ * pertentangan yang langsung terasa curang.
+ */
+export function aimPitch(from: Vec3, to: Vec3): number {
+  const datar = Math.hypot(to[0] - from[0], to[2] - from[2]);
+  return Math.atan2(to[1] - from[1], datar);
+}
+
 /** Ingatan sesaat tiap musuh; hanya berarti selama satu ronde berjalan. */
 export interface BotBrain {
   /**
