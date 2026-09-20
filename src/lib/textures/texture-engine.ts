@@ -243,14 +243,30 @@ export function boxTileRepeats(
   kind: SurfaceKind,
   size: readonly [number, number, number],
 ): [number, number][] {
+  return boxFaceSizes(size).map(([lebar, tinggi]) =>
+    tileRepeat(kind, lebar, tinggi),
+  );
+}
+
+/**
+ * Ukuran nyata keenam sisi sebuah balok, urut sama seperti di atas.
+ *
+ * Dipisah karena pemanggil yang memasang material per sisi butuh ukurannya,
+ * bukan pengulangannya — dan kalau ia menurunkan sendiri sisi mana memakai
+ * lebar dan sisi mana memakai kedalaman, pemetaan itu hidup di dua tempat dan
+ * cukup satu yang salah untuk membuat sebuah sisi bertekstur melintang.
+ */
+export function boxFaceSizes(
+  size: readonly [number, number, number],
+): [number, number][] {
   const [w, h, d] = size;
   return [
-    tileRepeat(kind, d, h),
-    tileRepeat(kind, d, h),
-    tileRepeat(kind, w, d),
-    tileRepeat(kind, w, d),
-    tileRepeat(kind, w, h),
-    tileRepeat(kind, w, h),
+    [d, h],
+    [d, h],
+    [w, d],
+    [w, d],
+    [w, h],
+    [w, h],
   ];
 }
 
