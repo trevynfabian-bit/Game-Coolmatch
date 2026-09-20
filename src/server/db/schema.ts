@@ -599,6 +599,103 @@ export const playerWeapons = sqliteTable(
   ],
 );
 
+/** Tingkat kualitas gambar; sama dengan `QualityLevel` di klien. */
+export const QUALITY_LEVELS = ["rendah", "sedang", "tinggi"] as const;
+
+/**
+ * Batas angka pengaturan, ditulis apa adanya di sini.
+ *
+ * Alasannya sama dengan batas jumlah bot: batasan CHECK ikut tercetak ke
+ * berkas migrasi dan membeku di sana. Mengambilnya dari konstanta klien yang
+ * bisa digeser akan membuat skema yang dijalankan database diam-diam berbeda
+ * dari yang terbaca di kode. Kalau batasnya memang perlu berubah, itu
+ * perubahan skema dan harus punya migrasinya sendiri.
+ */
+const VOLUME_FLOOR = 0;
+const VOLUME_CEILING = 100;
+const SCALE_FLOOR = 50;
+const SCALE_CEILING = 100;
+const SENSITIVITY_FLOOR = 30;
+const SENSITIVITY_CEILING = 200;
+
+/**
+ * Pengaturan permainan milik seorang pemain: suara, tampilan, dan tombol.
+ *
+ * Satu baris per pemain, bukan riwayat — yang berguna adalah pilihan TERAKHIR,
+ * sama seperti pengaturan lawan dan peta pilihan. Ketiga bagiannya satu tabel
+ * karena selalu dibaca dan ditulis bersama oleh satu layar; memecahnya jadi
+ * tiga tabel hanya menambah tiga kali penulisan untuk satu geseran penggeser.
+ *
+ * Seluruh angkanya diberi CHECK. Isinya datang langsung dari badan permintaan
+ * yang dikirim klien, dan untuk yang seperti itu database adalah tempat
+ * terakhir yang masih bisa menolak nilai ngawur — volume seribu persen atau
+ * sensitivitas negatif bukan sekadar angka aneh di layar, keduanya membuat
+ * permainan tidak bisa dimainkan sampai pemain menemukan cara mengembalikannya.
+ *
+ * Pemetaan tombol disimpan sebagai TEKS JSON, bukan satu kolom per aksi.
+ * Daftar aksinya memang bertambah seiring fitur — setiap penambahan akan jadi
+ * satu migrasi ALTER TABLE — sementara isinya hanya dibaca utuh oleh satu
+ * layar dan tidak pernah dicari atau diurutkan per aksi. Harga fleksibilitas
+ * itu adalah database tidak bisa memeriksa isinya, jadi pemeriksanya ada di
+ * pemeriksa badan permintaan.
+ */
+export const playerSettings = sqliteTable(
+  "player_settings",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+
+    /** Volume 0..100, karena begitulah pemain membacanya. */
+    effectsVolume: integer("effects_volume").notNull().default(80),
+    musicVolume: integer("music_volume").notNull().default(45),
+    muted: integer("muted", { mode: "boolean" }).notNull().default(false),
+
+    quality: text("quality", { enum: QUALITY_LEVELS })
+      .notNull()
+      .default("sedang"),
+    /** Skala resolusi dalam persen, 50..100. */
+    renderScale: integer("render_scale").notNull().default(100),
+    showFps: integer("show_fps", { mode: "boolean" }).notNull().default(false),
+
+    /** Sensitivitas mouse dalam persen terhadap kecepatan bawaan, 30..200. */
+    sensitivity: integer("sensitivity").notNull().default(100),
+
+    /**
+     * Pemetaan tombol sebagai objek JSON: nama aksi ke kode tombol. Kosong
+     * berarti pemain belum pernah mengubah satu tombol pun dan seluruhnya
+     * memakai bawaan.
+     */
+    keyBindings: text("key_bindings").notNull().default("{}"),
+
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (table) => [
+    // Satu pemain satu baris pengaturan. Indeks unik ini juga yang membuat
+    // penyimpanan bisa ditulis sebagai satu upsert alih-alih "cek dulu, baru
+    // insert atau update" yang bisa berlomba.
+    uniqueIndex("player_settings_pemain_unik").on(table.playerId),
+
+    check(
+      "player_settings_volume_wajar",
+      sql`${table.effectsVolume} BETWEEN ${sql.raw(String(VOLUME_FLOOR))} AND ${sql.raw(String(VOLUME_CEILING))} AND ${table.musicVolume} BETWEEN ${sql.raw(String(VOLUME_FLOOR))} AND ${sql.raw(String(VOLUME_CEILING))}`,
+    ),
+    check(
+      "player_settings_skala_wajar",
+      sql`${table.renderScale} BETWEEN ${sql.raw(String(SCALE_FLOOR))} AND ${sql.raw(String(SCALE_CEILING))}`,
+    ),
+    check(
+      "player_settings_sensitivitas_wajar",
+      sql`${table.sensitivity} BETWEEN ${sql.raw(String(SENSITIVITY_FLOOR))} AND ${sql.raw(String(SENSITIVITY_CEILING))}`,
+    ),
+    check(
+      "player_settings_kualitas_dikenal",
+      sql`${table.quality} IN ('rendah', 'sedang', 'tinggi')`,
+    ),
+  ],
+);
+
 export type PlayerRow = typeof players.$inferSelect;
 export type MapRow = typeof maps.$inferSelect;
 export type MatchRow = typeof matches.$inferSelect;
@@ -608,6 +705,8 @@ export type NewMatchRoundRow = typeof matchRounds.$inferInsert;
 export type MatchScoreRow = typeof matchScores.$inferSelect;
 export type NewMatchScoreRow = typeof matchScores.$inferInsert;
 export type MapSelectionRow = typeof mapSelections.$inferSelect;
+export type PlayerSettingsRow = typeof playerSettings.$inferSelect;
+export type NewPlayerSettingsRow = typeof playerSettings.$inferInsert;
 export type WeaponRow = typeof weapons.$inferSelect;
 export type NewWeaponRow = typeof weapons.$inferInsert;
 export type PlayerStatsRow = typeof playerStats.$inferSelect;
