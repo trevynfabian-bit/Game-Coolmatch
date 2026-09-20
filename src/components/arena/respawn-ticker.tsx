@@ -13,8 +13,16 @@ import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { ArenaMapInfo, Vec3 } from "@/types/game";
 
-/** Batas delta time agar jeda tab tidak memunculkan semua orang sekaligus. */
-const MAX_DELTA = 1 / 15;
+/**
+ * Batas delta time agar jeda tab tidak memunculkan semua orang sekaligus.
+ *
+ * Seperempat detik, bukan seperlima belas: tab yang kembali aktif tetap hanya
+ * memajukan hitung mundur satu langkah kecil, tetapi mesin lemah yang hanya
+ * sanggup lima frame per detik tidak lagi menunggu tiga kali lebih lama dari
+ * angka yang ditampilkan — diukur, empat detik hitung mundur memakan dua
+ * belas detik dengan batas yang lama.
+ */
+const MAX_DELTA = 1 / 4;
 
 /**
  * Menjalankan hitung mundur respawn semua petarung dan menghidupkan mereka

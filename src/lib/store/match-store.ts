@@ -66,7 +66,10 @@ interface MatchState {
    * Berbeda dengan `init` yang memuat potret apa adanya, termasuk ronde yang
    * sedang berjalan.
    */
-  startFreshMatch: (snapshot: MatchSnapshot, spawns: Record<string, Vec3>) => void;
+  startFreshMatch: (
+    snapshot: MatchSnapshot,
+    spawns: Record<string, Vec3>,
+  ) => void;
 
   /**
    * Menerapkan satu tembakan pada seorang petarung. Mengembalikan laporan bila
@@ -323,7 +326,10 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       const roundResult: MatchRoundResult = {
         roundNumber: state.round.current,
         winnerName: winner?.name ?? null,
-        endedReason: hasReachedScoreLimit(state.fighters, state.round.scoreLimit)
+        endedReason: hasReachedScoreLimit(
+          state.fighters,
+          state.round.scoreLimit,
+        )
           ? "batas_kill"
           : "waktu_habis",
         playerKills:
@@ -339,7 +345,9 @@ export const useMatchStore = create<MatchState>((set, get) => ({
           secondsLeft: isDecided ? 0 : state.round.intermissionSeconds,
           status: isDecided ? "ended" : "intermission",
           lastRoundWinner: winner?.name ?? null,
-          matchWinner: isDecided ? (findMatchWinner(fighters)?.name ?? null) : null,
+          matchWinner: isDecided
+            ? (findMatchWinner(fighters)?.name ?? null)
+            : null,
         },
       };
     }),
@@ -382,6 +390,9 @@ export const useMatchStore = create<MatchState>((set, get) => ({
                 isAlive: true,
                 respawnInSeconds: null,
                 position: [...position] as Vec3,
+                // Menghadap ke tengah arena, bukan ke arah terakhirnya yang
+                // di titik spawn baru bisa saja menghadap tembok.
+                rotationY: Math.atan2(-position[0], -position[2]),
               }
             : fighter,
         ),

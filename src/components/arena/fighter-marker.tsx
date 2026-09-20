@@ -3,7 +3,12 @@
 import { useRef } from "react";
 import { Billboard, Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import type { Group, MeshBasicMaterial, MeshStandardMaterial } from "three";
+import type {
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+} from "three";
 import { WeaponMesh } from "@/components/weapons/weapon-mesh";
 import {
   BOT_EYE_HEIGHT,
@@ -64,6 +69,15 @@ const RING_OPACITY = 0.55;
 const RING_OPACITY_DEAD = 0.3;
 
 /**
+ * Muncul kembali: badan mewujud dari tembus pandang ke pekat sementara cincin
+ * di kakinya menyusut dari lingkaran lebar — cukup untuk menandai bahwa ada
+ * yang baru tiba di titik itu, tanpa membuatnya terlihat seperti muncul
+ * tiba-tiba dari udara kosong.
+ */
+const SPAWN_FADE_SECONDS = 0.35;
+const SPAWN_RING_SCALE = 1.8;
+
+/**
  * Penanda satu petarung di arena: badan kapsul low-poly, kepala, laras senjata
  * sebagai petunjuk arah hadap, plus papan nama + bar nyawa yang selalu
  * menghadap kamera. Petarung yang sedang mati dirender tembus pandang.
@@ -73,7 +87,6 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
     0,
     Math.min(1, fighter.health / fighter.maxHealth),
   );
-  const dimmed = !fighter.isAlive;
 
   const group = useRef<Group>(null);
   const lurch = useRef<Group>(null);
@@ -81,10 +94,14 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
   const weaponPitch = useRef<Group>(null);
   const bodyMaterial = useRef<MeshStandardMaterial>(null);
   const headMaterial = useRef<MeshStandardMaterial>(null);
+  const ring = useRef<Mesh>(null);
   const ringMaterial = useRef<MeshBasicMaterial>(null);
   const nametag = useRef<HTMLDivElement>(null);
   /** Lama sudah tumbang, dalam detik arena; nol selama hidup. */
   const deathSeconds = useRef(0);
+  /** Lama sejak muncul kembali, dalam detik arena; sudah "lama" saat pertama tampil. */
+  const spawnSeconds = useRef(SPAWN_FADE_SECONDS);
+  const wasAlive = useRef(fighter.isAlive);
   const weapon = findWeapon(fighter.weaponId);
 
   // Dua hal dikerjakan langsung di objek Three, bukan lewat state React, supaya
@@ -104,16 +121,23 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
     // membekukan mayat sebagaimana ia membekukan segala hal lain — dan
     // kembali nol saat petarung hidup lagi, sehingga ia berdiri tegak dan
     // pekat di titik spawn barunya.
+    const arenaRunning =
+      usePlayerStore.getState().isLocked &&
+      useMatchStore.getState().round.status === "live";
+    if (fighter.isAlive && !wasAlive.current) {
+      // Baru muncul kembali: mulai mewujud dari nol.
+      spawnSeconds.current = 0;
+    }
+    wasAlive.current = fighter.isAlive;
     if (fighter.isAlive) {
       deathSeconds.current = 0;
-    } else if (
-      usePlayerStore.getState().isLocked &&
-      useMatchStore.getState().round.status === "live"
-    ) {
+      if (arenaRunning) spawnSeconds.current += delta;
+    } else if (arenaRunning) {
       deathSeconds.current += delta;
     }
     const dying = !fighter.isAlive;
     const fallen = Math.min(1, deathSeconds.current / COLLAPSE_SECONDS);
+    const spawning = Math.min(1, spawnSeconds.current / SPAWN_FADE_SECONDS);
     const fade = dying
       ? Math.max(
           0,
@@ -124,13 +148,21 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
                 CORPSE_FADE_SECONDS,
           ),
         )
-      : 1;
+      : spawning;
+    // Tembus pandang hanya selama benar-benar memudar; material pekat lebih
+    // murah dan tidak ikut antrean pengurutan objek tembus pandang.
     for (const material of [bodyMaterial.current, headMaterial.current]) {
-      if (material) material.opacity = fade;
+      if (!material) continue;
+      material.transparent = fade < 1;
+      material.opacity = fade;
     }
     if (ringMaterial.current) {
       ringMaterial.current.opacity =
         (dying ? RING_OPACITY_DEAD : RING_OPACITY) * fade;
+    }
+    if (ring.current) {
+      const s = dying ? 1 : 1 + (SPAWN_RING_SCALE - 1) * (1 - spawning);
+      ring.current.scale.set(s, s, 1);
     }
     if (nametag.current) nametag.current.style.opacity = String(fade);
     if (lurch.current) lurch.current.visible = fade > 0;
@@ -231,8 +263,6 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
             roughness={0.6}
             emissive="#ffffff"
             emissiveIntensity={0}
-            transparent={dimmed}
-            opacity={1}
           />
         </mesh>
 
@@ -244,8 +274,6 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
             roughness={0.5}
             emissive="#ffffff"
             emissiveIntensity={0}
-            transparent={dimmed}
-            opacity={1}
           />
         </mesh>
 
@@ -272,7 +300,7 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
         </group>
       </group>
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+      <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
         <ringGeometry args={[0.45, 0.6, 20]} />
         <meshBasicMaterial
           ref={ringMaterial}
