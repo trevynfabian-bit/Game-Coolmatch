@@ -24,13 +24,19 @@ const DAMAGE_POP_LIMIT = 6;
 export interface IncomingHit {
   id: number;
   /**
-   * Sudut penyerang relatif arah pandang pemain, dalam radian. Nol berarti
-   * tepat di depan, nilai positif ke kanan.
+   * Sudut penyerang relatif arah pandang pemain SAAT KENA, dalam radian. Nol
+   * berarti tepat di depan. Penunjuk arah memperbaruinya sendiri tiap frame
+   * dari posisi hidup penembak selama penembaknya masih ada; sudut ini
+   * tinggal cadangan bila penembaknya sudah tidak ada.
    */
   angleRad: number;
   /** 0..1, seberapa berat tembakannya dibanding nyawa maksimum. */
   severity: number;
   attackerName: string;
+  /** Id petarung penembak, untuk mengikuti posisi hidupnya. */
+  attackerId: string;
+  /** Berapa kali penembak yang sama mengenai pemain selagi penunjuknya masih tampil. */
+  count: number;
 }
 
 /** Batas penunjuk arah kerusakan yang ditahan sekaligus. */
@@ -101,6 +107,7 @@ interface CombatState {
   pushIncomingHit: (hit: {
     angleRad: number;
     severity: number;
+    attackerId: string;
     attackerName: string;
   }) => void;
   removeIncomingHit: (id: number) => void;
@@ -137,7 +144,9 @@ export const useCombatStore = create<CombatState>((set, get) => ({
     }),
 
   setSwapping: (swapping) =>
-    set((state) => (state.isSwapping === swapping ? state : { isSwapping: swapping })),
+    set((state) =>
+      state.isSwapping === swapping ? state : { isSwapping: swapping },
+    ),
 
   swapTo: ({ weaponId, magazineSize, defaultReserve }) =>
     set((state) => {
@@ -200,9 +209,7 @@ export const useCombatStore = create<CombatState>((set, get) => ({
     set({ hitMarker: { id: Date.now() + Math.random(), isHeadshot } }),
 
   clearHitMarker: (id) =>
-    set((state) =>
-      state.hitMarker?.id === id ? { hitMarker: null } : state,
-    ),
+    set((state) => (state.hitMarker?.id === id ? { hitMarker: null } : state)),
 
   pushDamagePop: ({ amount, isHeadshot, isLethal }) =>
     set((state) => ({
@@ -224,18 +231,37 @@ export const useCombatStore = create<CombatState>((set, get) => ({
       damagePops: state.damagePops.filter((pop) => pop.id !== id),
     })),
 
-  pushIncomingHit: ({ angleRad, severity, attackerName }) =>
-    set((state) => ({
-      incomingHits: [
-        ...state.incomingHits.slice(-(INCOMING_LIMIT - 1)),
-        {
-          id: Date.now() + Math.random(),
-          angleRad,
-          severity: Math.max(0, Math.min(1, severity)),
-          attackerName,
-        },
-      ],
-    })),
+  pushIncomingHit: ({ angleRad, severity, attackerId, attackerName }) =>
+    set((state) => {
+      /*
+        Penembak yang sama memukul lagi selagi penunjuknya masih tampil:
+        penunjuknya DISEGARKAN, bukan ditumpuk. Rentetan SMG dari satu arah
+        adalah satu ancaman, bukan lima busur yang saling menimpa; hitungan
+        pukulannya ikut naik dan beratnya mengambil yang terberat.
+      */
+      const sebelumnya = state.incomingHits.find(
+        (hit) => hit.attackerId === attackerId,
+      );
+      const lainnya = state.incomingHits.filter(
+        (hit) => hit.attackerId !== attackerId,
+      );
+      return {
+        incomingHits: [
+          ...lainnya.slice(-(INCOMING_LIMIT - 1)),
+          {
+            id: Date.now() + Math.random(),
+            angleRad,
+            severity: Math.max(
+              0,
+              Math.min(1, Math.max(severity, sebelumnya?.severity ?? 0)),
+            ),
+            attackerId,
+            attackerName,
+            count: (sebelumnya?.count ?? 0) + 1,
+          },
+        ],
+      };
+    }),
 
   removeIncomingHit: (id) =>
     set((state) => ({

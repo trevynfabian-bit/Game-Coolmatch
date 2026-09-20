@@ -215,6 +215,7 @@ export function BotDriver({
           [state.x, 0, state.z],
         ),
         severity: (report.healthLost + report.armorLost) / local.maxHealth,
+        attackerId: fighter.id,
         attackerName: fighter.name,
       });
     }

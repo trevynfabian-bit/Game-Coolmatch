@@ -194,6 +194,7 @@ export function PlayerController({
       forward.current.set(0, 0, -1);
     }
     forward.current.normalize();
+    playerRuntime.facingYaw = Math.atan2(forward.current.x, forward.current.z);
     // right = forward x up (Y ke atas): menghadap -Z, kanan jatuh ke +X.
     right.current.set(-forward.current.z, 0, forward.current.x);
 
