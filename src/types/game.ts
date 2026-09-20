@@ -133,6 +133,34 @@ export interface ArenaBounds {
  * berbeda, tetapi dengan satu matahari senja yang sama untuk semuanya, pabrik
  * tertutup dan atap gedung malam hari sama-sama terlihat seperti gudang.
  */
+/**
+ * Satu lampu yang benar-benar BERDIRI di dalam arena.
+ *
+ * Keempat sumber global sebuah peta menerangi semuanya sama rata: sebuah sudut
+ * gelap tetap segelap sudut di seberangnya, dan tidak ada satu pun tempat yang
+ * terang karena ada sesuatu di situ yang menerangi. Lampu inilah yang membuat
+ * arena punya tempat — kolam terang yang bisa dihindari, dan bayangan di
+ * luarnya yang bisa ditunggui.
+ *
+ * Tidak satu pun berbayang. Tiap lampu berbayang berarti satu render peta
+ * bayangan lagi per frame, dan enam lampu berbayang akan menghabiskan lebih
+ * banyak daripada seluruh sisa arena digabung.
+ */
+export interface MapLamp {
+  id: string;
+  position: Vec3;
+  color: string;
+  intensity: number;
+  /** Jangkauan cahaya dalam satuan dunia; di luar itu lampu tidak berpengaruh. */
+  distance: number;
+  /**
+   * Jari-jari bola lampu yang ikut digambar. Nol berarti sumbernya tidak
+   * terlihat — dipakai untuk cahaya yang datang dari luar arena, seperti
+   * pantulan lampu kota di atap.
+   */
+  bulb: number;
+}
+
 export interface MapLighting {
   /** Cahaya langit-ke-tanah: warna atas, warna pantulan bawah, lalu kuatnya. */
   skyLight: string;
@@ -160,6 +188,8 @@ export interface MapLighting {
   };
   /** Isian dari arah berlawanan, tanpa bayangan: sisi gelap tidak jadi hitam pekat. */
   fill: { color: string; intensity: number; position: Vec3 };
+  /** Lampu yang berdiri di dalam arena. Kosong berarti hanya sumber global. */
+  lamps?: MapLamp[];
 }
 
 export interface ArenaMapInfo {

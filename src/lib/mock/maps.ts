@@ -2,8 +2,27 @@ import type {
   ArenaBounds,
   ArenaMapInfo,
   MapBlock,
+  MapLamp,
   MapLighting,
 } from "@/types/game";
+
+/**
+ * Satu lampu gantung. Tinggi dan jangkauannya jadi parameter karena gudang
+ * berlangit-langit tujuh satuan dan lorong pabrik yang lebih rendah tidak bisa
+ * memakai angka yang sama.
+ */
+function lampu(
+  id: string,
+  x: number,
+  y: number,
+  z: number,
+  color: string,
+  intensity: number,
+  distance: number,
+  bulb = 0.16,
+): MapLamp {
+  return { id, position: [x, y, z], color, intensity, distance, bulb };
+}
 
 const WALL_COLOR = "#6b6053";
 const CRATE_COLOR = "#9c7440";
@@ -408,6 +427,23 @@ const GUDANG_LIGHTING: MapLighting = {
     shadowBox: { left: -30, right: 30, top: 30, bottom: -30, far: 70 },
   },
   fill: { color: "#7aa2d6", intensity: 0.5, position: [-14, 10, -12] },
+  /*
+    Empat lampu gantung mengelilingi panggung tengah. Tidak satu pun tepat di
+    atasnya: kolam terang di titik paling diperebutkan arena akan membuat
+    siapa pun yang berdiri di sana jadi sasaran yang menyala, dan panggung itu
+    sudah cukup berbahaya tanpa itu.
+
+    Empat, bukan enam. Dua lampu sisi sempat dicoba dan diukur: keduanya
+    menaikkan kecerahan tanpa menambah kontras yang terasa, sementara tiap
+    lampu tetap dihitung untuk setiap piksel arena. Yang tidak membentuk
+    kolam terang tidak layak dibayar.
+  */
+  lamps: [
+    lampu("gudang-lampu-bl", -10, 5.6, -10, "#ffcf9e", 34, 17),
+    lampu("gudang-lampu-br", 10, 5.6, -10, "#ffcf9e", 34, 17),
+    lampu("gudang-lampu-tl", -10, 5.6, 10, "#ffcf9e", 34, 17),
+    lampu("gudang-lampu-tr", 10, 5.6, 10, "#ffcf9e", 34, 17),
+  ],
 };
 
 /**
@@ -449,6 +485,19 @@ const PABRIK_LIGHTING: MapLighting = {
     shadowBox: { left: -24, right: 24, top: 24, bottom: -24, far: 62 },
   },
   fill: { color: "#5f7f94", intensity: 0.35, position: [-10, 8, 14] },
+  /*
+    Satu deret lampu per jalur, dan sengaja BERSELANG-SELING: jalur tengah
+    terang di tempat jalur luar gelap. Lampu yang sejajar di ketiga jalur
+    membuat ketiganya terlihat sama persis, dan pemain kehilangan satu-satunya
+    petunjuk jalur mana yang sedang ia susuri.
+  */
+  lamps: [
+    lampu("pabrik-lampu-barat-a", -11, 4.6, -9, "#cfe0ef", 28, 15),
+    lampu("pabrik-lampu-barat-b", -11, 4.6, 9, "#cfe0ef", 28, 15),
+    lampu("pabrik-lampu-tengah", 0, 4.6, 0, "#cfe0ef", 30, 16),
+    lampu("pabrik-lampu-timur-a", 11, 4.6, -9, "#cfe0ef", 28, 15),
+    lampu("pabrik-lampu-timur-b", 11, 4.6, 9, "#cfe0ef", 28, 15),
+  ],
 };
 
 /**
@@ -503,6 +552,19 @@ const ATAP_LIGHTING: MapLighting = {
     shadowBox: { left: -34, right: 34, top: 34, bottom: -34, far: 80 },
   },
   fill: { color: "#ff9d5c", intensity: 0.55, position: [14, 4, 18] },
+  /*
+    Dua lampu di mulut tangga, ditambah dua pantulan kota tanpa bola lampu:
+    cahayanya datang dari jalanan jauh di bawah, bukan dari sesuatu yang bisa
+    ditunjuk di atap. Helipad tengah sengaja dibiarkan gelap — yang dijual
+    peta ini adalah jarak pandang, dan menyalakan pusatnya akan mengubah
+    setiap penyeberangan jadi bunuh diri.
+  */
+  lamps: [
+    lampu("atap-lampu-tangga-barat", -18, 3.4, 0, "#ffd7a8", 30, 14),
+    lampu("atap-lampu-tangga-timur", 18, 3.4, 0, "#ffd7a8", 30, 14),
+    lampu("atap-pantulan-utara", 0, 1.2, -24, "#ff9d5c", 22, 18, 0),
+    lampu("atap-pantulan-selatan", 0, 1.2, 24, "#7ab6ff", 22, 18, 0),
+  ],
 };
 
 /* --------------------------------------------------------------------------
@@ -686,6 +748,20 @@ const SILO_LIGHTING: MapLighting = {
     shadowBox: { left: -28, right: 28, top: 28, bottom: -28, far: 68 },
   },
   fill: { color: "#8fb0cf", intensity: 0.45, position: [16, 12, -14] },
+  /*
+    Satu sorot di atas tiap panggung, menghadap ke bawah. Panggung memang
+    tempat yang ingin dilihat pemain dari seberang arena — itulah yang
+    membuatnya layak direbut — dan menerangi keduanya juga berarti siapa pun
+    yang berdiri di atas sana terlihat, bukan hanya melihat.
+
+    Hanya dua. Dua lampu tambahan di ujung utara dan selatan sempat dipasang
+    lalu dicabut lagi setelah diukur: arenanya tidak terbaca lebih terang
+    maupun lebih berkontras, dan yang tersisa hanya ongkosnya.
+  */
+  lamps: [
+    lampu("silo-sorot-barat", -11, 6.2, -11, "#ffdcb4", 40, 16, 0.22),
+    lampu("silo-sorot-timur", 11, 6.2, 11, "#ffdcb4", 40, 16, 0.22),
+  ],
 };
 
 /* --------------------------------------------------------------------------
@@ -846,6 +922,18 @@ const HALAMAN_LIGHTING: MapLighting = {
     shadowBox: { left: -30, right: 30, top: 30, bottom: -30, far: 74 },
   },
   fill: { color: "#a9b6c4", intensity: 0.42, position: [-16, 10, -10] },
+  /*
+    Paling sedikit di antara kelima peta, dan itu mengikuti waktunya: siang
+    mendung sudah terang merata, jadi lampu yang ditambahkan tidak akan
+    membentuk kolam terang apa pun — hanya menaikkan angka tanpa mengubah
+    apa yang terlihat. Keempatnya berdiri di tikungan, satu-satunya tempat
+    yang memang lebih gelap daripada sisanya. Dua tikungan, bukan keempatnya:
+    menerangi semua sudut sebuah cincin mengembalikannya jadi rata lagi.
+  */
+  lamps: [
+    lampu("halaman-lampu-bl", -13, 4.2, -13, "#e8eef5", 22, 12),
+    lampu("halaman-lampu-br", 13, 4.2, -13, "#e8eef5", 22, 12),
+  ],
 };
 
 export const MOCK_MAPS: ArenaMapInfo[] = [
