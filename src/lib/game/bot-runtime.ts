@@ -42,6 +42,14 @@ export interface BotRuntimeState {
    * oleh penggerak musuh untuk menyadarkan otaknya, lalu dikosongkan.
    */
   noticed: Vec3 | null;
+  /**
+   * Benar sejak nyawanya habis sampai ia muncul kembali. Musuh yang tumbang
+   * TIDAK dilupakan: posisi dan arah huyungan terakhirnya dipertahankan supaya
+   * penanda petarung bisa merobohkannya di tempat ia jatuh. Kalau dilupakan,
+   * posisi hidupnya jatuh kembali ke posisi di store — titik spawn-nya — dan
+   * mayatnya melompat menyeberangi arena pada frame ia mati.
+   */
+  dead: boolean;
 }
 
 const bots = new Map<string, BotRuntimeState>();
@@ -68,6 +76,7 @@ export function placeBot(
     fire: null,
     stagger: null,
     noticed: null,
+    dead: false,
   };
   bots.set(id, state);
   return state;
@@ -88,7 +97,7 @@ export function noteBotHit(
   hit: { direction: Vec3; damage: number; from: Vec3 },
 ): void {
   const state = bots.get(id);
-  if (!state) return;
+  if (!state || state.dead) return;
   state.stagger = composeStagger(state.stagger, hit.direction, hit.damage);
   state.noticed = [hit.from[0], hit.from[1], hit.from[2]];
 }
@@ -142,10 +151,11 @@ export function liveYaw(fighter: Fighter): number {
 /**
  * Menyamakan daftar musuh di runtime dengan daftar di store.
  *
- * Musuh yang baru muncul ditempatkan di titik spawn-nya dengan otak segar, dan
- * musuh yang sudah tidak ada dibuang. Dipanggil tiap frame oleh penggerak
- * musuh, jadi respawn dan pergantian ronde otomatis ikut terurus tanpa perlu
- * saling memberi tahu.
+ * Musuh yang baru muncul — atau muncul KEMBALI sesudah tumbang — ditempatkan
+ * di titik spawn-nya dengan otak segar, musuh yang tumbang ditandai mati di
+ * tempat ia jatuh, dan musuh yang sudah tidak ada dibuang. Dipanggil tiap
+ * frame oleh penggerak musuh, jadi respawn dan pergantian ronde otomatis ikut
+ * terurus tanpa perlu saling memberi tahu.
  */
 export function syncBots(fighters: Fighter[]): void {
   const living = new Set<string>();
@@ -153,15 +163,21 @@ export function syncBots(fighters: Fighter[]): void {
   for (const fighter of fighters) {
     if (fighter.isLocal) continue;
     living.add(fighter.id);
+    const state = bots.get(fighter.id);
 
     if (!fighter.isAlive) {
-      // Yang tumbang dilupakan supaya saat muncul kembali ia benar-benar mulai
-      // dari titik spawn barunya, bukan dari tempat ia terakhir berdiri.
-      bots.delete(fighter.id);
+      if (state && !state.dead) {
+        // Roboh di tempat: posisi dan huyungan terakhir dipertahankan, sisanya
+        // — kejaran, pelatuk, kesadaran — tidak lagi berarti.
+        state.dead = true;
+        state.engaged = false;
+        state.fire = null;
+        state.noticed = null;
+      }
       continue;
     }
 
-    if (!bots.has(fighter.id)) {
+    if (!state || state.dead) {
       placeBot(fighter.id, fighter.position, fighter.rotationY);
     }
   }

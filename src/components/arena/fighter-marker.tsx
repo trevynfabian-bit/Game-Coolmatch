@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { Billboard, Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import type { Group, MeshStandardMaterial } from "three";
+import type { Group, MeshBasicMaterial, MeshStandardMaterial } from "three";
 import { WeaponMesh } from "@/components/weapons/weapon-mesh";
 import {
   BOT_EYE_HEIGHT,
@@ -15,6 +15,8 @@ import { getBot, livePosition, liveYaw } from "@/lib/game/bot-runtime";
 import { secondsSinceHit } from "@/lib/game/fighter-runtime";
 import { playerRuntime } from "@/lib/game/player-runtime";
 import { findWeapon } from "@/lib/mock/weapons";
+import { useMatchStore } from "@/lib/store/match-store";
+import { usePlayerStore } from "@/lib/store/player-store";
 import type { Fighter } from "@/types/game";
 
 /** Tinggi papan nama di atas kepala petarung, dalam satuan dunia. */
@@ -45,6 +47,23 @@ const STAGGER_FULL_TILT_SPEED = 2;
 const STAGGER_ATTACK = 0.25;
 
 /**
+ * Roboh saat nyawa habis: badan rebah ke arah larinya peluru terakhir,
+ * berporos di kaki, lalu tergeletak sebentar dan memudar sampai lenyap —
+ * jauh sebelum hitung mundur respawn (empat detik) habis, supaya arena tidak
+ * dipenuhi mayat tembus pandang yang berdiri kaku seperti sebelumnya.
+ * Robohnya makin cepat makin ke bawah, seperti benda yang jatuh, bukan
+ * pintu yang diayun pelan.
+ */
+const COLLAPSE_SECONDS = 0.55;
+const CORPSE_HOLD_SECONDS = 0.9;
+const CORPSE_FADE_SECONDS = 0.6;
+/** Angkat kapsul badan saat rebah supaya bertumpu di lantai, bukan tenggelam. */
+const CORPSE_LIFT = 0.35;
+/** Kepekatan cincin di kaki saat hidup dan saat baru roboh. */
+const RING_OPACITY = 0.55;
+const RING_OPACITY_DEAD = 0.3;
+
+/**
  * Penanda satu petarung di arena: badan kapsul low-poly, kepala, laras senjata
  * sebagai petunjuk arah hadap, plus papan nama + bar nyawa yang selalu
  * menghadap kamera. Petarung yang sedang mati dirender tembus pandang.
@@ -58,9 +77,14 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
 
   const group = useRef<Group>(null);
   const lurch = useRef<Group>(null);
+  const weaponHolder = useRef<Group>(null);
   const weaponPitch = useRef<Group>(null);
   const bodyMaterial = useRef<MeshStandardMaterial>(null);
   const headMaterial = useRef<MeshStandardMaterial>(null);
+  const ringMaterial = useRef<MeshBasicMaterial>(null);
+  const nametag = useRef<HTMLDivElement>(null);
+  /** Lama sudah tumbang, dalam detik arena; nol selama hidup. */
+  const deathSeconds = useRef(0);
   const weapon = findWeapon(fighter.weaponId);
 
   // Dua hal dikerjakan langsung di objek Three, bukan lewat state React, supaya
@@ -76,12 +100,72 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
 
     const bot = fighter.isBot ? getBot(fighter.id) : undefined;
 
+    // Roboh dan lenyap. Jamnya hanya berdetak selama arena berjalan — jeda
+    // membekukan mayat sebagaimana ia membekukan segala hal lain — dan
+    // kembali nol saat petarung hidup lagi, sehingga ia berdiri tegak dan
+    // pekat di titik spawn barunya.
+    if (fighter.isAlive) {
+      deathSeconds.current = 0;
+    } else if (
+      usePlayerStore.getState().isLocked &&
+      useMatchStore.getState().round.status === "live"
+    ) {
+      deathSeconds.current += delta;
+    }
+    const dying = !fighter.isAlive;
+    const fallen = Math.min(1, deathSeconds.current / COLLAPSE_SECONDS);
+    const fade = dying
+      ? Math.max(
+          0,
+          Math.min(
+            1,
+            1 -
+              (deathSeconds.current - COLLAPSE_SECONDS - CORPSE_HOLD_SECONDS) /
+                CORPSE_FADE_SECONDS,
+          ),
+        )
+      : 1;
+    for (const material of [bodyMaterial.current, headMaterial.current]) {
+      if (material) material.opacity = fade;
+    }
+    if (ringMaterial.current) {
+      ringMaterial.current.opacity =
+        (dying ? RING_OPACITY_DEAD : RING_OPACITY) * fade;
+    }
+    if (nametag.current) nametag.current.style.opacity = String(fade);
+    if (lurch.current) lurch.current.visible = fade > 0;
+    // Senjata tidak ikut memudar (materialnya milik bersama semua penanda),
+    // jadi ia lenyap begitu badannya mulai memudar.
+    if (weaponHolder.current) weaponHolder.current.visible = fade >= 1;
+
     // Terhuyung: badan, kepala, dan senjata mencondong bersama ke arah
     // larinya peluru lalu pulih. Arah dorongannya ada di ruang dunia dan
     // pembungkus ini sudah diputar sebesar yaw, jadi arahnya diputar balik ke
     // kerangka badan dulu; condong ke +Z lokal berarti memutar sumbu X, ke +X
-    // lokal berarti memutar sumbu Z ke arah negatif.
-    if (lurch.current) {
+    // lokal berarti memutar sumbu Z ke arah negatif. Roboh memakai poros dan
+    // kerangka yang sama: rebah adalah condong yang diteruskan sampai rata.
+    if (lurch.current && dying) {
+      const yaw = group.current?.rotation.y ?? 0;
+      const stagger = bot?.stagger ?? null;
+      let lx = 0;
+      let lz = -1;
+      if (stagger) {
+        lx = stagger.dirX * Math.cos(yaw) - stagger.dirZ * Math.sin(yaw);
+        lz = stagger.dirX * Math.sin(yaw) + stagger.dirZ * Math.cos(yaw);
+        const n = Math.hypot(lx, lz);
+        if (n > 1e-6) {
+          lx /= n;
+          lz /= n;
+        } else {
+          lx = 0;
+          lz = -1;
+        }
+      }
+      const angle = (Math.PI / 2) * fallen * fallen;
+      lurch.current.rotation.x = angle * lz;
+      lurch.current.rotation.z = -angle * lx;
+      lurch.current.position.y = CORPSE_LIFT * fallen * fallen;
+    } else if (lurch.current) {
       const stagger = bot?.stagger ?? null;
       let tilt = 0;
       let lx = 0;
@@ -105,7 +189,7 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
     // Senjata ikut MENGANGKAT ke dada pemain saat musuh terlibat; badannya
     // sendiri sudah berputar ke pemain lewat yaw. Saat berpatroli senjata
     // diturunkan sedikit, seperti orang yang berjalan, bukan mendatar kaku.
-    if (weaponPitch.current) {
+    if (weaponPitch.current && !dying) {
       const target =
         bot?.engaged && fighter.isAlive
           ? aimPitch(
@@ -148,7 +232,7 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
             emissive="#ffffff"
             emissiveIntensity={0}
             transparent={dimmed}
-            opacity={dimmed ? 0.25 : 1}
+            opacity={1}
           />
         </mesh>
 
@@ -161,7 +245,7 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
             emissive="#ffffff"
             emissiveIntensity={0}
             transparent={dimmed}
-            opacity={dimmed ? 0.25 : 1}
+            opacity={1}
           />
         </mesh>
 
@@ -175,29 +259,35 @@ export function FighterMarker({ fighter }: { fighter: Fighter }) {
         ditulis ke pembungkus dalam, di kerangka modelnya, supaya "terangkat"
         selalu berarti moncong naik apa pun arah hadap badannya.
       */}
-        {!dimmed ? (
-          <group position={[0.44, 1.2, 0.18]} rotation={[0, Math.PI, 0]}>
-            <group ref={weaponPitch} rotation={[REST_PITCH, 0, 0]}>
-              <group scale={0.9}>
-                <WeaponMesh weapon={weapon} />
-              </group>
+        <group
+          ref={weaponHolder}
+          position={[0.44, 1.2, 0.18]}
+          rotation={[0, Math.PI, 0]}
+        >
+          <group ref={weaponPitch} rotation={[REST_PITCH, 0, 0]}>
+            <group scale={0.9}>
+              <WeaponMesh weapon={weapon} />
             </group>
           </group>
-        ) : null}
+        </group>
       </group>
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
         <ringGeometry args={[0.45, 0.6, 20]} />
         <meshBasicMaterial
+          ref={ringMaterial}
           color={fighter.color}
           transparent
-          opacity={dimmed ? 0.15 : 0.55}
+          opacity={RING_OPACITY}
         />
       </mesh>
 
       <Billboard position={[0, NAMETAG_HEIGHT, 0]}>
         <Html center pointerEvents="none" zIndexRange={[10, 0]}>
-          <div className="pointer-events-none flex w-24 flex-col items-center gap-1 select-none">
+          <div
+            ref={nametag}
+            className="pointer-events-none flex w-24 flex-col items-center gap-1 select-none"
+          >
             <span
               className="rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide whitespace-nowrap text-white/90 drop-shadow"
               style={{ backgroundColor: "rgba(9,12,18,0.72)" }}
