@@ -11,6 +11,15 @@ const PILLAR_COLOR = "#756a5b";
 const PLATFORM_COLOR = "#7d7160";
 
 /**
+ * Satu drum. Ukurannya tetap dan tidak jadi parameter: drum minyak memang
+ * seukuran itu, dan drum yang boleh berbeda-beda besarnya akan berhenti
+ * berfungsi sebagai satuan ukur yang dipakai pemain menaksir jarak.
+ */
+function drum(id: string, x: number, z: number, color = "#7f7a63"): MapBlock {
+  return { id, kind: "drum", position: [x, 0.6, z], size: [0.9, 1.2, 0.9], color };
+}
+
+/**
  * Tembok keliling yang mengurung area main sebuah peta.
  *
  * Panjangnya dihitung dari `half` — jarak dinding ke pusat — ditambah satu
@@ -189,6 +198,40 @@ const crates: MapBlock[] = [
 ];
 
 /** Tembok setengah badan untuk bertahan sambil menembak. */
+/**
+ * Prop lepas di sela-sela Gudang Senja.
+ *
+ * Semuanya di PINGGIR, tidak satu pun di jalur yang menghubungkan panggung
+ * tengah dengan keempat sudut. Penutup setinggi pinggang yang berdiri di
+ * tengah jalur bukan menambah pilihan, melainkan menambah sesuatu untuk
+ * tersangkut — dan pemain yang tersangkut saat berlari menuju panggung akan
+ * menyalahkan petanya, dengan benar.
+ */
+const gudangProps: MapBlock[] = [
+  drum("gudang-drum-barat-a", -19, 5, "#8a7f5e"),
+  drum("gudang-drum-barat-b", -17.8, 6.4, "#7a7256"),
+  drum("gudang-drum-timur-a", 19, -5, "#8a7f5e"),
+  drum("gudang-drum-timur-b", 17.8, -6.4, "#7a7256"),
+  drum("gudang-drum-utara", -3, -17.5),
+  drum("gudang-drum-selatan", 3, 17.5),
+  {
+    id: "gudang-krat-barat-lorong",
+    kind: "crate",
+    position: [-19, 0.6, -12],
+    size: [1.2, 1.2, 1.2],
+    rotationY: Math.PI / 7,
+    color: CRATE_COLOR,
+  },
+  {
+    id: "gudang-krat-timur-lorong",
+    kind: "crate",
+    position: [19, 0.6, 12],
+    size: [1.2, 1.2, 1.2],
+    rotationY: -Math.PI / 9,
+    color: CRATE_COLOR,
+  },
+];
+
 const halfWalls: MapBlock[] = [
   {
     id: "cover-barat",
@@ -377,6 +420,23 @@ const GUDANG_LIGHTING: MapLighting = {
  * membuat jalur-jalur sempitnya terbaca sebagai lorong, bukan sebagai
  * penghalang di lapangan terbuka.
  */
+/**
+ * Prop lepas di Lorong Pabrik.
+ *
+ * Ditaruh di ujung jalur, bukan di tengahnya. Lorong yang lebarnya hanya
+ * beberapa satuan tidak punya ruang untuk penutup tambahan — satu drum di
+ * tengah jalur mengubah lorong jadi celah, dan dua orang yang berpapasan di
+ * situ tidak punya cara menghindar sama sekali.
+ */
+const pabrikProps: MapBlock[] = [
+  drum("pabrik-drum-barat-a", -14, 2, "#6f7684"),
+  drum("pabrik-drum-barat-b", -15.2, 3.2, "#5f6675"),
+  drum("pabrik-drum-timur-a", 14, -2, "#6f7684"),
+  drum("pabrik-drum-timur-b", 15.2, -3.2, "#5f6675"),
+  drum("pabrik-drum-utara", 3.5, -15.5, "#6f7684"),
+  drum("pabrik-drum-selatan", -3.5, 15.5, "#6f7684"),
+];
+
 const PABRIK_LIGHTING: MapLighting = {
   skyLight: "#8f9bab",
   groundLight: "#2b2d33",
@@ -399,6 +459,38 @@ const PABRIK_LIGHTING: MapLighting = {
  * atap terasa berada di atas sesuatu. Cahaya ratanya paling redup di antara
  * ketiga peta karena memang malam hari; yang menerangi hanyalah dua sumber itu.
  */
+/**
+ * Prop lepas di Atap Kota.
+ *
+ * Paling sedikit di antara ketiga peta, dan itu disengaja. Yang dijual peta
+ * ini adalah jarak pandang terjauh; setiap penutup yang ditambahkan di tengah
+ * mengambil sedikit dari satu-satunya hal yang membedakannya. Drumnya karena
+ * itu berdiri di pinggir, sebagai tempat berlindung sesaat bagi yang sedang
+ * menyeberang, bukan sebagai posisi untuk ditunggui.
+ */
+const atapProps: MapBlock[] = [
+  drum("atap-drum-bl", -24, -14, "#8a8f98"),
+  drum("atap-drum-br", 24, -14, "#7c8189"),
+  drum("atap-drum-tl", -24, 14, "#7c8189"),
+  drum("atap-drum-tr", 24, 14, "#8a8f98"),
+  {
+    id: "atap-krat-barat",
+    kind: "crate",
+    position: [-16, 0.7, -11],
+    size: [1.4, 1.4, 1.4],
+    rotationY: Math.PI / 8,
+    color: "#6f6a5f",
+  },
+  {
+    id: "atap-krat-timur",
+    kind: "crate",
+    position: [16, 0.7, 11],
+    size: [1.4, 1.4, 1.4],
+    rotationY: -Math.PI / 10,
+    color: "#6f6a5f",
+  },
+];
+
 const ATAP_LIGHTING: MapLighting = {
   skyLight: "#6f6a9c",
   groundLight: "#2a2333",
@@ -542,7 +634,7 @@ const siloTengah: MapBlock[] = [
   {
     id: "silo-drum-a",
     kind: "drum",
-    position: [-2, 0.6, -14],
+    position: [1.6, 0.6, -12],
     size: [0.9, 1.2, 0.9],
     color: "#8a7f5e",
   },
@@ -556,7 +648,7 @@ const siloTengah: MapBlock[] = [
   {
     id: "silo-drum-c",
     kind: "drum",
-    position: [2, 0.6, 14],
+    position: [-1.6, 0.6, 12],
     size: [0.9, 1.2, 0.9],
     color: "#8a7f5e",
   },
@@ -776,6 +868,7 @@ export const MOCK_MAPS: ArenaMapInfo[] = [
       ...pillars,
       ...crates,
       ...halfWalls,
+      ...gudangProps,
     ],
     // Sembilan titik: satu pemain plus maksimal delapan lawan, semuanya di
     // ruang terbuka dan berjauhan satu sama lain.
@@ -812,6 +905,7 @@ export const MOCK_MAPS: ArenaMapInfo[] = [
       ...pabrikLanes,
       ...pabrikMachines,
       ...pabrikStacks,
+      ...pabrikProps,
     ],
     // Tujuh titik: peta ini lebih sempit, jadi menampung lebih sedikit lawan
     // daripada Gudang Senja. Semuanya di jalur luar dan ujung arena, berjauhan.
@@ -844,6 +938,7 @@ export const MOCK_MAPS: ArenaMapInfo[] = [
       ...atapUnits,
       ...atapStairwells,
       ...atapParapets,
+      ...atapProps,
     ],
     // Sembilan titik di peta terluas: satu pemain plus delapan lawan, semuanya
     // di tepi arena dan berjauhan dari helipad tengah yang jadi rebutan.
