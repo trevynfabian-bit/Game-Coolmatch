@@ -257,6 +257,11 @@ export interface MatchScoreLine {
    * lama yang ditulis sebelum kolomnya ada.
    */
   weaponId?: string | null;
+  /** Jejak peluru yang kena; kosong pada catatan lama. */
+  damageDealt?: number;
+  damageTaken?: number;
+  hitsLanded?: number;
+  headshots?: number;
 }
 
 /** Hasil akhir pertandingan dari sudut pandang pemain; sama dengan kolom `result`. */

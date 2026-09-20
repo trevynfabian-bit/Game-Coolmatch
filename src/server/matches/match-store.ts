@@ -58,6 +58,27 @@ export interface KillInput {
   isHeadshot: boolean;
 }
 
+/** Satu peluru yang KENA, mematikan atau tidak. */
+export interface HitInput {
+  shooterName: string;
+  targetName: string;
+  /** Kerusakan mentah yang diterapkan, poin utuh; nyawa dan rompi digabung. */
+  damage: number;
+  isHeadshot: boolean;
+}
+
+/** Jejak hit seorang peserta sesudah sebuah hit dicatat. */
+export interface HitLineSnapshot {
+  participantName: string;
+  damageDealt: number;
+  damageTaken: number;
+  hitsLanded: number;
+  headshots: number;
+}
+
+/** Batas kerusakan satu peluru yang masih masuk akal: dua kali senapan runduk. */
+const MAX_HIT_DAMAGE = 400;
+
 /** Perolehan satu peserta sesudah sebuah kejadian dicatat. */
 export interface ScoreLineSnapshot {
   participantName: string;
@@ -232,6 +253,48 @@ export function parseKill(body: unknown): Parsed<KillInput> {
   };
 }
 
+/** Memeriksa badan permintaan "lapor hit". */
+export function parseHit(body: unknown): Parsed<HitInput> {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return { ok: false, message: "Badan permintaan harus berupa objek JSON." };
+  }
+  const b = body as Record<string, unknown>;
+
+  if (!nonEmptyString(b.shooterName) || !nonEmptyString(b.targetName)) {
+    return { ok: false, message: "Nama penembak dan sasaran harus diisi." };
+  }
+  if (b.shooterName === b.targetName) {
+    return {
+      ok: false,
+      message: "Penembak dan sasaran tidak boleh orang yang sama.",
+    };
+  }
+  if (
+    typeof b.damage !== "number" ||
+    !Number.isInteger(b.damage) ||
+    b.damage <= 0 ||
+    b.damage > MAX_HIT_DAMAGE
+  ) {
+    return {
+      ok: false,
+      message: `Kerusakan harus bilangan bulat antara 1 dan ${MAX_HIT_DAMAGE}.`,
+    };
+  }
+  if (typeof b.isHeadshot !== "boolean") {
+    return { ok: false, message: "isHeadshot harus bernilai true atau false." };
+  }
+
+  return {
+    ok: true,
+    value: {
+      shooterName: b.shooterName,
+      targetName: b.targetName,
+      damage: b.damage,
+      isHeadshot: b.isHeadshot,
+    },
+  };
+}
+
 /**
  * Membuka sebuah pertandingan baru beserta baris perolehan seluruh pesertanya.
  *
@@ -292,6 +355,103 @@ export function startMatch(playerId: number, input: StartMatchInput): number {
 export type RecordKillResult =
   | { ok: true; killer: ScoreLineSnapshot; victim: ScoreLineSnapshot }
   | { ok: false; status: 404 | 409; message: string };
+
+export type RecordHitResult =
+  | { ok: true; shooter: HitLineSnapshot; target: HitLineSnapshot }
+  | { ok: false; status: 404 | 409; message: string };
+
+/**
+ * Mencatat satu peluru yang mengenai peserta: penembak bertambah kerusakan
+ * yang diberikan, peluru yang mendarat, dan kena kepala; sasaran bertambah
+ * kerusakan yang diterima. Kill TIDAK dicatat di sini — peluru yang
+ * mematikan tetap dilaporkan lewat endpoint kill supaya satu kejadian tidak
+ * pernah dihitung dua kali oleh dua jalur.
+ *
+ * Seperti kill, catatan ini bertahap dan bukan sumber kebenaran: permintaan
+ * yang terkirim dua kali dihitung dua kali, dan gunanya adalah jejak
+ * pertandingan yang ditinggal serta bahan ketepatan di riwayat.
+ */
+export function recordHit(matchId: number, input: HitInput): RecordHitResult {
+  return db.transaction((tx) => {
+    const [match] = tx
+      .select()
+      .from(matches)
+      .where(eq(matches.id, matchId))
+      .limit(1)
+      .all();
+
+    if (!match) {
+      return {
+        ok: false,
+        status: 404,
+        message: "Pertandingan tidak ditemukan.",
+      };
+    }
+    if (match.endedAt !== null) {
+      return {
+        ok: false,
+        status: 409,
+        message:
+          "Pertandingan sudah ditutup, kejadian baru tidak bisa dicatat.",
+      };
+    }
+
+    const lines = tx
+      .select({ participantName: matchScores.participantName })
+      .from(matchScores)
+      .where(eq(matchScores.matchId, matchId))
+      .all();
+    const known = new Set(lines.map((line) => line.participantName));
+    for (const name of [input.shooterName, input.targetName]) {
+      if (!known.has(name)) {
+        return {
+          ok: false,
+          status: 404,
+          message: `"${name}" bukan peserta pertandingan ini.`,
+        };
+      }
+    }
+
+    const [shooter] = tx
+      .update(matchScores)
+      .set({
+        damageDealt: sql`${matchScores.damageDealt} + ${input.damage}`,
+        hitsLanded: sql`${matchScores.hitsLanded} + 1`,
+        headshots: sql`${matchScores.headshots} + ${input.isHeadshot ? 1 : 0}`,
+      })
+      .where(
+        and(
+          eq(matchScores.matchId, matchId),
+          eq(matchScores.participantName, input.shooterName),
+        ),
+      )
+      .returning()
+      .all();
+
+    const [target] = tx
+      .update(matchScores)
+      .set({ damageTaken: sql`${matchScores.damageTaken} + ${input.damage}` })
+      .where(
+        and(
+          eq(matchScores.matchId, matchId),
+          eq(matchScores.participantName, input.targetName),
+        ),
+      )
+      .returning()
+      .all();
+
+    touchMatch(tx, matchId);
+
+    const ringkas = (row: typeof shooter): HitLineSnapshot => ({
+      participantName: row.participantName,
+      damageDealt: row.damageDealt,
+      damageTaken: row.damageTaken,
+      hitsLanded: row.hitsLanded,
+      headshots: row.headshots,
+    });
+    return { ok: true, shooter: ringkas(shooter), target: ringkas(target) };
+  });
+}
 
 /**
  * Mencatat satu tembakan mematikan: penembak bertambah satu kill beserta
@@ -544,6 +704,10 @@ export function loadLiveScoreboard(matchId: number): LiveScoreboard | null {
         isWinner: line.isWinner,
         color: line.color,
         weaponId: line.weaponId,
+        damageDealt: line.damageDealt,
+        damageTaken: line.damageTaken,
+        hitsLanded: line.hitsLanded,
+        headshots: line.headshots,
       }),
     ),
   );

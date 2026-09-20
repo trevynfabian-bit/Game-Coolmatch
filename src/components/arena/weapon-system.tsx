@@ -23,7 +23,7 @@ import {
   type ShotHit,
 } from "@/lib/game/shooting";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
-import { reportKill } from "@/lib/game/session-runtime";
+import { reportHit, reportKill } from "@/lib/game/session-runtime";
 import { resolveShotDamage } from "@/lib/game/damage";
 import { useCombatStore } from "@/lib/store/combat-store";
 import { useMatchStore } from "@/lib/store/match-store";
@@ -243,13 +243,23 @@ export function WeaponSystem({
           // Null berarti sasaran sudah tumbang lebih dulu — misalnya butir
           // shotgun berikutnya yang datang sesudah butir yang mematikan.
           if (report) {
-            // Tumbang: dilaporkan ke sesi sebagai fakta, dengan nama —
-            // sesi mengenal peserta dari namanya, bukan id petarung.
+            // Setiap peluru yang kena dilaporkan ke sesi sebagai fakta, dengan
+            // nama — sesi mengenal peserta dari namanya, bukan id petarung;
+            // yang mematikan dilaporkan sekali lagi sebagai kill.
+            const shooterName =
+              matchState.fighters.find((f) => f.id === shooterId)?.name ?? "";
+            reportHit({
+              shooterName,
+              targetName: report.targetName,
+              damage: Math.max(
+                1,
+                Math.round(report.healthLost + report.armorLost),
+              ),
+              isHeadshot,
+            });
             if (report.isLethal) {
               reportKill({
-                killerName:
-                  matchState.fighters.find((f) => f.id === shooterId)?.name ??
-                  "",
+                killerName: shooterName,
                 victimName: report.targetName,
                 isHeadshot,
               });

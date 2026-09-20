@@ -408,6 +408,22 @@ export const matchScores = sqliteTable(
     isWinner: integer("is_winner", { mode: "boolean" })
       .notNull()
       .default(false),
+
+    /**
+     * Jejak tembakan yang KENA, bukan hanya yang mematikan: kerusakan yang
+     * diberikan dan diterima, jumlah peluru yang mendarat, dan berapa di
+     * antaranya mengenai kepala. Kill hanya menceritakan ujungnya; angka-angka
+     * inilah yang membedakan pemain yang menang duel dari pemain yang
+     * kebetulan menembak terakhir, dan yang nanti menjadi ketepatan di
+     * riwayat. Diisi endpoint lapor hit selama sesi berjalan. Batas
+     * wajarnya dijaga di kode, bukan CHECK: menambah CHECK ke tabel yang
+     * sudah ada memaksa drizzle membangun ulang tabelnya, dan salinan yang
+     * dihasilkannya membaca kolom baru dari tabel lama.
+     */
+    damageDealt: integer("damage_dealt").notNull().default(0),
+    damageTaken: integer("damage_taken").notNull().default(0),
+    hitsLanded: integer("hits_landed").notNull().default(0),
+    headshots: integer("headshots").notNull().default(0),
   },
   (table) => [
     uniqueIndex("match_scores_peserta_unik").on(

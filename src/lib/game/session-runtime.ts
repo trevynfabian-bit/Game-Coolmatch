@@ -1,6 +1,7 @@
 import {
   stubMatchSessionSource,
   type FinishRoundRequest,
+  type HitReport,
   type KillReport,
   type MatchSession,
   type MatchSessionSource,
@@ -63,6 +64,18 @@ export function reopenSessionFor(
 
 export function clearSession(): void {
   active = null;
+}
+
+/**
+ * Melaporkan satu peluru yang kena ke sesi. Tidak ditunggu, seperti kill:
+ * jejak hit adalah catatan bertahap, bukan sumber kebenaran, dan arena tidak
+ * boleh tersendat karenanya.
+ */
+export function reportHit(hit: HitReport): void {
+  if (!active) return;
+  source.recordHit(active.matchId, hit).catch((error: unknown) => {
+    console.warn("Hit tidak tercatat di sesi:", error);
+  });
 }
 
 /**

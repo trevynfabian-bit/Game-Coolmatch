@@ -69,6 +69,15 @@ export interface KillReport {
   isHeadshot: boolean;
 }
 
+/** Satu peluru yang kena, sama dengan badan `POST /api/pertandingan/:id/hit`. */
+export interface HitReport {
+  shooterName: string;
+  targetName: string;
+  /** Kerusakan mentah yang diterapkan, poin utuh. */
+  damage: number;
+  isHeadshot: boolean;
+}
+
 /** Fakta satu ronde, sama dengan badan `POST /api/pertandingan/:id/ronde`. */
 export interface FinishRoundRequest {
   roundNumber: number;
@@ -92,6 +101,7 @@ export interface RoundOutcome {
 /** Sumber sesi: tiruan sekarang, API server nanti. */
 export interface MatchSessionSource {
   start(request: StartSessionRequest): Promise<MatchSession>;
+  recordHit(matchId: string, hit: HitReport): Promise<void>;
   recordKill(matchId: string, kill: KillReport): Promise<void>;
   finishRound(
     matchId: string,
@@ -155,10 +165,37 @@ export const stubMatchSessionSource: MatchSessionSource = {
         isWinner: false,
         color: p.color,
         weaponId: p.weaponId ?? null,
+        damageDealt: 0,
+        damageTaken: 0,
+        hitsLanded: 0,
+        headshots: 0,
       })),
     };
     stubSessions.set(session.matchId, { session, roundsPlayed: 0 });
     return session;
+  },
+
+  async recordHit(matchId, hit) {
+    const { session } = stubState(matchId);
+    if (session.status === "selesai") {
+      throw new Error("Pertandingan sudah ditutup.");
+    }
+    if (!Number.isInteger(hit.damage) || hit.damage <= 0) {
+      throw new Error("Kerusakan harus bilangan bulat positif.");
+    }
+    const shooter = session.competitors.find(
+      (c) => c.participantName === hit.shooterName,
+    );
+    const target = session.competitors.find(
+      (c) => c.participantName === hit.targetName,
+    );
+    if (!shooter || !target) {
+      throw new Error("Penembak atau sasaran bukan peserta pertandingan ini.");
+    }
+    shooter.damageDealt = (shooter.damageDealt ?? 0) + hit.damage;
+    shooter.hitsLanded = (shooter.hitsLanded ?? 0) + 1;
+    shooter.headshots = (shooter.headshots ?? 0) + (hit.isHeadshot ? 1 : 0);
+    target.damageTaken = (target.damageTaken ?? 0) + hit.damage;
   },
 
   async recordKill(matchId, kill) {

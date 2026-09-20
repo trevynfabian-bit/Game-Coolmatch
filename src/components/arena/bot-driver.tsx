@@ -26,7 +26,7 @@ import { PLAYER_BOUNDS } from "@/lib/game/controls";
 import { difficultyProfile } from "@/lib/game/difficulty";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { incomingAngle, resolveIncomingShot } from "@/lib/game/incoming-fire";
-import { reportKill } from "@/lib/game/session-runtime";
+import { reportHit, reportKill } from "@/lib/game/session-runtime";
 import { raycastArena } from "@/lib/game/shooting";
 import { findWeapon } from "@/lib/mock/weapons";
 import { useCombatStore } from "@/lib/store/combat-store";
@@ -195,6 +195,12 @@ export function BotDriver({
       });
       if (!report) continue;
 
+      reportHit({
+        shooterName: fighter.name,
+        targetName: local.name,
+        damage: Math.max(1, Math.round(report.healthLost + report.armorLost)),
+        isHeadshot,
+      });
       if (report.isLethal) {
         reportKill({
           killerName: fighter.name,
