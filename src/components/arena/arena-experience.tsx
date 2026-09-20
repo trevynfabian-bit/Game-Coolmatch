@@ -15,8 +15,16 @@ import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
+import {
+  stubMatchSessionSource,
+  type MatchSession,
+} from "@/lib/game/match-session";
 import { findMap } from "@/lib/mock/maps";
-import { buildMatchSnapshot, type MatchRules } from "@/lib/mock/match";
+import {
+  buildStartRequest,
+  snapshotFromSession,
+  type MatchRules,
+} from "@/lib/mock/match";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useProfileStore } from "@/lib/store/profile-store";
 import { useMapStore } from "@/lib/store/map-store";
@@ -99,8 +107,8 @@ const ArenaScene = dynamic(
  * context-nya ke dalam kanvas, jadi controller di dalam scene tetap bisa
  * membaca tombol yang ditekan.
  *
- * Sumber datanya masih `MOCK_MATCH`; prop `match` sengaja dibuka supaya task
- * backend nanti tinggal mengoper data asli dari server.
+ * Daftar pesaingnya datang dari sesi pertandingan (lihat `match-session`);
+ * prop `match` sengaja dibuka supaya pemanggil bisa mengoper potret jadi.
  */
 export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
   /**
@@ -165,22 +173,49 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
   const keyboardMap = useMemo(() => buildKeyboardMap(bindings), [bindings]);
 
   /**
-   * Pertandingan disusun dari pengaturan tadi. Prop `match` tetap dibuka supaya
-   * pemanggil bisa memberi potret siap pakai — nanti dipakai layer backend
-   * untuk mengoper pertandingan yang dibuat server.
+   * Pertandingan disusun dari SESI yang dibuka dengan pengaturan tadi. Prop
+   * `match` tetap dibuka supaya pemanggil bisa memberi potret siap pakai.
    */
+  const [session, setSession] = useState<MatchSession | null>(null);
+
+  /*
+    Sesi diminta SEKALI sesudah hidrasi. Sumbernya masih tiruan — menjawab
+    seketika dengan daftar pesaing yang sama persis dengan permintaannya —
+    tetapi jalurnya sudah jalur sesi: arena tidak menyusun daftar pesaingnya
+    sendiri, ia membangunnya dari jawaban sesi. Mengganti sumber tiruan dengan
+    pemanggil API tidak menyentuh apa pun di bawah baris ini.
+  */
+  useEffect(() => {
+    if (match || !hydrated) return;
+    let batal = false;
+    stubMatchSessionSource
+      .start(
+        buildStartRequest({
+          difficulty: entry.difficulty,
+          botCount: entry.botCount,
+          playerName: entry.playerName,
+          map: findMap(entry.mapId),
+          rules: entry.rules,
+          isTrial: entry.isTrial,
+        }),
+      )
+      .then((hasil) => {
+        if (!batal) setSession(hasil);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [match, hydrated, entry]);
+
   const armedMatch = useMemo<MatchSnapshot | null>(() => {
     if (match) return match;
-    if (!hydrated) return null;
-    return buildMatchSnapshot({
-      difficulty: entry.difficulty,
-      botCount: entry.botCount,
-      weaponId: entry.weaponId,
-      playerName: entry.playerName,
+    if (!session) return null;
+    return snapshotFromSession(session, {
       map: findMap(entry.mapId),
+      weaponId: entry.weaponId,
       rules: entry.rules,
     });
-  }, [match, hydrated, entry]);
+  }, [match, session, entry]);
 
   /**
    * Potret pertandingan dari server tidak pernah uji coba: uji coba disusun di

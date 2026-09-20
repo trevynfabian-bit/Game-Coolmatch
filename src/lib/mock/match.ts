@@ -1,6 +1,17 @@
 import { STARTING_ARMOR } from "@/lib/game/damage";
 import { DEFAULT_MATCH_SETUP, clampBotCount } from "@/lib/game/difficulty";
-import { buildBotRoster, maxBotsForMap } from "@/lib/mock/bots";
+import type {
+  MatchSession,
+  StartSessionRequest,
+} from "@/lib/game/match-session";
+import { pickSpawnPoint } from "@/lib/game/spawn";
+import {
+  botParticipants,
+  botWeaponFor,
+  buildBotRoster,
+  facingCenter,
+  maxBotsForMap,
+} from "@/lib/mock/bots";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
 import { DEFAULT_PLAYER_NAME } from "@/lib/game/player-name";
 import { findWeapon } from "@/lib/mock/weapons";
@@ -9,6 +20,7 @@ import type {
   Difficulty,
   Fighter,
   MatchSnapshot,
+  Vec3,
 } from "@/types/game";
 
 /** Aturan pertandingan bawaan; nanti bisa diatur di layar pengaturan sendiri. */
@@ -135,6 +147,129 @@ export function buildMatchSnapshot({
       matchWinner: null,
     },
     fighters: [local, ...buildBotRoster(bots, map, [local.position])],
+    killFeed: [],
+    ammoInMagazine: weapon.magazineSize,
+    ammoReserve: weapon.magazineSize * DEFAULT_RESERVE_MAGAZINES,
+    pingMs: 0,
+  };
+}
+
+/**
+ * Permintaan membuka sesi untuk pengaturan ini: peserta pertama pemain lokal,
+ * sisanya lawan otomatis dari template. Jumlah lawan dijepit ke yang muat di
+ * peta, sama seperti potret pertandingan, supaya sesi dan arena tidak pernah
+ * berselisih soal berapa lawan yang ada.
+ */
+export function buildStartRequest({
+  difficulty,
+  botCount,
+  map = DEFAULT_MAP,
+  rules,
+  playerName = DEFAULT_PLAYER_NAME,
+  isTrial = false,
+}: MatchSetup & { isTrial?: boolean }): StartSessionRequest {
+  const bots = Math.min(clampBotCount(botCount), maxBotsForMap(map));
+  const aturan: MatchRules = { ...DEFAULT_MATCH_RULES, ...rules };
+  return {
+    mapId: map.id,
+    difficulty,
+    botCount: bots,
+    totalRounds: aturan.totalRounds,
+    scoreLimit: aturan.scoreLimit,
+    roundSeconds: aturan.roundSeconds,
+    participants: [
+      { name: playerName, isBot: false, color: LOCAL_FIGHTER.color },
+      ...botParticipants(bots, map),
+    ],
+    isTrial,
+  };
+}
+
+/**
+ * Potret pertandingan dari sebuah SESI: petarungnya dibangun dari daftar
+ * pesaing sesi, bukan dari template lawan langsung.
+ *
+ * Sesi hanya tahu siapa yang bertanding dan berapa perolehannya; tempat
+ * mereka berdiri, senjata bot, nyawa, dan rompi adalah urusan arena. Pemain
+ * lokal mengambil titik spawn pertama, lawan menyebar ke titik terjauh dari
+ * yang sudah terisi, dan semuanya menghadap ke tengah arena. Perolehan
+ * (kill, kematian, skor, kemenangan ronde) disalin dari sesi, jadi sesi yang
+ * sudah berjalan menghasilkan potret yang melanjutkannya, bukan mengulang
+ * dari nol.
+ */
+export function snapshotFromSession(
+  session: MatchSession,
+  {
+    map,
+    weaponId,
+    rules,
+  }: {
+    map: ArenaMapInfo;
+    /** Senjata pemain lokal; bawaan mengikuti pemain lokal. */
+    weaponId?: string;
+    rules?: Partial<MatchRules>;
+  },
+): MatchSnapshot {
+  const weapon = findWeapon(weaponId ?? LOCAL_FIGHTER.weaponId);
+  const aturan: MatchRules = {
+    ...DEFAULT_MATCH_RULES,
+    ...rules,
+    totalRounds: session.totalRounds,
+    scoreLimit: session.scoreLimit,
+    roundSeconds: session.roundSeconds,
+  };
+
+  const taken: Vec3[] = [];
+  let botIndex = 0;
+  const fighters: Fighter[] = session.competitors.map((competitor) => {
+    const position: Vec3 = competitor.isLocal
+      ? (map.spawnPoints[0] ?? LOCAL_FIGHTER.position)
+      : pickSpawnPoint(map.spawnPoints, taken);
+    taken.push(position);
+    if (!competitor.isLocal) botIndex += 1;
+
+    return {
+      id: competitor.isLocal ? LOCAL_FIGHTER.id : `ftr-bot-${botIndex}`,
+      name: competitor.name,
+      team: competitor.isLocal ? "alpha" : "bravo",
+      isLocal: competitor.isLocal,
+      isBot: competitor.isBot,
+      health: 100,
+      maxHealth: 100,
+      armor: STARTING_ARMOR,
+      kills: competitor.kills,
+      deaths: competitor.deaths,
+      score: competitor.score,
+      roundKills: 0,
+      roundWins: competitor.roundWins,
+      isAlive: true,
+      respawnInSeconds: null,
+      weaponId: competitor.isLocal ? weapon.id : botWeaponFor(competitor.name),
+      color: competitor.color,
+      position,
+      rotationY: competitor.isLocal
+        ? LOCAL_FIGHTER.rotationY
+        : facingCenter(position),
+    };
+  });
+
+  return {
+    matchId: session.matchId,
+    map,
+    difficulty: session.difficulty,
+    botCount: fighters.filter((fighter) => fighter.isBot).length,
+    round: {
+      current: 1,
+      total: aturan.totalRounds,
+      secondsLeft: aturan.roundSeconds,
+      durationSeconds: aturan.roundSeconds,
+      intermissionSeconds: aturan.intermissionSeconds,
+      scoreLimit: aturan.scoreLimit,
+      status: "warmup",
+      lastRoundWinner: null,
+      matchWinner: null,
+    },
+    fighters,
     killFeed: [],
     ammoInMagazine: weapon.magazineSize,
     ammoReserve: weapon.magazineSize * DEFAULT_RESERVE_MAGAZINES,

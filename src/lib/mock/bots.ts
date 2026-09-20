@@ -105,11 +105,41 @@ export function buildBotRoster(
       weaponId: template.weaponId,
       color: template.color,
       position,
-      // Menghadap ke tengah arena, tempat sebagian besar perebutan terjadi.
-      // rotationY 0 berarti menghadap -Z, sehingga sudut ke titik (0,0) dari
-      // posisi p adalah atan2(px, pz) — bukan versi bernegatif, yang justru
-      // membuat bot membelakangi arena.
-      rotationY: Math.atan2(position[0], position[2]),
+      rotationY: facingCenter(position),
     } satisfies Fighter;
   });
+}
+
+/**
+ * Arah hadap ke tengah arena dari sebuah titik, tempat sebagian besar
+ * perebutan terjadi. Yaw 0 menghadap +Z — konvensi yang sama dengan otak gerak
+ * dan penanda petarung — sehingga menghadap titik asal dari p berarti
+ * atan2(-px, -pz).
+ */
+export function facingCenter(position: Vec3): number {
+  return Math.atan2(-position[0], -position[2]);
+}
+
+/**
+ * Daftar peserta lawan otomatis untuk membuka sesi pertandingan: nama dan
+ * warna dari template, tanpa posisi — posisi urusan arena, bukan sesi.
+ */
+export function botParticipants(
+  count: number,
+  map: ArenaMapInfo,
+): { name: string; isBot: true; color: string }[] {
+  const wanted = Math.max(0, Math.min(maxBotsForMap(map), Math.round(count)));
+  return BOT_TEMPLATES.slice(0, wanted).map((template) => ({
+    name: template.name,
+    isBot: true,
+    color: template.color,
+  }));
+}
+
+/** Senjata bawaan seorang lawan otomatis, dikenali dari namanya. */
+export function botWeaponFor(name: string): string {
+  return (
+    BOT_TEMPLATES.find((template) => template.name === name)?.weaponId ??
+    BOT_TEMPLATES[0].weaponId
+  );
 }
