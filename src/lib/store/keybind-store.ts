@@ -2,8 +2,8 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { STORAGE_KEYS } from "@/lib/store/storage";
 import {
-  BINDABLE_ACTIONS,
   DEFAULT_BINDINGS,
+  repairBindings,
   type BindableAction,
   type KeyBindings,
 } from "@/lib/game/keybinds";
@@ -11,24 +11,6 @@ import {
 /** Kunci penyimpanan; diawali nama game supaya tidak bentrok di domain yang sama. */
 const STORAGE_KEY = STORAGE_KEYS.keybinds;
 const STORAGE_VERSION = 1;
-
-/**
- * Simpanan dibersihkan per aksi, bukan diterima sebagai satu gumpalan.
- * Simpanan dari versi lama bisa memuat aksi yang sudah tidak ada, atau
- * kehilangan aksi yang baru ditambahkan; keduanya cukup jatuh ke tombol
- * bawaan aksi itu sendiri tanpa membuang tombol lain yang sudah diatur pemain.
- */
-function sanitizeBindings(value: unknown): KeyBindings {
-  const saved = (value ?? {}) as Partial<Record<string, unknown>>;
-  const hasil = { ...DEFAULT_BINDINGS };
-  for (const entry of BINDABLE_ACTIONS) {
-    const code = saved[entry.action];
-    if (typeof code === "string" && code.length > 0) {
-      hasil[entry.action] = code;
-    }
-  }
-  return hasil;
-}
 
 interface KeybindState {
   bindings: KeyBindings;
@@ -79,9 +61,19 @@ export const useKeybindStore = create<KeybindState>()(
       version: STORAGE_VERSION,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ bindings: state.bindings }),
+      /*
+        Simpanan dibersihkan per aksi, bukan diterima sebagai satu gumpalan.
+        Simpanan dari versi lama bisa memuat aksi yang sudah tidak ada,
+        kehilangan aksi yang baru ditambahkan, atau memuat bentrokan yang
+        dulu masih diizinkan; semuanya cukup jatuh ke tombol bawaan aksi
+        yang bersangkutan tanpa membuang tombol lain yang sudah diatur
+        pemain. Aturannya sendiri dipinjam dari `repairBindings`, yang sama
+        dengan yang dipakai server, supaya tata tombol yang sah di perangkat
+        tidak pernah jadi tidak sah begitu ia dikirim.
+      */
       merge: (persisted, current): KeybindState => ({
         ...current,
-        bindings: sanitizeBindings(
+        bindings: repairBindings(
           (persisted as { bindings?: unknown } | null)?.bindings,
         ),
       }),

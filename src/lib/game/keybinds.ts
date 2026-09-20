@@ -158,7 +158,7 @@ const RESERVED: Record<string, string> = {
 
 export type RebindProblem =
   | { kind: "terlarang"; reason: string }
-  | { kind: "bentrok"; withLabel: string };
+  | { kind: "bentrok"; withAction: BindableAction; withLabel: string };
 
 /**
  * Memeriksa apakah sebuah tombol boleh dipasang pada aksi tertentu.
@@ -183,7 +183,11 @@ export function checkRebind(
     if (entry.action === action) continue;
     const dipakai = [bindings[entry.action], ...entry.alternates];
     if (dipakai.includes(code)) {
-      return { kind: "bentrok", withLabel: entry.label };
+      return {
+        kind: "bentrok",
+        withAction: entry.action,
+        withLabel: entry.label,
+      };
     }
   }
 
@@ -195,6 +199,91 @@ export function checkRebind(
 /** Nama aksi untuk sebuah kode; dipakai menyusun pesan bentrokan. */
 export function actionLabel(action: BindableAction): string {
   return BY_ACTION.get(action)?.label ?? action;
+}
+
+export interface BindingProblem {
+  action: BindableAction;
+  problem: RebindProblem;
+}
+
+/**
+ * Memeriksa SELURUH pemetaan sekaligus, bukan satu penggantian.
+ *
+ * `checkRebind` menjawab "boleh tidak tombol ini dipasang di sini", yang tepat
+ * untuk pemain yang sedang menekan satu tombol. Tetapi pemetaan utuh juga bisa
+ * datang dari tempat yang tidak pernah melewati layar itu — simpanan di
+ * perangkat, kolom di database, badan permintaan HTTP — dan di sana yang perlu
+ * dijawab adalah "pemetaan ini sah tidak". Keduanya memakai aturan yang sama
+ * persis, jadi aturannya tetap hanya hidup di satu tempat.
+ */
+export function findBindingProblem(
+  bindings: KeyBindings,
+): BindingProblem | null {
+  for (const entry of BINDABLE_ACTIONS) {
+    const problem = checkRebind(
+      bindings,
+      entry.action,
+      bindings[entry.action],
+    );
+    if (problem) return { action: entry.action, problem };
+  }
+  return null;
+}
+
+/** Keterangan masalah pemetaan dalam kalimat yang bisa dibacakan ke pemain. */
+export function bindingProblemMessage({
+  action,
+  problem,
+}: BindingProblem): string {
+  const nama = actionLabel(action);
+  return problem.kind === "bentrok"
+    ? `Tombol untuk "${nama}" bentrok dengan "${problem.withLabel}".`
+    : `Tombol untuk "${nama}" tidak bisa dipakai: ${problem.reason}`;
+}
+
+/**
+ * Menyusun pemetaan yang PASTI sah dari data yang tidak bisa dipercaya.
+ *
+ * Dipakai untuk data tersimpan — localStorage dan kolom JSON di database —
+ * bukan untuk permintaan yang baru datang. Bedanya disengaja: permintaan punya
+ * pengirim yang bisa diberi tahu bahwa kirimannya keliru, sedangkan simpanan
+ * tidak punya siapa-siapa untuk ditanyai. Menolak simpanan berarti pemain
+ * kehilangan seluruh tata tombolnya karena satu baris rusak; memperbaikinya
+ * membuat ia hanya kehilangan baris itu.
+ *
+ * Perbaikan selalu mengorbankan aksi yang MENYIMPANG dari bawaan, tidak pernah
+ * aksi yang masih memakai bawaannya. Bawaan mustahil jadi biang bentrokan —
+ * kedelapannya berbeda satu sama lain — jadi mengembalikan yang menyimpang
+ * pasti mengurangi masalah, dan pengulangannya pasti berhenti.
+ */
+export function repairBindings(value: unknown): KeyBindings {
+  const saved = (value ?? {}) as Record<string, unknown>;
+  const hasil = { ...DEFAULT_BINDINGS };
+  for (const entry of BINDABLE_ACTIONS) {
+    const code = saved[entry.action];
+    if (typeof code === "string" && code.length > 0) {
+      hasil[entry.action] = code;
+    }
+  }
+
+  for (let putaran = 0; putaran < BINDABLE_ACTIONS.length; putaran += 1) {
+    const masalah = findBindingProblem(hasil);
+    if (!masalah) break;
+
+    const terlibat =
+      masalah.problem.kind === "bentrok"
+        ? [masalah.action, masalah.problem.withAction]
+        : [masalah.action];
+    const korban =
+      terlibat.find((a) => hasil[a] !== DEFAULT_BINDINGS[a]) ?? masalah.action;
+
+    // Sudah bawaan tetapi masih bermasalah: tidak ada lagi yang bisa
+    // dikembalikan, dan mengulang hanya akan berputar di tempat.
+    if (hasil[korban] === DEFAULT_BINDINGS[korban]) break;
+    hasil[korban] = DEFAULT_BINDINGS[korban];
+  }
+
+  return hasil;
 }
 
 const NAMED_KEYS: Record<string, string> = {

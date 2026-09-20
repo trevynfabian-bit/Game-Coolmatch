@@ -14,6 +14,9 @@ import {
 import {
   BINDABLE_ACTIONS,
   DEFAULT_BINDINGS,
+  bindingProblemMessage,
+  findBindingProblem,
+  repairBindings,
   type BindableAction,
   type KeyBindings,
 } from "@/lib/game/keybinds";
@@ -56,8 +59,11 @@ function bilanganDalam(
  *
  * Pemetaan tombol adalah satu-satunya bagian yang TIDAK bisa diperiksa
  * database — ia tersimpan sebagai teks JSON — jadi pemeriksaan di sini yang
- * menanggung seluruhnya: aksi yang tidak dikenal ditolak, dan tiap aksi harus
- * menunjuk kode tombol berupa teks yang tidak kosong.
+ * menanggung seluruhnya: aksi yang tidak dikenal ditolak, tiap aksi harus
+ * menunjuk kode tombol berupa teks yang tidak kosong, dan pemetaan yang sudah
+ * lengkap masih harus lulus aturan yang sama dengan layar Pengaturan — tidak
+ * memakai tombol yang dipegang browser, dan tidak ada dua aksi berebut satu
+ * tombol.
  */
 export function parseSettings(body: unknown): ParsedSettings {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
@@ -137,6 +143,23 @@ export function parseSettings(body: unknown): ParsedSettings {
     }
   }
 
+  /*
+    Diperiksa sesudah digabung, bukan per kiriman. Kiriman separuh pun bisa
+    melahirkan bentrokan yang tidak ada di dalamnya: mengirim `jump` ke KeyW
+    saja akan bertemu `forward` bawaan yang juga KeyW, dan tidak satu pun dari
+    kedua nilai itu terlihat salah bila dilihat sendiri-sendiri.
+
+    Ditolak, bukan diperbaiki. Layar Pengaturan sudah menyaringnya lewat
+    `checkRebind`, jadi pemetaan bentrok yang sampai ke sini berarti ada yang
+    tidak beres di pengirimnya — dan memperbaikinya diam-diam berarti menyimpan
+    tata tombol yang tidak pernah dipilih pemain, lalu mengirimkannya kembali
+    seolah-olah itu pilihannya.
+  */
+  const masalah = findBindingProblem(bindings);
+  if (masalah) {
+    return { ok: false, message: bindingProblemMessage(masalah) };
+  }
+
   return {
     ok: true,
     value: {
@@ -162,24 +185,21 @@ export function parseSettings(body: unknown): ParsedSettings {
  * Apa pun yang tidak bisa dibaca jatuh ke bawaan, PER AKSI. Teks itu bisa
  * ditulis versi lama, disunting tangan, atau terpotong separuh; satu aksi yang
  * rusak tidak boleh membuang seluruh tata tombol yang sudah disetel pemain.
+ *
+ * Kolom ini satu-satunya bagian pengaturan yang TIDAK bisa dijaga batasan
+ * CHECK — bagi database ia hanya teks — jadi bacaannya yang harus memastikan
+ * hasilnya sah, bukan sekadar terbaca. `repairBindings` memakai aturan yang
+ * sama dengan layar Pengaturan, sehingga baris yang ditulis sebelum sebuah
+ * aturan diperketat tetap keluar sebagai tata tombol yang bisa dimainkan.
  */
 function bacaBindings(raw: string): KeyBindings {
-  const hasil = { ...DEFAULT_BINDINGS };
   let tersimpan: unknown;
   try {
     tersimpan = JSON.parse(raw);
   } catch {
-    return hasil;
+    return DEFAULT_BINDINGS;
   }
-  if (typeof tersimpan !== "object" || tersimpan === null) return hasil;
-
-  for (const entry of BINDABLE_ACTIONS) {
-    const kode = (tersimpan as Record<string, unknown>)[entry.action];
-    if (typeof kode === "string" && kode.length > 0) {
-      hasil[entry.action] = kode;
-    }
-  }
-  return hasil;
+  return repairBindings(tersimpan);
 }
 
 /** Menyusun jawaban dari satu baris pengaturan. */
