@@ -77,18 +77,73 @@ export function MapThumbnail({
         </g>
       ))}
 
-      {map.blocks.map((block) => (
-        <rect
-          key={block.id}
-          x={block.position[0] - block.size[0] / 2}
-          y={block.position[2] - block.size[2] / 2}
-          width={block.size[0]}
-          height={block.size[2]}
-          fill={block.color ?? "#6b6053"}
-          // Balok rendah digambar tembus pandang: ia menandai lantai yang bisa
-          // dinaiki, bukan penghalang.
-          opacity={isSolid(block) ? 0.95 : 0.45}
-        />
+      {map.blocks.map((block) => {
+        const [x, , z] = block.position;
+        const [sx, , sz] = block.size;
+        // Balok rendah digambar tembus pandang: ia menandai lantai yang bisa
+        // dinaiki, bukan penghalang.
+        const opacity = isSolid(block) ? 0.95 : 0.45;
+        const fill = block.color ?? "#6b6053";
+
+        // Drum digambar bundar, sebagaimana wujudnya di arena. Denah yang
+        // menggambarnya kotak membuatnya tidak bisa dibedakan dari krat —
+        // padahal keduanya justru dipakai pemain untuk mengenali tempat.
+        if (block.kind === "drum") {
+          return (
+            <circle
+              key={block.id}
+              cx={x}
+              cy={z}
+              r={Math.min(sx, sz) / 2}
+              fill={fill}
+              opacity={opacity}
+            />
+          );
+        }
+
+        /*
+          Putarannya ikut digambar. Denah yang mengabaikannya menunjukkan krat
+          yang lurus padahal di arena ia miring, dan sejak tabrakan mengikuti
+          tapak sebenarnya, selisih itu bukan lagi soal gambar: pemain
+          merencanakan jalur dari denah ini, lalu menemukan celah yang
+          dilihatnya ternyata tertutup.
+        */
+        const derajat = ((block.rotationY ?? 0) * 180) / Math.PI;
+
+        return (
+          <rect
+            key={block.id}
+            x={x - sx / 2}
+            y={z - sz / 2}
+            width={sx}
+            height={sz}
+            fill={fill}
+            opacity={opacity}
+            transform={derajat === 0 ? undefined : `rotate(${derajat} ${x} ${z})`}
+          />
+        );
+      })}
+
+      {/* Lampu arena: menandai tempat yang terang, dan dengan sendirinya juga
+          tempat yang gelap. Digambar sebelum titik spawn supaya penanda spawn
+          tetap yang paling terbaca. */}
+      {(map.lighting.lamps ?? []).map((lamp) => (
+        <g key={lamp.id}>
+          <circle
+            cx={lamp.position[0]}
+            cy={lamp.position[2]}
+            r={Math.max(1.6, width * 0.035)}
+            fill={lamp.color}
+            opacity={0.14}
+          />
+          <circle
+            cx={lamp.position[0]}
+            cy={lamp.position[2]}
+            r={Math.max(0.5, width * 0.011)}
+            fill={lamp.color}
+            opacity={0.85}
+          />
+        </g>
       ))}
 
       {/* Titik spawn: menunjukkan dari mana pertarungan dimulai dan seberapa
