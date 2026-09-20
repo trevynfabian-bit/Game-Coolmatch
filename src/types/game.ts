@@ -105,7 +105,7 @@ export interface KillFeedEntry {
 /** Satu balok penghalang di arena (dinding, krat, ramp, atau pilar). */
 export interface MapBlock {
   id: string;
-  kind: "wall" | "crate" | "ramp" | "pillar" | "platform";
+  kind: "wall" | "crate" | "drum" | "ramp" | "pillar" | "platform";
   position: Vec3;
   size: Vec3;
   rotationY?: number;

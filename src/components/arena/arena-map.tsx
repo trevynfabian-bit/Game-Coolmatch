@@ -2,69 +2,46 @@
 
 import { useMemo } from "react";
 import {
-  boxFaceSizes,
-  tiledTextures,
-  type SurfaceKind,
-} from "@/lib/textures/texture-engine";
+  CrateProp,
+  DrumProp,
+  PillarProp,
+} from "@/components/arena/arena-props";
+import { BoxSurface } from "@/components/arena/surface-material";
+import { tiledTextures, type SurfaceKind } from "@/lib/textures/texture-engine";
 import type { ArenaMapInfo, MapBlock } from "@/types/game";
 
 /** Warna balok yang datanya tidak menyebutkan warna sendiri. */
 const WARNA_BAWAAN = "#6b6053";
 
 /**
- * Bahan apa yang diwakili tiap jenis balok.
+ * Bahan apa yang diwakili tiap jenis balok yang masih berupa kotak polos.
  *
  * Panggung dan tangganya sengaja sama-sama logam. Keduanya memang satu
- * bangunan — panggung berundak di tengah arena — dan memberi tangga bahan
- * yang berbeda dari panggung yang disambungnya membuatnya terbaca sebagai dua
- * benda yang kebetulan bersentuhan. Logam sekaligus memisahkannya dari tembok
- * beton di sekeliling, dan titik rebutan utama arena memang pantas terlihat
- * berbeda dari kejauhan.
+ * bangunan — panggung berundak di tengah arena — dan memberi tangga bahan yang
+ * berbeda dari panggung yang disambungnya membuatnya terbaca sebagai dua benda
+ * yang kebetulan bersentuhan. Logam sekaligus memisahkannya dari tembok beton
+ * di sekeliling.
  */
-const BAHAN: Record<MapBlock["kind"], SurfaceKind> = {
+const BAHAN_KOTAK: Record<"wall" | "ramp" | "platform", SurfaceKind> = {
   wall: "wall",
-  crate: "crate",
-  pillar: "pillar",
-  platform: "metal",
   ramp: "metal",
+  platform: "metal",
 };
 
 /**
- * Bahan keenam sisi sebuah balok, urut seperti yang diminta BoxGeometry:
- * +X, -X, +Y, -Y, +Z, -Z.
+ * Balok yang bentuknya memang kotak: tembok, tangga, dan panggung.
  *
- * Hampir semua balok memakai satu bahan untuk semua sisinya. Peti tidak: sisi
- * atas dan bawahnya adalah TUTUP, dan tutup peti dipaku melintang terhadap
- * dinding petinya. Memakai gambar sisi untuk tutup menaruh sabuk yang
- * semestinya melingkari peti jadi tergeletak membelah tutupnya.
+ * Ketiganya tetap dirender sebagai kotak karena memang begitulah bentuknya.
+ * Memberi tembok siluet yang lebih rumit tidak menambah apa pun selain
+ * segitiga — yang menjelaskan sebuah tembok adalah permukaannya, dan itu sudah
+ * dikerjakan teksturnya.
  */
-function bahanSisi(kind: MapBlock["kind"]): SurfaceKind[] {
-  const dasar = BAHAN[kind];
-  if (kind !== "crate") return [dasar, dasar, dasar, dasar, dasar, dasar];
-  return ["crate", "crate", "crateTop", "crateTop", "crate", "crate"];
-}
-
-/**
- * Satu balok penghalang, bertekstur per sisi.
- *
- * Enam material, bukan satu, karena satu balok punya enam sisi yang ukurannya
- * berbeda sementara satu tekstur hanya punya satu pengulangan. Tembok sepanjang
- * dua puluh satuan dan setebal setengah satuan memakai angka yang sama untuk
- * kedua sisi itu akan menampilkan sisi tipisnya sebagai beton yang tertarik
- * memanjang — melar dan langsung terlihat justru karena berbeda dari sisi di
- * sebelahnya.
- *
- * Warna balok tetap dari datanya. Teksturnya abu-abu dan dikalikan dengan warna
- * itu, jadi palet tiap peta — gudang senja kecokelatan, pabrik kebiruan —
- * masih yang menentukan rasa arenanya.
- */
-function Block({ block }: { block: MapBlock }) {
-  const sisi = useMemo(() => {
-    const bahan = bahanSisi(block.kind);
-    return boxFaceSizes(block.size).map(([lebar, tinggi], i) =>
-      tiledTextures(bahan[i], lebar, tinggi),
-    );
-  }, [block.kind, block.size]);
+function KotakPolos({ block }: { block: MapBlock }) {
+  const bahan = BAHAN_KOTAK[block.kind as keyof typeof BAHAN_KOTAK] ?? "wall";
+  const sisi = useMemo(
+    () => [bahan, bahan, bahan, bahan, bahan, bahan],
+    [bahan],
+  );
 
   return (
     <mesh
@@ -74,30 +51,39 @@ function Block({ block }: { block: MapBlock }) {
       receiveShadow
     >
       <boxGeometry args={block.size} />
-      {sisi.map((tekstur, i) => (
-        <meshStandardMaterial
-          key={i}
-          attach={`material-${i}`}
-          color={block.color ?? WARNA_BAWAAN}
-          map={tekstur?.map ?? null}
-          roughnessMap={tekstur?.roughnessMap ?? null}
-          /*
-            Satu, bukan angka per jenis bahan. Nilai ini DIKALIKAN dengan peta
-            kekasaran, jadi apa pun selain satu diam-diam menggeser seluruh
-            rentang yang sudah disusun di mesin tekstur — dan logam yang
-            seharusnya setengah mengilap ikut jadi sekasar beton.
-          */
-          roughness={1}
-          metalness={0.05}
-        />
-      ))}
+      <BoxSurface
+        bahan={sisi}
+        size={block.size}
+        color={block.color ?? WARNA_BAWAAN}
+      />
     </mesh>
   );
 }
 
 /**
- * Merender geometri statis arena: lantai bertekstur dan seluruh balok
- * penghalang dari `ArenaMapInfo`.
+ * Satu penghalang arena, dirender sesuai jenisnya.
+ *
+ * Peti, drum, dan pilar punya komponen sendiri karena ketiganya punya bentuk;
+ * sisanya tetap kotak. Pembagiannya di sini, bukan di dalam tiap prop, supaya
+ * ada satu tempat yang bisa dibaca untuk mengetahui jenis mana dirender oleh
+ * apa.
+ */
+function Block({ block }: { block: MapBlock }) {
+  switch (block.kind) {
+    case "crate":
+      return <CrateProp block={block} />;
+    case "drum":
+      return <DrumProp block={block} />;
+    case "pillar":
+      return <PillarProp block={block} />;
+    default:
+      return <KotakPolos block={block} />;
+  }
+}
+
+/**
+ * Merender geometri statis arena: lantai bertekstur dan seluruh penghalang
+ * dari `ArenaMapInfo`.
  *
  * Garis petak drei yang dulu melayang di atas lantai sudah dilepas. Ia dipasang
  * ketika lantainya masih bidang warna polos dan pemain butuh sesuatu untuk
