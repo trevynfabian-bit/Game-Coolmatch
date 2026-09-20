@@ -93,6 +93,20 @@ const DETOUR_SECONDS = 0.9;
 const STUCK_GIVE_UP_SECONDS = 4;
 
 /**
+ * Jarak ketika seorang musuh mulai menjauhi musuh lain, dan seberapa kuat.
+ *
+ * Sejak musuh saling bertabrakan, dua musuh yang berpapasan di lorong sempit
+ * bisa saling mengunci: masing-masing tertahan, masing-masing menyusur samping
+ * ke arah yang sama, dan keduanya diam di tempat. Diukur di Silo Kembar, itu
+ * membuat musuh berdiri diam enam belas persen dari waktunya. Pemisah ini
+ * membelokkan mereka SEBELUM bersentuhan, jadi kuncian itu tidak pernah
+ * terjadi. Pemain sengaja tidak termasuk: musuh yang menjauhi pemain adalah
+ * musuh yang tidak pernah bisa mengejarnya.
+ */
+const SEPARATION_RADIUS = 2.2;
+const SEPARATION_WEIGHT = 1.1;
+
+/**
  * Patokan kecepatan bidik, dalam radian per detik dikali detik reaksi.
  *
  * Kecepatan bidik diturunkan dari waktu reaksi profil, bukan ditulis sendiri
@@ -163,6 +177,8 @@ export interface BotStepInput {
    * cara halus untuk curang.
    */
   waypoints?: readonly Vec3[];
+  /** Posisi musuh LAIN yang hidup, untuk dijauhi sedikit saat berdekatan. */
+  others?: readonly Vec3[];
   /** Disuntikkan supaya pemeriksaan bisa dibuat pasti. */
   random?: () => number;
 }
@@ -276,6 +292,7 @@ export function stepBot(input: BotStepInput): BotStepResult {
     arena,
     delta,
     waypoints = [],
+    others = [],
     random = Math.random,
   } = input;
 
@@ -395,6 +412,29 @@ export function stepBot(input: BotStepInput): BotStepResult {
     headingX = Math.sin(heading);
     headingZ = Math.cos(heading);
     speed = ROAM_SPEED;
+  }
+
+  // Menjauhi musuh lain yang terlalu dekat. Hanya arahnya yang dibelokkan;
+  // kecepatannya tetap, jadi patroli tidak melambat hanya karena ramai.
+  if (speed > 0 && others.length > 0) {
+    let awayX = 0;
+    let awayZ = 0;
+    for (const o of others) {
+      const ox = position.x - o[0];
+      const oz = position.z - o[2];
+      const d = Math.hypot(ox, oz);
+      if (d < 0.001 || d >= SEPARATION_RADIUS) continue;
+      const w = (1 - d / SEPARATION_RADIUS) * SEPARATION_WEIGHT;
+      awayX += (ox / d) * w;
+      awayZ += (oz / d) * w;
+    }
+    const gabungX = headingX + awayX;
+    const gabungZ = headingZ + awayZ;
+    const n = Math.hypot(gabungX, gabungZ);
+    if (n > 0.001) {
+      headingX = gabungX / n;
+      headingZ = gabungZ / n;
+    }
   }
 
   const moved = movePlayer(

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { PointerLockControls, useKeyboardControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Vector3 } from "three";
+import { liveColliders } from "@/lib/game/bot-runtime";
 import { buildColliders, movePlayer } from "@/lib/game/collision";
 import { pointerSpeed } from "@/lib/game/settings";
 import { useSettingsStore } from "@/lib/store/settings-store";
@@ -237,7 +238,17 @@ export function PlayerController({
         dz: horizontalVelocity.current.z * delta,
       },
       verticalVelocity.current,
-      colliders,
+      // Peta ditambah musuh yang masih hidup: pemain tidak bisa berjalan
+      // menembus lawan, dan lawan yang merapat bisa benar-benar menghalangi
+      // jalan — dua hal yang membuat jarak dekat terasa punya bobot.
+      [
+        ...colliders,
+        ...liveColliders(
+          useMatchStore.getState().fighters,
+          localFighter?.id ?? null,
+          PLAYER_BOUNDS,
+        ),
+      ],
       PLAYER_BOUNDS,
       map.playableBounds,
     );

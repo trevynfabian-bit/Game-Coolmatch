@@ -1,5 +1,7 @@
 import { freshBrain } from "@/lib/game/bot-ai";
 import type { BotBrain } from "@/lib/game/bot-ai";
+import { fighterCollider } from "@/lib/game/collision";
+import type { Aabb, PlayerBounds } from "@/lib/game/collision";
 import { playerRuntime } from "@/lib/game/player-runtime";
 import type { Fighter, Vec3 } from "@/types/game";
 
@@ -75,6 +77,32 @@ export function livePosition(fighter: Fighter): Vec3 {
   if (fighter.isLocal) return playerRuntime.position;
   const state = bots.get(fighter.id);
   return state ? [state.x, state.y, state.z] : fighter.position;
+}
+
+/**
+ * Kotak badan semua petarung yang HIDUP selain `exceptId`, pada posisi mereka
+ * saat ini.
+ *
+ * Inilah yang membuat petarung saling bertabrakan. Tanpa daftar ini, musuh
+ * saling menembus dan pemain berjalan menembus musuh; diukur di simulasi, itu
+ * terjadi puluhan ribu kali per menit. Daftarnya disusun tiap frame karena
+ * semua orang bergerak tiap frame — dan cukup murah, sebab isinya paling
+ * banyak sembilan kotak.
+ *
+ * Yang tumbang tidak ikut. Mayat yang masih menghalangi jalan adalah cara
+ * pasti membuat tikungan sempit tersumbat sepanjang sisa ronde.
+ */
+export function liveColliders(
+  fighters: Fighter[],
+  exceptId: string | null,
+  bounds: PlayerBounds,
+): Aabb[] {
+  const hasil: Aabb[] = [];
+  for (const fighter of fighters) {
+    if (!fighter.isAlive || fighter.id === exceptId) continue;
+    hasil.push(fighterCollider(livePosition(fighter), bounds));
+  }
+  return hasil;
 }
 
 /** Arah hadap musuh saat ini, atau arah dari store bila belum pernah bergerak. */

@@ -94,6 +94,33 @@ export function buildColliders(map: ArenaMapInfo): Aabb[] {
   return map.blocks.map(blockToAabb);
 }
 
+/**
+ * Kotak badan seorang petarung di suatu posisi telapak kaki.
+ *
+ * Petarung lain diperlakukan sebagai penghalang yang sama seperti krat: masuk
+ * ke daftar collider yang sama dan diselesaikan oleh langkah yang sama. Tidak
+ * ada aturan khusus badan-lawan-badan, sehingga pemain yang menyusur seorang
+ * musuh terasa persis seperti menyusur tembok — dan ia tidak bisa menembusnya.
+ *
+ * Tingginya penuh, bukan setinggi undakan, dan itu yang mencegah siapa pun
+ * memanjat kepala orang lain: pemeriksaan ruang kepala saat naik undakan tetap
+ * menemukan kotak ini di atasnya.
+ */
+export function fighterCollider(
+  position: readonly [number, number, number],
+  bounds: PlayerBounds,
+): Aabb {
+  const [x, y, z] = position;
+  return {
+    minX: x - bounds.radius,
+    maxX: x + bounds.radius,
+    minY: y,
+    maxY: y + bounds.height,
+    minZ: z - bounds.radius,
+    maxZ: z + bounds.radius,
+  };
+}
+
 export interface PlayerBounds {
   /** Jari-jari badan pemain pada bidang XZ. */
   radius: number;

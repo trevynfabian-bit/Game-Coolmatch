@@ -10,7 +10,7 @@ import {
   hitChance,
   nextFireDelay,
 } from "@/lib/game/bot-combat";
-import { getBot, syncBots } from "@/lib/game/bot-runtime";
+import { getBot, liveColliders, livePosition, syncBots } from "@/lib/game/bot-runtime";
 import { buildColliders } from "@/lib/game/collision";
 import { PLAYER_BOUNDS } from "@/lib/game/controls";
 import { resolveShotDamage } from "@/lib/game/damage";
@@ -104,7 +104,14 @@ export function BotDriver({
         target,
         canSeeTarget,
         profile,
-        colliders,
+        // Peta DITAMBAH petarung lain. Garis pandang di atas sengaja memakai
+        // peta saja: badan musuh lain tidak boleh menyembunyikan pemain, dan
+        // musuh yang berbaris di belakang temannya tetap harus tahu pemain
+        // ada di depan.
+        colliders: [
+          ...colliders,
+          ...liveColliders(match.fighters, fighter.id, PLAYER_BOUNDS),
+        ],
         bounds: PLAYER_BOUNDS,
         arena: map.playableBounds,
         delta,
@@ -112,6 +119,9 @@ export function BotDriver({
         // terbuka, terjangkau, dan tersebar ke seluruh arena oleh
         // pemeriksaan geometri peta.
         waypoints: map.spawnPoints,
+        others: match.fighters
+          .filter((f) => !f.isLocal && f.isAlive && f.id !== fighter.id)
+          .map(livePosition),
       });
 
       state.x = next.position.x;
