@@ -1,3 +1,9 @@
+import {
+  ARMOR_PER_ROUND,
+  armorHint,
+  displayArmor,
+  displayHealth,
+} from "@/lib/game/vitals";
 import type { Fighter, Weapon } from "@/types/game";
 
 /** Bar horizontal generik untuk nyawa dan rompi. */
@@ -23,8 +29,12 @@ function StatBar({
 
 /**
  * Panel kiri-bawah: nyawa, rompi, dan status respawn pemain lokal.
- * Angkanya masih dari data tiruan; pengurangan nyawa asli menyusul di task
- * nyawa & muncul lagi.
+ *
+ * Angkanya dari petarung lokal di store, yang dikurangi tembakan masuk dan
+ * dipulihkan aturan ronde: nyawa penuh saat muncul kembali dan saat ronde
+ * baru, rompi hanya saat ronde baru. Bar rompi mengukur terhadap jatah rompi
+ * satu ronde, dan bacaannya dibulatkan lewat `vitals` supaya pecahan dari
+ * serapan rompi tidak pernah sampai ke layar.
  */
 export function VitalsPanel({
   fighter,
@@ -33,7 +43,10 @@ export function VitalsPanel({
   fighter: Fighter;
   weapon: Weapon;
 }) {
-  const critical = fighter.health <= 30;
+  const health = displayHealth(fighter);
+  const armor = displayArmor(fighter);
+  const hint = armorHint(fighter);
+  const critical = health <= 30;
 
   return (
     <div className="pointer-events-none absolute bottom-4 left-4 sm:bottom-5 sm:left-5">
@@ -46,16 +59,16 @@ export function VitalsPanel({
                   critical ? "text-rose-400" : "text-emerald-300"
                 }`}
                 role="status"
-                aria-label={`Nyawa ${fighter.health} dari ${fighter.maxHealth}`}
+                aria-label={`Nyawa ${health} dari ${fighter.maxHealth}`}
               >
-                {fighter.health}
+                {health}
               </span>
               <div className="pb-1">
                 <p className="mb-1 text-[10px] tracking-[0.2em] text-slate-400 uppercase">
                   Nyawa
                 </p>
                 <StatBar
-                  value={fighter.health}
+                  value={health}
                   max={fighter.maxHealth}
                   color={critical ? "#fb7185" : "#34d399"}
                 />
@@ -64,16 +77,21 @@ export function VitalsPanel({
 
             <div className="flex items-end gap-3">
               <span
-                className="font-mono text-xl leading-5 font-semibold tabular-nums text-sky-300"
-                aria-label={`Rompi ${fighter.armor} dari 100`}
+                className={`font-mono text-xl leading-5 font-semibold tabular-nums ${
+                  armor > 0 ? "text-sky-300" : "text-slate-500"
+                }`}
+                aria-label={`Rompi ${armor} dari ${ARMOR_PER_ROUND}`}
               >
-                {fighter.armor}
+                {armor}
               </span>
               <div className="pb-0.5">
                 <p className="mb-1 text-[10px] tracking-[0.2em] text-slate-400 uppercase">
                   Rompi
                 </p>
-                <StatBar value={fighter.armor} max={100} color="#38bdf8" />
+                <StatBar value={armor} max={ARMOR_PER_ROUND} color="#38bdf8" />
+                {hint ? (
+                  <p className="mt-1 text-[10px] text-slate-500">{hint}</p>
+                ) : null}
               </div>
             </div>
           </>
