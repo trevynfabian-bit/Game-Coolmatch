@@ -6,7 +6,13 @@ import {
   hasClinchedMatch,
   hasReachedScoreLimit,
 } from "@/lib/game/round";
+import { DEFAULT_ROUND_RULES } from "@/lib/game/round-rules";
 import { rankScores } from "@/lib/game/scoreboard";
+import {
+  hitDamageAllowed,
+  sessionRulesFor,
+  type SessionRules,
+} from "@/server/matches/round-rules-service";
 import { DIFFICULTY_PROFILES, MAX_BOTS, MIN_BOTS } from "@/lib/game/difficulty";
 import type {
   Difficulty,
@@ -76,8 +82,8 @@ export interface HitLineSnapshot {
   headshots: number;
 }
 
-/** Batas kerusakan satu peluru yang masih masuk akal: dua kali senapan runduk. */
-const MAX_HIT_DAMAGE = 400;
+/** Batas kerusakan satu peluru menurut aturan ronde: peluru terkuat mengenai kepala. */
+const MAX_HIT_DAMAGE = DEFAULT_ROUND_RULES.maxHitDamage;
 
 /** Perolehan satu peserta sesudah sebuah kejadian dicatat. */
 export interface ScoreLineSnapshot {
@@ -271,9 +277,7 @@ export function parseHit(body: unknown): Parsed<HitInput> {
   }
   if (
     typeof b.damage !== "number" ||
-    !Number.isInteger(b.damage) ||
-    b.damage <= 0 ||
-    b.damage > MAX_HIT_DAMAGE
+    !hitDamageAllowed(DEFAULT_ROUND_RULES, b.damage)
   ) {
     return {
       ok: false,
@@ -638,6 +642,8 @@ export interface LiveScoreboard {
   status: "berjalan" | "selesai";
   /** Benar untuk pertandingan uji coba senjata. */
   isTrial: boolean;
+  /** Aturan nyawa, rompi, respawn, dan panjang pertandingan sesi ini. */
+  rules: SessionRules;
   result: string | null;
   winnerName: string | null;
   startedAt: number;
@@ -726,6 +732,7 @@ export function loadLiveScoreboard(matchId: number): LiveScoreboard | null {
     roundSeconds: match.roundSeconds,
     status: match.endedAt === null ? "berjalan" : "selesai",
     isTrial: match.isTrial,
+    rules: sessionRulesFor(match),
     result: match.result,
     winnerName: match.winnerName,
     startedAt: match.startedAt,

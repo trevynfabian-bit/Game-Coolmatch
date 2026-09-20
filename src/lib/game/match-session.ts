@@ -4,6 +4,7 @@ import {
   findRoundWinner,
   hasClinchedMatch,
 } from "@/lib/game/round";
+import { DEFAULT_ROUND_RULES, type RoundRules } from "@/lib/game/round-rules";
 import { rankScores } from "@/lib/game/scoreboard";
 import type { Difficulty, MatchResult, MatchScoreLine } from "@/types/game";
 
@@ -33,8 +34,18 @@ export interface MatchSession {
   roundSeconds: number;
   isTrial: boolean;
   status: "berjalan" | "selesai";
+  /**
+   * Aturan nyawa, rompi, dan respawn sesi ini, sebagaimana disajikan server.
+   * Boleh kosong pada sesi lama; arena lalu memakai aturan bawaan.
+   */
+  rules?: RoundRules;
   /** Sudah TERURUT sebagai klasemen, sama seperti jawaban server. */
   competitors: SessionCompetitor[];
+}
+
+/** Aturan sesi, atau bawaan bila sesi tidak menyebutkannya. */
+export function sessionRules(session: Pick<MatchSession, "rules">): RoundRules {
+  return session.rules ?? DEFAULT_ROUND_RULES;
 }
 
 /** Satu peserta saat pertandingan dibuka; sama dengan yang diterima server. */
@@ -153,6 +164,7 @@ export const stubMatchSessionSource: MatchSessionSource = {
       roundSeconds: request.roundSeconds,
       isTrial: request.isTrial,
       status: "berjalan",
+      rules: { ...DEFAULT_ROUND_RULES },
       competitors: request.participants.map((p, index) => ({
         id: String(index + 1),
         participantName: p.name,

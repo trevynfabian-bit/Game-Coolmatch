@@ -1,9 +1,11 @@
 import { STARTING_ARMOR } from "@/lib/game/damage";
 import { DEFAULT_MATCH_SETUP, clampBotCount } from "@/lib/game/difficulty";
-import type {
-  MatchSession,
-  StartSessionRequest,
+import {
+  sessionRules,
+  type MatchSession,
+  type StartSessionRequest,
 } from "@/lib/game/match-session";
+import { roundStartVitals } from "@/lib/game/round-rules";
 import { pickSpawnPoint } from "@/lib/game/spawn";
 import {
   botParticipants,
@@ -229,6 +231,8 @@ export function snapshotFromSession(
     roundSeconds: session.roundSeconds,
   };
 
+  // Nyawa dan rompi awal dari aturan sesi, bukan tetapan arena.
+  const vitals = roundStartVitals(sessionRules(session));
   const taken: Vec3[] = [];
   let botIndex = 0;
   const fighters: Fighter[] = session.competitors.map((competitor) => {
@@ -244,9 +248,9 @@ export function snapshotFromSession(
       team: competitor.isLocal ? "alpha" : "bravo",
       isLocal: competitor.isLocal,
       isBot: competitor.isBot,
-      health: 100,
-      maxHealth: 100,
-      armor: STARTING_ARMOR,
+      health: vitals.health,
+      maxHealth: vitals.health,
+      armor: vitals.armor,
       kills: competitor.kills,
       deaths: competitor.deaths,
       score: competitor.score,

@@ -1,7 +1,7 @@
 import type { Fighter } from "@/types/game";
 
 /** Bagian kerusakan yang ditahan rompi selama rompi masih ada. */
-const ARMOR_ABSORPTION = 0.5;
+export const ARMOR_ABSORPTION = 0.5;
 
 /** Pengali kerusakan untuk tembakan yang mengenai kepala. */
 export const HEADSHOT_MULTIPLIER = 2;
