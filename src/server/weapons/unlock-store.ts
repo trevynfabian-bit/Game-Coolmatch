@@ -1,11 +1,15 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { PlayerProgress } from "@/lib/game/collection";
+import type { UnlockKind } from "@/lib/game/unlock";
+import { progressValue } from "@/lib/game/unlock-event";
 import {
   WEAPON_UNLOCK_RULES,
+  unlockRuleFor,
   weaponsUnlockedBy,
 } from "@/lib/game/weapon-unlock-rules";
 import { db } from "@/server/db/client";
-import { playerStats, playerWeapons } from "@/server/db/schema";
+import { playerStats, playerWeapons, weapons } from "@/server/db/schema";
+import { loadTotalDeaths } from "@/server/players/stats-store";
 import { ensureWeaponCatalogue } from "@/server/weapons/weapon-store";
 
 /** Kemajuan pemain yang belum pernah bertanding. */
@@ -142,5 +146,103 @@ export function evaluateWeaponUnlocks(playerId: number): UnlockEvaluation {
     progress,
     unlocked: readUnlockedWeaponIds(playerId),
     newlyUnlocked: baru,
+  };
+}
+
+/** Satu senjata pada daftar koleksi yang dikirim ke klien. */
+export interface CollectionEntryPayload {
+  id: string;
+  name: string;
+  type: string;
+  damage: number;
+  fireRate: number;
+  magazineSize: number;
+  imageUrl: string | null;
+  isUnlocked: boolean;
+  /** Epoch milidetik; null untuk senjata awal maupun yang masih terkunci. */
+  unlockedAt: number | null;
+  /**
+   * Syarat membukanya beserta kemajuan pemain saat ini. Null bila senjatanya
+   * terbuka sejak awal atau sudah terbuka — syarat yang sudah terpenuhi tidak
+   * punya pekerjaan lagi, dan menampilkannya hanya membuat senjata yang sudah
+   * dimiliki tetap terlihat seperti sedang dikejar.
+   */
+  requirement: { kind: UnlockKind; current: number; target: number } | null;
+}
+
+export interface CollectionPayload {
+  progress: PlayerProgress & { totalDeaths: number };
+  weapons: CollectionEntryPayload[];
+}
+
+/**
+ * Seluruh katalog senjata beserta status buka milik seorang pemain.
+ *
+ * Yang dikirim adalah KATALOG LENGKAP, bukan hanya yang sudah terbuka. Layar
+ * Koleksi memang perlu menampilkan yang terkunci — justru itu yang membuat
+ * pemain tahu ada sesuatu untuk dikejar — dan syarat tiap senjata ikut
+ * disertakan lengkap dengan kemajuan pemain saat ini supaya bar kemajuannya
+ * bisa digambar tanpa perhitungan tambahan di klien.
+ *
+ * Penilaian syarat dijalankan lebih dulu. Ia tahan diulang, dan itulah yang
+ * membuat daftar ini tetap benar walau ada pertandingan yang penilaiannya
+ * sempat gagal: senjata yang terlewat muncul di sini, bukan menunggu
+ * pertandingan berikutnya.
+ */
+export function listWeaponCollection(playerId: number): CollectionPayload {
+  const evaluation = evaluateWeaponUnlocks(playerId);
+  const dimiliki = new Set(evaluation.unlocked);
+
+  const waktuBuka = new Map(
+    db
+      .select({
+        weaponId: playerWeapons.weaponId,
+        unlockedAt: playerWeapons.unlockedAt,
+      })
+      .from(playerWeapons)
+      .where(eq(playerWeapons.playerId, playerId))
+      .all()
+      .map((row) => [row.weaponId, row.unlockedAt]),
+  );
+
+  const baris = db
+    .select()
+    .from(weapons)
+    .where(eq(weapons.isAvailable, true))
+    .orderBy(asc(weapons.sortOrder), asc(weapons.id))
+    .all();
+
+  return {
+    progress: {
+      ...evaluation.progress,
+      totalDeaths: loadTotalDeaths(playerId),
+    },
+    weapons: baris.map((row) => {
+      const isUnlocked = dimiliki.has(row.id);
+      const rule = unlockRuleFor(row.id);
+
+      return {
+        id: row.id,
+        name: row.name,
+        type: row.type,
+        damage: row.damage,
+        fireRate: row.fireRate,
+        magazineSize: row.magazineSize,
+        imageUrl: row.imageUrl,
+        isUnlocked,
+        unlockedAt: waktuBuka.get(row.id) ?? null,
+        requirement:
+          isUnlocked || !rule.requirement
+            ? null
+            : {
+                kind: rule.requirement.kind,
+                current: progressValue(
+                  rule.requirement.kind,
+                  evaluation.progress,
+                ),
+                target: rule.requirement.target,
+              },
+      };
+    }),
   };
 }
