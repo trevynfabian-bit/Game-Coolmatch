@@ -9,8 +9,13 @@ import {
 } from "@/lib/game/combat-effects";
 import { BARREL_TIP, flashFor } from "@/lib/game/muzzle-flash";
 import { playerRuntime } from "@/lib/game/player-runtime";
-import { viewmodelPose } from "@/lib/game/viewmodel-anim";
-import { runtimeProgress, weaponRuntime } from "@/lib/game/weapon-runtime";
+import { magazineMotion } from "@/lib/game/reload-anim";
+import { viewmodelFrame } from "@/lib/game/viewmodel-anim";
+import {
+  runtimeElapsed,
+  runtimeProgress,
+  weaponRuntime,
+} from "@/lib/game/weapon-runtime";
 import { clipsFor } from "@/lib/mock/viewmodel-clips";
 import type { WeaponType } from "@/types/game";
 
@@ -20,6 +25,10 @@ import type { WeaponType } from "@/types/game";
  */
 const GUN_DISTANCE = -1.15;
 const GUN_SCALE = 0.78;
+
+/** Tempat magasin saat terpasang, dan miringnya mengikuti badan senjata. */
+const MAG_REST: [number, number, number] = [0, -0.2, 0.02];
+const MAG_TILT = 0.18;
 
 /**
  * Senjata sudut pandang orang pertama. Group luar menyalin transform kamera
@@ -37,6 +46,13 @@ export function WeaponViewmodel({
   const rigRef = useRef<Group>(null);
   const gunRef = useRef<Group>(null);
   const flashRef = useRef<Mesh>(null);
+  /**
+   * Magasin digambar sebagai benda tersendiri supaya ia bisa benar-benar
+   * LEPAS dari senjata saat isi ulang. Tanpa itu isi ulang hanya terbaca
+   * sebagai senjata yang turun sebentar, dan pemain tidak punya cara melihat
+   * bedanya dengan pergantian senjata.
+   */
+  const magRef = useRef<Mesh>(null);
   const flashLightRef = useRef<PointLight>(null);
   const flashUntil = useRef(0);
   /**
@@ -91,16 +107,17 @@ export function WeaponViewmodel({
       dijumlahkan sebagai lapisan, bukan dipilih salah satu. Menembak sambil
       berlari karena itu terlihat sebagai keduanya sekaligus.
     */
-    const pose = viewmodelPose(
+    const frame = viewmodelFrame(
       {
         time: clock.elapsedTime,
         speed: playerRuntime.planarSpeed,
         sinceShot: lastShot.current === null ? null : now - lastShot.current,
-        reloadProgress: runtimeProgress(
+        reloadElapsed: runtimeElapsed(
           weaponRuntime.reloadEndsAt,
           weaponRuntime.reloadSeconds,
           now,
         ),
+        reloadSeconds: weaponRuntime.reloadSeconds,
         swapProgress: runtimeProgress(
           weaponRuntime.swapEndsAt,
           weaponRuntime.swapSeconds,
@@ -110,8 +127,20 @@ export function WeaponViewmodel({
       clips,
     );
 
+    const pose = frame.pose;
     gun.position.set(0.46 + pose.px, -0.36 + pose.py, GUN_DISTANCE + pose.pz);
     gun.rotation.set(pose.rx, -0.06 + pose.ry, pose.rz);
+
+    if (magRef.current) {
+      const mag = magazineMotion(frame.reload, clips.reloadStyle);
+      magRef.current.position.set(
+        MAG_REST[0],
+        MAG_REST[1] + mag.y,
+        MAG_REST[2],
+      );
+      magRef.current.rotation.set(MAG_TILT, 0, mag.rz);
+      magRef.current.visible = mag.visible;
+    }
   });
 
   return (
@@ -177,7 +206,7 @@ export function WeaponViewmodel({
           />
         </mesh>
 
-        <mesh position={[0, -0.2, 0.02]} rotation={[0.18, 0, 0]}>
+        <mesh ref={magRef} position={MAG_REST} rotation={[MAG_TILT, 0, 0]}>
           <boxGeometry args={[0.1, 0.3, 0.16]} />
           <meshStandardMaterial
             color="#333c46"

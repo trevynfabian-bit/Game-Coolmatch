@@ -39,6 +39,23 @@ export function runtimeProgress(
   return 1 - sisa / seconds;
 }
 
+/**
+ * Sudah berapa detik sebuah kejadian berjam berjalan, atau null bila tidak
+ * sedang berjalan.
+ *
+ * Dipakai animasi isi ulang, yang tahap turun dan naiknya diukur dalam detik
+ * sungguhan: pistol dan sniper menurunkan senjatanya sama cepat, yang berbeda
+ * hanya lama pekerjaan di bawah sana.
+ */
+export function runtimeElapsed(
+  endsAt: number,
+  seconds: number,
+  now: number,
+): number | null {
+  const kemajuan = runtimeProgress(endsAt, seconds, now);
+  return kemajuan === null ? null : kemajuan * seconds;
+}
+
 /** Menyetel ulang kedua jam; dipanggil saat pertandingan disusun ulang. */
 export function resetWeaponRuntime() {
   weaponRuntime.reloadEndsAt = 0;

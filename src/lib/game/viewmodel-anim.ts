@@ -1,3 +1,11 @@
+import {
+  RELOAD_IDLE,
+  reloadDrive,
+  reloadPoseFrom,
+  type ReloadDrive,
+  type ReloadLook,
+  type ReloadStyle,
+} from "@/lib/game/reload-anim";
 import type { WeaponType } from "@/types/game";
 
 /**
@@ -146,44 +154,6 @@ export function recoilPose(elapsed: number, clip: RecoilClip): Pose {
   };
 }
 
-export interface ReloadClip {
-  /** Seberapa jauh senjata diturunkan dari pandangan. */
-  drop: number;
-  /** Seberapa jauh ia dimiringkan ke dalam, radian. */
-  tilt: number;
-  /** Bagian awal dan akhir waktu isi ulang yang dipakai turun dan naik. */
-  easeIn: number;
-  easeOut: number;
-}
-
-/**
- * Isi ulang: senjata diturunkan dan dimiringkan ke dalam, ditahan, lalu
- * diangkat kembali tepat saat ia siap tembak.
- *
- * Kemajuannya dioper 0..1 dari jam isi ulang yang sudah ada, bukan dihitung
- * ulang di sini. Dua jam terpisah untuk satu kejadian yang sama pasti
- * berselisih, dan yang terlihat pemain adalah senjata yang sudah terangkat
- * padahal pelatuknya masih terkunci.
- */
-export function reloadPose(progress: number, clip: ReloadClip): Pose {
-  const p = Math.min(1, Math.max(0, aman(progress)));
-  if (p <= 0 || p >= 1) return REST_POSE;
-
-  let kuat: number;
-  if (p < clip.easeIn) kuat = p / clip.easeIn;
-  else if (p > 1 - clip.easeOut) kuat = (1 - p) / clip.easeOut;
-  else kuat = 1;
-
-  return {
-    px: clip.drop * 0.25 * kuat,
-    py: -clip.drop * kuat,
-    pz: clip.drop * 0.4 * kuat,
-    rx: clip.tilt * kuat,
-    ry: -clip.tilt * 0.8 * kuat,
-    rz: clip.tilt * 1.4 * kuat,
-  };
-}
-
 export interface SwapClip {
   /** Seberapa jauh senjata diturunkan saat berganti. */
   drop: number;
@@ -215,7 +185,10 @@ export interface ViewmodelClips {
   idle: IdleClip;
   walk: WalkClip;
   recoil: RecoilClip;
-  reload: ReloadClip;
+  /** Seberapa jauh senjata turun dan miring saat isi ulang. */
+  reload: ReloadLook;
+  /** Cara senjata itu diisi ulang; menentukan irama tangannya. */
+  reloadStyle: ReloadStyle;
   swap: SwapClip;
 }
 
@@ -226,36 +199,74 @@ export interface ViewmodelInput {
   speed: number;
   /** Sudah berapa detik sejak tembakan terakhir; null bila belum menembak. */
   sinceShot: number | null;
-  /** Kemajuan isi ulang 0..1; null bila tidak sedang mengisi. */
-  reloadProgress: number | null;
+  /**
+   * Sudah berapa detik isi ulang berjalan; null bila tidak sedang mengisi.
+   *
+   * Detik, bukan kemajuan 0..1: tahap turun dan naiknya berlangsung selama
+   * yang ditulis gaya isi ulang senjata itu, dan hanya bagian tengahnya yang
+   * meregang mengikuti lama isi ulang.
+   */
+  reloadElapsed: number | null;
+  /** Lama isi ulang yang sedang berjalan, detik. */
+  reloadSeconds: number;
   /** Kemajuan ganti senjata 0..1; null bila tidak sedang berganti. */
   swapProgress: number | null;
 }
 
+export interface ViewmodelFrame {
+  pose: Pose;
+  /**
+   * Tahap isi ulang pada saat ini. Ikut dikembalikan, bukan disimpan sendiri
+   * oleh penggambar, supaya magasin yang terlepas dan badan senjata yang
+   * turun memakai perhitungan yang sama persis.
+   */
+  reload: ReloadDrive;
+}
+
 /**
- * Pose akhir senjata: seluruh lapisan dijumlahkan.
+ * Seluruh keadaan gambar senjata pada satu saat: posenya, dan tahap isi
+ * ulang yang sedang berjalan.
  *
- * Dijumlahkan, bukan dipilih salah satu. Menembak sambil berlari harus
- * terlihat sebagai keduanya sekaligus; kontroler yang memilih satu keadaan
- * akan membekukan langkah pemain tiap kali ia menarik pelatuk.
+ * Posenya DIJUMLAHKAN dari tiap lapisan, bukan dipilih salah satu. Menembak
+ * sambil berlari harus terlihat sebagai keduanya sekaligus; kontroler yang
+ * memilih satu keadaan akan membekukan langkah pemain tiap kali ia menarik
+ * pelatuk.
  */
+export function viewmodelFrame(
+  input: ViewmodelInput,
+  clips: ViewmodelClips,
+): ViewmodelFrame {
+  const isiUlang =
+    input.reloadElapsed === null
+      ? RELOAD_IDLE
+      : reloadDrive(
+          input.reloadElapsed,
+          input.reloadSeconds,
+          clips.reloadStyle,
+        );
+
+  return {
+    pose: composePose(
+      idlePose(input.time, clips.idle),
+      walkPose(input.time, input.speed, clips.walk),
+      input.sinceShot === null
+        ? REST_POSE
+        : recoilPose(input.sinceShot, clips.recoil),
+      reloadPoseFrom(isiUlang, clips.reload),
+      input.swapProgress === null
+        ? REST_POSE
+        : swapPose(input.swapProgress, clips.swap),
+    ),
+    reload: isiUlang,
+  };
+}
+
+/** Pose akhir saja, untuk pemakai yang tidak peduli tahap isi ulang. */
 export function viewmodelPose(
   input: ViewmodelInput,
   clips: ViewmodelClips,
 ): Pose {
-  return composePose(
-    idlePose(input.time, clips.idle),
-    walkPose(input.time, input.speed, clips.walk),
-    input.sinceShot === null
-      ? REST_POSE
-      : recoilPose(input.sinceShot, clips.recoil),
-    input.reloadProgress === null
-      ? REST_POSE
-      : reloadPose(input.reloadProgress, clips.reload),
-    input.swapProgress === null
-      ? REST_POSE
-      : swapPose(input.swapProgress, clips.swap),
-  );
+  return viewmodelFrame(input, clips).pose;
 }
 
 /** Benar bila pose ini sama dengan diam sepenuhnya. */
