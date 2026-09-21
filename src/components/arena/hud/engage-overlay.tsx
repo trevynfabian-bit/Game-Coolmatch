@@ -1,5 +1,6 @@
 "use client";
 
+import { PauseAudio } from "@/components/arena/hud/pause-audio";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { controlHints } from "@/lib/game/keybinds";
 import { useKeybindStore } from "@/lib/store/keybind-store";
@@ -100,6 +101,14 @@ export function EngageOverlay({
         >
           {isStart ? "Klik untuk main" : "Klik untuk lanjut"}
         </button>
+
+        {/*
+          Kendali suara di sini, bukan hanya di halaman Pengaturan. Pemain
+          menyadari suaranya terlalu keras tepat sesudah letupan pertama, dan
+          sebelum ini satu-satunya jalan untuk mengubahnya adalah
+          meninggalkan pertandingan yang sedang berjalan.
+        */}
+        <PauseAudio />
 
         <dl className="mx-auto mt-7 grid max-w-[18rem] grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-left">
           {hints.map((hint) => (
