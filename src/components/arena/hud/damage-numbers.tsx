@@ -1,37 +1,70 @@
 "use client";
 
 import { useEffect } from "react";
+import { mostlyArmor, popMs, popScale } from "@/lib/game/damage-pop";
 import { useCombatStore, type DamagePop } from "@/lib/store/combat-store";
 
-/** Lama angka kerusakan melayang; harus sejalan dengan keyframe damage-pop. */
-const POP_MS = 820;
-
+/**
+ * Satu angka kerusakan.
+ *
+ * Ukuran dan umurnya mengikuti besarnya: serempetan dua belas dan tembakan
+ * sniper seratus sepuluh adalah dua keputusan yang berbeda, dan angka yang
+ * selalu sama besar menyembunyikan bedanya. Warnanya mengabarkan apa yang
+ * terjadi — kuning untuk kepala, merah untuk yang menumbangkan, biru redup
+ * bila sebagian besar ditahan rompi sehingga nyawa lawan hampir tidak
+ * berkurang.
+ */
 function Pop({ pop }: { pop: DamagePop }) {
   const removeDamagePop = useCombatStore((state) => state.removeDamagePop);
+  const ms = popMs(pop.amount);
 
   useEffect(() => {
-    const id = setTimeout(() => removeDamagePop(pop.id), POP_MS);
+    // Ikut disetel ulang tiap kali angkanya bertambah, jadi angka yang terus
+    // ditambah tidak pernah hilang di tengah rentetan.
+    const id = setTimeout(() => removeDamagePop(pop.id), ms);
     return () => clearTimeout(id);
-  }, [pop.id, removeDamagePop]);
+  }, [pop.id, pop.bump, ms, removeDamagePop]);
 
   const color = pop.isLethal
     ? "text-rose-300"
     : pop.isHeadshot
       ? "text-amber-300"
-      : "text-slate-100";
+      : mostlyArmor(pop)
+        ? "text-sky-200/80"
+        : "text-slate-100";
 
   return (
     <span
-      className={`absolute font-mono text-lg font-bold tabular-nums drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] ${color}`}
+      // Kunci ikut memuat penambahannya: angka yang bertambah memulai ulang
+      // animasinya, sehingga penambahan terlihat sebagai "kena lagi" alih-alih
+      // angka yang diam-diam berubah.
+      key={`${pop.id}:${pop.bump}`}
+      data-damage={pop.amount}
+      data-jenis={
+        pop.isLethal
+          ? "tumbang"
+          : pop.isHeadshot
+            ? "kepala"
+            : mostlyArmor(pop)
+              ? "rompi"
+              : "badan"
+      }
+      className={`absolute font-mono font-bold tabular-nums drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] ${color}`}
       style={{
         left: `calc(50% + ${pop.offsetX}px)`,
         top: `calc(50% + ${pop.offsetY}px)`,
-        animation: `damage-pop ${POP_MS}ms ease-out forwards`,
+        fontSize: `${popScale(pop.amount)}rem`,
+        animation: `damage-pop ${ms}ms ease-out forwards`,
       }}
     >
       {pop.amount}
       {pop.isHeadshot ? (
         <span className="ml-0.5 align-super text-[9px] tracking-wider">HS</span>
+      ) : null}
+      {pop.isLethal ? (
+        <span className="ml-1 align-super text-[9px] tracking-wider">
+          TUMBANG
+        </span>
       ) : null}
     </span>
   );
@@ -51,7 +84,7 @@ export function DamageNumbers() {
   return (
     <div className="pointer-events-none absolute inset-0">
       {damagePops.map((pop) => (
-        <Pop key={pop.id} pop={pop} />
+        <Pop key={`${pop.id}:${pop.bump}`} pop={pop} />
       ))}
     </div>
   );

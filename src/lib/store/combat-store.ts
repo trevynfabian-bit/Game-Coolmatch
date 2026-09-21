@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { mergePop, type DamagePopShape } from "@/lib/game/damage-pop";
 import { markerWins, type HitMarkerKind } from "@/lib/game/hit-marker";
 
 export interface HitMarker {
@@ -11,16 +12,12 @@ export interface HitMarker {
   at: number;
 }
 
-/** Angka kerusakan yang melayang sesaat di dekat crosshair. */
-export interface DamagePop {
-  id: number;
-  amount: number;
-  isHeadshot: boolean;
-  isLethal: boolean;
-  /** Geser acak dalam piksel, dibuat sekali supaya tidak loncat saat render. */
-  offsetX: number;
-  offsetY: number;
-}
+/**
+ * Angka kerusakan yang melayang sesaat di dekat crosshair. Bentuknya hidup di
+ * modul damage-pop bersama aturan penggabungannya, supaya aturan itu bisa
+ * diperiksa tanpa store maupun browser.
+ */
+export type DamagePop = DamagePopShape;
 
 /** Batas angka kerusakan yang ditahan sekaligus di layar. */
 const DAMAGE_POP_LIMIT = 6;
@@ -106,6 +103,8 @@ interface CombatState {
     amount: number;
     isHeadshot: boolean;
     isLethal: boolean;
+    /** Bagian kerusakan yang ditahan rompi. */
+    armorPart?: number;
   }) => void;
   removeDamagePop: (id: number) => void;
   /** Mencatat tembakan yang mengenai pemain, untuk vignette dan penunjuk arah. */
@@ -226,19 +225,14 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   clearHitMarker: (id) =>
     set((state) => (state.hitMarker?.id === id ? { hitMarker: null } : state)),
 
-  pushDamagePop: ({ amount, isHeadshot, isLethal }) =>
+  /*
+    Kerusakan yang datang beruntun MENAMBAH angka terakhir alih-alih menumpuk
+    angka baru: satu tembakan shotgun terbaca sebagai satu angka besar, bukan
+    delapan angka kecil yang muncul bersamaan.
+  */
+  pushDamagePop: (pop) =>
     set((state) => ({
-      damagePops: [
-        ...state.damagePops.slice(-(DAMAGE_POP_LIMIT - 1)),
-        {
-          id: Date.now() + Math.random(),
-          amount: Math.round(amount),
-          isHeadshot,
-          isLethal,
-          offsetX: (Math.random() - 0.5) * 70,
-          offsetY: (Math.random() - 0.5) * 26,
-        },
-      ],
+      damagePops: mergePop(state.damagePops, pop, Date.now(), DAMAGE_POP_LIMIT),
     })),
 
   removeDamagePop: (id) =>

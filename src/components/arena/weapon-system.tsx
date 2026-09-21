@@ -311,6 +311,7 @@ export function WeaponSystem({
               amount: report.healthLost + report.armorLost,
               isHeadshot,
               isLethal: report.isLethal,
+              armorPart: report.armorLost,
             });
             onFighterHit?.({
               fighterId: hit.fighterId,
