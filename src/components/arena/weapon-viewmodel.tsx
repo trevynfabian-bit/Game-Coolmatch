@@ -8,6 +8,10 @@ import {
   readCombatEffects,
 } from "@/lib/game/combat-effects";
 import { BARREL_TIP, flashFor } from "@/lib/game/muzzle-flash";
+import { playerRuntime } from "@/lib/game/player-runtime";
+import { viewmodelPose } from "@/lib/game/viewmodel-anim";
+import { runtimeProgress, weaponRuntime } from "@/lib/game/weapon-runtime";
+import { clipsFor } from "@/lib/mock/viewmodel-clips";
 import type { WeaponType } from "@/types/game";
 
 /**
@@ -44,6 +48,15 @@ export function WeaponViewmodel({
   const cursor = useRef(currentEffectCursor());
   const camera = useThree((state) => state.camera);
   const flash = flashFor(weaponType);
+  const clips = clipsFor(weaponType);
+  /**
+   * Jam tembakan terakhir, dicatat di ref dan bukan di store: ia hanya dipakai
+   * di dalam loop frame, dan menaruhnya di store berarti render ulang React
+   * tiap kali pelatuk ditarik. Jam isi ulang dan pergantian senjata datang
+   * dari runtime senjata, supaya animasinya memakai jam yang sama persis
+   * dengan yang membuka pelatuk.
+   */
+  const lastShot = useRef<number | null>(null);
 
   useFrame(({ clock }) => {
     const rig = rigRef.current;
@@ -60,6 +73,9 @@ export function WeaponViewmodel({
     for (const event of bacaan.events) {
       if (event.kind === "moncong" && event.at3 === null) {
         flashUntil.current = now + flash.seconds;
+        // Kejadian yang sama memicu sentakan senjatanya: satu tarikan
+        // pelatuk, satu kilatan, satu sentakan.
+        lastShot.current = now;
       }
     }
 
@@ -69,18 +85,33 @@ export function WeaponViewmodel({
       flashLightRef.current.intensity = menyala ? flash.intensity : 0;
     }
 
-    // Ayunan idle: napas vertikal pelan plus geser horizontal lebih pelan lagi.
-    const t = clock.elapsedTime;
-    gun.position.set(
-      0.46 + Math.sin(t * 0.6) * 0.01,
-      -0.36 + Math.sin(t * 1.25) * 0.014,
-      GUN_DISTANCE,
+    /*
+      Seluruh gerakan senjata datang dari kontroler animasi: napas diam,
+      ayunan langkah, sentakan tembakan, isi ulang, dan pergantian senjata —
+      dijumlahkan sebagai lapisan, bukan dipilih salah satu. Menembak sambil
+      berlari karena itu terlihat sebagai keduanya sekaligus.
+    */
+    const pose = viewmodelPose(
+      {
+        time: clock.elapsedTime,
+        speed: playerRuntime.planarSpeed,
+        sinceShot: lastShot.current === null ? null : now - lastShot.current,
+        reloadProgress: runtimeProgress(
+          weaponRuntime.reloadEndsAt,
+          weaponRuntime.reloadSeconds,
+          now,
+        ),
+        swapProgress: runtimeProgress(
+          weaponRuntime.swapEndsAt,
+          weaponRuntime.swapSeconds,
+          now,
+        ),
+      },
+      clips,
     );
-    gun.rotation.set(
-      Math.sin(t * 1.25) * 0.01,
-      -0.06 + Math.sin(t * 0.6) * 0.014,
-      0,
-    );
+
+    gun.position.set(0.46 + pose.px, -0.36 + pose.py, GUN_DISTANCE + pose.pz);
+    gun.rotation.set(pose.rx, -0.06 + pose.ry, pose.rz);
   });
 
   return (

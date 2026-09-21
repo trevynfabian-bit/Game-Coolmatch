@@ -10,6 +10,7 @@ import {
   type MoveAction,
 } from "@/lib/game/controls";
 import { unlockedWeapons } from "@/lib/mock/player-weapons";
+import { weaponRuntime } from "@/lib/game/weapon-runtime";
 import { findWeapon } from "@/lib/mock/weapons";
 import { useCombatStore } from "@/lib/store/combat-store";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
@@ -68,6 +69,9 @@ export function WeaponSwap() {
 
           pendingWeaponId.current = target.id;
           swapEndsAt.current = performance.now() / 1000 + WEAPON_SWAP_SECONDS;
+          // Jam yang sama dipakai animasi senjata; lihat weapon-runtime.
+          weaponRuntime.swapEndsAt = swapEndsAt.current;
+          weaponRuntime.swapSeconds = WEAPON_SWAP_SECONDS;
           combat.setSwapping(true);
         },
       ),

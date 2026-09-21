@@ -22,6 +22,7 @@ import {
 import { eliminationKind } from "@/lib/audio/elimination-voice";
 import { hitKind } from "@/lib/audio/hit-voice";
 import { markerFor } from "@/lib/game/hit-marker";
+import { weaponRuntime } from "@/lib/game/weapon-runtime";
 import { emitCombatEffect } from "@/lib/game/combat-effects";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { reportHit, reportKill } from "@/lib/game/session-runtime";
@@ -167,6 +168,13 @@ export function WeaponSystem({
     return useCombatStore.subscribe((state, previous) => {
       if (state.isReloading && !previous.isReloading) {
         reloadEndsAt.current = performance.now() / 1000 + state.reloadSeconds;
+        /*
+          Jam yang sama dibagikan ke penggambar lewat runtime senjata. Animasi
+          yang menghitung sendiri kapan isi ulang berakhir pasti berselisih
+          dengan jam yang benar-benar membuka pelatuk.
+        */
+        weaponRuntime.reloadEndsAt = reloadEndsAt.current;
+        weaponRuntime.reloadSeconds = state.reloadSeconds;
       }
     });
   }, []);
