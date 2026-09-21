@@ -6,6 +6,16 @@ import {
 } from "@/lib/game/combat-audio";
 import { EMPTY_VOICE, emptyClickAllowed } from "@/lib/audio/empty-voice";
 import {
+  cueAllowed,
+  eliminationCue,
+  hitCue,
+  nextLaneState,
+  takenCue,
+  type CombatCue,
+  type CueLane,
+  type LaneState,
+} from "@/lib/audio/combat-priority";
+import {
   ELIMINATION_TONE,
   type EliminationKind,
 } from "@/lib/audio/elimination-voice";
@@ -65,6 +75,25 @@ let musicVolume = 0;
  * detik, dan tidak ada satu pun dari pemanggil itu yang tahu tentang yang lain.
  */
 let lastEmptyAt: number | null = null;
+/**
+ * Kabar terakhir yang berbunyi di tiap jalur, dipakai menyaring bunyi kena dan
+ * eliminasi yang datang bertumpuk. Disimpan di tingkat modul karena
+ * penyaringnya harus berlaku lintas pemanggil: delapan butir shotgun adalah
+ * delapan panggilan terpisah yang tidak saling mengenal.
+ */
+const lanes: Record<CueLane, LaneState | null> = { keluar: null, masuk: null };
+
+/**
+ * Menimbang sebuah kabar tempur: benar bila ia berhak berbunyi sekarang, dan
+ * keadaan jalurnya sekalian diperbarui. Semua bunyi kena dan eliminasi lewat
+ * sini supaya aturannya hanya ditulis satu kali.
+ */
+function cueWins(cue: CombatCue, now: number): boolean {
+  const state = lanes[cue.lane];
+  if (!cueAllowed(state, cue, now)) return false;
+  lanes[cue.lane] = nextLaneState(state, cue, now);
+  return true;
+}
 let channelMix: Record<CombatChannel, number> =
   channelLevels(DEFAULT_COMBAT_MIX);
 
@@ -317,6 +346,7 @@ export function playHit(kind: HitKind = "badan") {
   const { ctx, bus } = eng;
   const tone = HIT_TONE[kind];
   const now = ctx.currentTime;
+  if (!cueWins(hitCue(kind), now)) return;
 
   const nada = [{ freq: tone.freq, at: now }];
   if (tone.freq2 !== null) nada.push({ freq: tone.freq2, at: now + tone.gap });
@@ -349,6 +379,7 @@ export function playTakenHit(severity: number, onArmor = false) {
   if (!eng) return;
   const { ctx, bus } = eng;
   const now = ctx.currentTime;
+  if (!cueWins(takenCue(severity), now)) return;
   const gain = takenGain(severity);
 
   const thud = ctx.createOscillator();
@@ -508,6 +539,9 @@ export function playElimination(kind: EliminationKind = "lawan") {
   const { ctx, bus } = eng;
   const tone = ELIMINATION_TONE[kind];
   const now = ctx.currentTime;
+  // Selalu lolos, tetapi tetap dicatat: denting kena yang menyusul di
+  // jendela yang sama akan kalah peringkat dan tidak menimpanya.
+  cueWins(eliminationCue(kind), now);
 
   tone.notes.forEach((freq, i) => {
     const at = now + i * tone.gap;
