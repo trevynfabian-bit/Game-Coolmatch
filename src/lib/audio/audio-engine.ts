@@ -4,6 +4,7 @@ import {
   channelLevels,
   type CombatChannel,
 } from "@/lib/game/combat-audio";
+import { EMPTY_VOICE, emptyClickAllowed } from "@/lib/audio/empty-voice";
 import { reloadSequence } from "@/lib/audio/reload-voice";
 import {
   SHOT_VOICE,
@@ -47,6 +48,13 @@ let effectsVolume = 0;
 let musicVolume = 0;
 /** Pengali 0..1 tiap kanal tempur; dipegang di sini juga supaya bunyi yang
  * kanalnya nol bisa dilewati tanpa membangun node yang tidak akan terdengar. */
+/**
+ * Kapan ketukan magasin kosong terakhir berbunyi, pada jam konteks audio.
+ * Disimpan di tingkat modul karena pembatasnya harus berlaku lintas pemanggil:
+ * pemain yang menahan pelatuk memanggil fungsi yang sama puluhan kali per
+ * detik, dan tidak ada satu pun dari pemanggil itu yang tahu tentang yang lain.
+ */
+let lastEmptyAt: number | null = null;
 let channelMix: Record<CombatChannel, number> =
   channelLevels(DEFAULT_COMBAT_MIX);
 
@@ -364,27 +372,57 @@ export function playReload(type: WeaponType = "rifle", seconds?: number) {
   }
 }
 
-/** Ketukan tipis saat pelatuk ditarik tanpa peluru. */
-export function playEmpty() {
+/**
+ * Ketukan pelatuk yang ditarik tanpa peluru, dengan watak senjatanya.
+ *
+ * Dibatasi lajunya: menahan pelatuk senapan serbu pada magasin kosong
+ * memanggil fungsi ini sepuluh kali per detik, dan tanpa pembatas hasilnya
+ * adalah deretan ketukan yang terdengar seperti senjata yang benar-benar
+ * menembak — persis kebalikan dari yang ingin dikabarkan.
+ */
+export function playEmpty(type: WeaponType = "pistol") {
   const eng = busFor("isiUlang");
   if (!eng) return;
   const { ctx, bus, noise } = eng;
   const now = ctx.currentTime;
+  if (!emptyClickAllowed(lastEmptyAt, now)) return;
+  lastEmptyAt = now;
+
+  const voice = EMPTY_VOICE[type];
 
   const click = ctx.createBufferSource();
   click.buffer = noise;
 
   const filter = ctx.createBiquadFilter();
   filter.type = "highpass";
-  filter.frequency.value = 2200;
+  filter.frequency.value = voice.cutoff;
 
   const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.12, now);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+  gain.gain.setValueAtTime(voice.gain, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + voice.decay);
 
   click.connect(filter).connect(gain).connect(bus);
   click.start(now, Math.random());
-  click.stop(now + 0.04);
+  click.stop(now + voice.decay);
+
+  // Senjata berat menambahkan bunyi bagian bergeraknya yang jatuh ke tempat
+  // kosong; itulah yang membedakannya dari klik tipis pistol.
+  if (voice.thunk === null) return;
+  const thunk = ctx.createOscillator();
+  thunk.type = "sine";
+  thunk.frequency.setValueAtTime(voice.thunk, now);
+  thunk.frequency.exponentialRampToValueAtTime(
+    voice.thunk * 0.7,
+    now + voice.decay,
+  );
+
+  const thunkGain = ctx.createGain();
+  thunkGain.gain.setValueAtTime(voice.gain * 0.7, now);
+  thunkGain.gain.exponentialRampToValueAtTime(0.0001, now + voice.decay);
+
+  thunk.connect(thunkGain).connect(bus);
+  thunk.start(now);
+  thunk.stop(now + voice.decay);
 }
 
 /**

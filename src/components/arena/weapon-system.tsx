@@ -173,7 +173,7 @@ export function WeaponSystem({
   const fireOnce = () => {
     const combat = useCombatStore.getState();
     if (!combat.consumeRound()) {
-      playEmpty();
+      playEmpty(weapon.type);
       const sedangIsi = combat.isReloading;
       combat.beginReload(weapon.reloadSeconds);
       // Magasin yang habis sendiri memulai isi ulang yang sama dengan menekan
