@@ -496,9 +496,45 @@ export function playTakenHit(severity: number, onArmor = false) {
  * menjelang senjata siap — sementara rangkaian yang dijadwalkan lewat timer
  * halaman akan melar bersama frame yang terlambat.
  */
+/**
+ * Sumber bunyi isi ulang yang sudah dijadwalkan tetapi belum berbunyi.
+ *
+ * Seluruh bunyi isi ulang dijadwalkan sekaligus di awal, jadi tanpa daftar ini
+ * tidak ada lagi cara menghentikannya: isi ulang yang dibatalkan di detik
+ * pertama tetap terdengar sampai ketukan terakhirnya, di senjata yang sudah
+ * bukan itu lagi.
+ */
+let reloadNodes: AudioScheduledSourceNode[] = [];
+
+/**
+ * Menghentikan bunyi isi ulang yang sedang berjalan.
+ *
+ * Dipanggil saat isi ulangnya batal, bukan saat selesai: isi ulang yang
+ * selesai memang berakhir dengan ketukan terakhirnya, dan memotongnya di situ
+ * justru menghilangkan bunyi magasin yang terkunci.
+ */
+export function stopReload() {
+  const eng = engine;
+  if (!eng) {
+    reloadNodes = [];
+    return;
+  }
+  const now = eng.ctx.currentTime;
+  for (const node of reloadNodes) {
+    try {
+      node.stop(now);
+    } catch {
+      // Sumber yang belum pernah dimulai atau sudah berhenti sendiri.
+    }
+  }
+  reloadNodes = [];
+}
+
 export function playReload(type: WeaponType = "rifle", seconds?: number) {
   const eng = busFor("isiUlang");
   if (!eng) return;
+  // Isi ulang baru menggantikan yang lama, bukan menumpuknya.
+  stopReload();
   const { ctx, bus, noise } = eng;
   const mulai = ctx.currentTime;
 
@@ -519,6 +555,7 @@ export function playReload(type: WeaponType = "rifle", seconds?: number) {
     click.connect(filter).connect(gain).connect(bus);
     click.start(at, Math.random());
     click.stop(at + step.decay);
+    reloadNodes.push(click);
 
     // Bagian berbobotnya — magasin yang masuk, bolt yang didorong — punya
     // dentum rendah. Tanpa itu semua langkah terdengar seperti satu ketukan
@@ -539,6 +576,7 @@ export function playReload(type: WeaponType = "rifle", seconds?: number) {
     thump.connect(thumpGain).connect(bus);
     thump.start(at);
     thump.stop(at + step.decay);
+    reloadNodes.push(thump);
   }
 }
 

@@ -22,7 +22,7 @@ import {
 import { eliminationKind } from "@/lib/audio/elimination-voice";
 import { hitKind } from "@/lib/audio/hit-voice";
 import { markerFor } from "@/lib/game/hit-marker";
-import { weaponRuntime } from "@/lib/game/weapon-runtime";
+import { trackReloadClock, weaponRuntime } from "@/lib/game/weapon-runtime";
 import { emitCombatEffect } from "@/lib/game/combat-effects";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { reportHit, reportKill } from "@/lib/game/session-runtime";
@@ -35,6 +35,7 @@ import {
   playEmpty,
   playHit,
   playReload,
+  stopReload,
   playShot,
 } from "@/lib/audio/audio-engine";
 import type { MatchSnapshot, Vec3, Weapon } from "@/types/game";
@@ -166,16 +167,24 @@ export function WeaponSystem({
   // berhenti saat tab tidak aktif dan tidak pernah selesai di latar belakang.
   useEffect(() => {
     return useCombatStore.subscribe((state, previous) => {
-      if (state.isReloading && !previous.isReloading) {
-        reloadEndsAt.current = performance.now() / 1000 + state.reloadSeconds;
-        /*
-          Jam yang sama dibagikan ke penggambar lewat runtime senjata. Animasi
-          yang menghitung sendiri kapan isi ulang berakhir pasti berselisih
-          dengan jam yang benar-benar membuka pelatuk.
-        */
-        weaponRuntime.reloadEndsAt = reloadEndsAt.current;
-        weaponRuntime.reloadSeconds = state.reloadSeconds;
-      }
+      /*
+        Jam isi ulang mengikuti store, bukan tempat-tempat yang memulai atau
+        membatalkannya. Aturannya sendiri ada di runtime senjata; di sini
+        tinggal menanggapi kabarnya.
+      */
+      const kejadian = trackReloadClock(
+        state.isReloading,
+        previous.isReloading,
+        state.reloadSeconds,
+        performance.now() / 1000,
+      );
+      if (kejadian === "abai") return;
+
+      reloadEndsAt.current =
+        kejadian === "mulai" ? weaponRuntime.reloadEndsAt : 0;
+      // Isi ulang yang batal ikut berhenti terdengar; yang selesai dibiarkan
+      // berakhir dengan ketukan magasin terkuncinya.
+      if (kejadian === "batal") stopReload();
     });
   }, []);
 
