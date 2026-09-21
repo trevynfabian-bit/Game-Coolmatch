@@ -4,6 +4,7 @@ import {
   channelLevels,
   type CombatChannel,
 } from "@/lib/game/combat-audio";
+import { reloadSequence } from "@/lib/audio/reload-voice";
 import {
   SHOT_VOICE,
   shotDistanceMix,
@@ -307,31 +308,59 @@ export function playHit(isHeadshot: boolean) {
   osc.stop(now + 0.09);
 }
 
-/** Dua ketukan kering: magasin dilepas, magasin dipasang. */
-export function playReload() {
+/**
+ * Rangkaian isi ulang: tiap langkah mekaniknya dibunyikan pada waktunya
+ * sendiri, direntangkan sepanjang lama isi ulang senjata yang dipakai.
+ *
+ * Seluruh rangkaian dijadwalkan SEKALIGUS pada jam Web Audio, bukan lewat
+ * setTimeout beruntun. Jam audio berjalan tepat dan tidak ikut tersendat saat
+ * frame berat atau tab berpindah, jadi ketukan terakhir benar-benar jatuh
+ * menjelang senjata siap — sementara rangkaian yang dijadwalkan lewat timer
+ * halaman akan melar bersama frame yang terlambat.
+ */
+export function playReload(type: WeaponType = "rifle", seconds?: number) {
   const eng = busFor("isiUlang");
   if (!eng) return;
   const { ctx, bus, noise } = eng;
+  const mulai = ctx.currentTime;
 
-  for (const [jeda, tinggi] of [
-    [0, 900],
-    [0.16, 1400],
-  ] as const) {
-    const now = ctx.currentTime + jeda;
+  for (const step of reloadSequence(type, seconds)) {
+    const at = mulai + step.time;
+
     const click = ctx.createBufferSource();
     click.buffer = noise;
 
     const filter = ctx.createBiquadFilter();
     filter.type = "highpass";
-    filter.frequency.value = tinggi;
+    filter.frequency.value = step.cutoff;
 
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.22, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+    gain.gain.setValueAtTime(step.gain, at);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + step.decay);
 
     click.connect(filter).connect(gain).connect(bus);
-    click.start(now, Math.random());
-    click.stop(now + 0.05);
+    click.start(at, Math.random());
+    click.stop(at + step.decay);
+
+    // Bagian berbobotnya — magasin yang masuk, bolt yang didorong — punya
+    // dentum rendah. Tanpa itu semua langkah terdengar seperti satu ketukan
+    // yang sama yang diulang-ulang.
+    if (step.thump === null) continue;
+    const thump = ctx.createOscillator();
+    thump.type = "sine";
+    thump.frequency.setValueAtTime(step.thump, at);
+    thump.frequency.exponentialRampToValueAtTime(
+      step.thump * 0.6,
+      at + step.decay,
+    );
+
+    const thumpGain = ctx.createGain();
+    thumpGain.gain.setValueAtTime(step.gain * 0.8, at);
+    thumpGain.gain.exponentialRampToValueAtTime(0.0001, at + step.decay);
+
+    thump.connect(thumpGain).connect(bus);
+    thump.start(at);
+    thump.stop(at + step.decay);
   }
 }
 

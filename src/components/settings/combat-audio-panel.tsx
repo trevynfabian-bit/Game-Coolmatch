@@ -25,7 +25,7 @@ import { useSettingsStore } from "@/lib/store/settings-store";
  */
 const SAMPLE: Record<CombatChannel, () => void> = {
   tembakan: () => playShot("rifle"),
-  isiUlang: () => playReload(),
+  isiUlang: () => playReload("rifle"),
   kena: () => {
     playHit(false);
     // Disusul denting kepala supaya kedua nadanya bisa dibandingkan.

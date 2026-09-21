@@ -152,10 +152,12 @@ export function WeaponSystem({
           const combat = useCombatStore.getState();
           const sedangIsi = combat.isReloading;
           combat.beginReload(weapon.reloadSeconds);
-          if (!sedangIsi && useCombatStore.getState().isReloading) playReload();
+          if (!sedangIsi && useCombatStore.getState().isReloading) {
+            playReload(weapon.type, weapon.reloadSeconds);
+          }
         },
       ),
-    [subscribeKeys, weapon.reloadSeconds],
+    [subscribeKeys, weapon.type, weapon.reloadSeconds],
   );
 
   // Isi ulang berjalan lewat jam frame, bukan setTimeout, supaya berhenti ikut
@@ -172,7 +174,15 @@ export function WeaponSystem({
     const combat = useCombatStore.getState();
     if (!combat.consumeRound()) {
       playEmpty();
+      const sedangIsi = combat.isReloading;
       combat.beginReload(weapon.reloadSeconds);
+      // Magasin yang habis sendiri memulai isi ulang yang sama dengan menekan
+      // R, jadi ia berbunyi sama pula. Sebelumnya isi ulang otomatis ini
+      // bisu, dan pemain hanya mendengar pelatuk kosong lalu senyap sampai
+      // senjatanya tiba-tiba siap lagi.
+      if (!sedangIsi && useCombatStore.getState().isReloading) {
+        playReload(weapon.type, weapon.reloadSeconds);
+      }
       return;
     }
 
