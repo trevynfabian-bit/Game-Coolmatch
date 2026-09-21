@@ -1,3 +1,4 @@
+import { RECOIL_STYLES } from "@/lib/game/recoil-anim";
 import { RELOAD_STYLES } from "@/lib/game/reload-anim";
 import type { ViewmodelClips } from "@/lib/game/viewmodel-anim";
 import type { WeaponType } from "@/types/game";
@@ -20,6 +21,7 @@ const DASAR: ViewmodelClips = {
   idle: { bob: 0.014, sway: 0.01, rate: 1.25 },
   walk: { bob: 0.05, sway: 0.028, rate: 1.65, fullSpeed: 6 },
   recoil: { kick: 0.075, rise: 0.09, seconds: 0.16 },
+  recoilStyle: RECOIL_STYLES.rifle,
   reload: { drop: 0.3, tilt: 0.55 },
   reloadStyle: RELOAD_STYLES.rifle,
   swap: { drop: 0.55, tilt: 0.75 },
@@ -29,6 +31,7 @@ export const MOCK_VIEWMODEL_CLIPS: Record<WeaponType, ViewmodelClips> = {
   pistol: {
     ...DASAR,
     recoil: { kick: 0.06, rise: 0.085, seconds: 0.14 },
+    recoilStyle: RECOIL_STYLES.pistol,
     reload: { drop: 0.26, tilt: 0.5 },
     reloadStyle: RELOAD_STYLES.pistol,
   },
@@ -38,6 +41,7 @@ export const MOCK_VIEWMODEL_CLIPS: Record<WeaponType, ViewmodelClips> = {
     ...DASAR,
     idle: { bob: 0.012, sway: 0.009, rate: 1.35 },
     recoil: { kick: 0.045, rise: 0.055, seconds: 0.09 },
+    recoilStyle: RECOIL_STYLES.smg,
     reload: { drop: 0.28, tilt: 0.52 },
     reloadStyle: RELOAD_STYLES.smg,
   },
@@ -51,6 +55,7 @@ export const MOCK_VIEWMODEL_CLIPS: Record<WeaponType, ViewmodelClips> = {
     ...DASAR,
     idle: { bob: 0.016, sway: 0.011, rate: 1.1 },
     recoil: { kick: 0.16, rise: 0.19, seconds: 0.3 },
+    recoilStyle: RECOIL_STYLES.shotgun,
     reload: { drop: 0.42, tilt: 0.7 },
     reloadStyle: RELOAD_STYLES.shotgun,
   },
@@ -59,6 +64,7 @@ export const MOCK_VIEWMODEL_CLIPS: Record<WeaponType, ViewmodelClips> = {
     idle: { bob: 0.018, sway: 0.012, rate: 0.95 },
     walk: { bob: 0.058, sway: 0.032, rate: 1.5, fullSpeed: 6 },
     recoil: { kick: 0.18, rise: 0.22, seconds: 0.34 },
+    recoilStyle: RECOIL_STYLES.sniper,
     reload: { drop: 0.4, tilt: 0.68 },
     reloadStyle: RELOAD_STYLES.sniper,
   },

@@ -9,6 +9,12 @@ import {
 } from "@/lib/game/combat-effects";
 import { BARREL_TIP, flashFor } from "@/lib/game/muzzle-flash";
 import { playerRuntime } from "@/lib/game/player-runtime";
+import {
+  RECOIL_REST,
+  recoilShot,
+  recoilStep,
+  recoilStyleFor,
+} from "@/lib/game/recoil-anim";
 import { magazineMotion } from "@/lib/game/reload-anim";
 import { viewmodelFrame } from "@/lib/game/viewmodel-anim";
 import {
@@ -65,14 +71,19 @@ export function WeaponViewmodel({
   const camera = useThree((state) => state.camera);
   const flash = flashFor(weaponType);
   const clips = clipsFor(weaponType);
+  const recoilStyle = recoilStyleFor(weaponType);
   /**
-   * Jam tembakan terakhir, dicatat di ref dan bukan di store: ia hanya dipakai
-   * di dalam loop frame, dan menaruhnya di store berarti render ulang React
-   * tiap kali pelatuk ditarik. Jam isi ulang dan pergantian senjata datang
-   * dari runtime senjata, supaya animasinya memakai jam yang sama persis
-   * dengan yang membuka pelatuk.
+   * Keadaan sentakan: dorongan yang sedang meluruh dan panas rentetannya.
+   *
+   * Dicatat di ref dan bukan di store karena ia hanya dipakai di dalam loop
+   * frame; menaruhnya di store berarti render ulang React tiap kali pelatuk
+   * ditarik. Ia juga murni urusan TAMPILAN senjata — sebaran peluru dan
+   * sentakan kamera punya perhitungannya sendiri di sistem senjata. Jam isi
+   * ulang dan pergantian senjata sebaliknya datang dari runtime senjata,
+   * supaya animasinya memakai jam yang sama persis dengan yang membuka
+   * pelatuk.
    */
-  const lastShot = useRef<number | null>(null);
+  const recoil = useRef(RECOIL_REST);
 
   useFrame(({ clock }) => {
     const rig = rigRef.current;
@@ -91,7 +102,12 @@ export function WeaponViewmodel({
         flashUntil.current = now + flash.seconds;
         // Kejadian yang sama memicu sentakan senjatanya: satu tarikan
         // pelatuk, satu kilatan, satu sentakan.
-        lastShot.current = now;
+        recoil.current = recoilShot(
+          recoil.current,
+          now,
+          clips.recoil.seconds,
+          recoilStyle,
+        );
       }
     }
 
@@ -100,6 +116,13 @@ export function WeaponViewmodel({
     if (flashLightRef.current) {
       flashLightRef.current.intensity = menyala ? flash.intensity : 0;
     }
+
+    /*
+      Sentakan dijalankan SESUDAH tembakan frame ini diterima. Dorongan
+      tembakan barusan karena itu terbaca utuh pada frame yang sama, sementara
+      sisa tembakan sebelumnya sudah meluruh sebagaimana mestinya.
+    */
+    recoil.current = recoilStep(recoil.current, now, clips.recoil.seconds);
 
     /*
       Seluruh gerakan senjata datang dari kontroler animasi: napas diam,
@@ -111,7 +134,7 @@ export function WeaponViewmodel({
       {
         time: clock.elapsedTime,
         speed: playerRuntime.planarSpeed,
-        sinceShot: lastShot.current === null ? null : now - lastShot.current,
+        recoil: recoil.current,
         reloadElapsed: runtimeElapsed(
           weaponRuntime.reloadEndsAt,
           weaponRuntime.reloadSeconds,

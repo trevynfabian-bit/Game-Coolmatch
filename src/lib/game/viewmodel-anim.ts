@@ -1,4 +1,10 @@
 import {
+  RECOIL_REST,
+  shotWander,
+  type RecoilState,
+  type RecoilStyle,
+} from "@/lib/game/recoil-anim";
+import {
   RELOAD_IDLE,
   reloadDrive,
   reloadPoseFrom,
@@ -128,29 +134,34 @@ export interface RecoilClip {
 }
 
 /**
- * Sentakan tembakan: mundur dan mendongak cepat, lalu kembali perlahan.
+ * Sentakan tembakan: mundur dan mendongak, lalu kembali.
  *
- * Kembalinya dibuat pasti nol di ujung waktunya. Sentakan yang hanya meluruh
- * secara eksponensial tidak pernah benar-benar selesai, dan senjata yang
- * tertinggal sepersekian derajat dari tempatnya akan terus menumpuk selama
- * pertandingan.
+ * Besar simpangannya datang dari keadaan sentakan — dorongan yang sudah
+ * memperhitungkan panas rentetan dan luruhnya — bukan dihitung ulang di sini.
+ * Arah simpangan kiri-kanannya berbeda tiap tembakan supaya rentetan tidak
+ * terbaca sebagai satu gerakan yang diulang-ulang, tetapi diambil dari NOMOR
+ * tembakannya, bukan dari angka acak: rentetan yang sama harus menghasilkan
+ * gerakan yang sama.
  */
-export function recoilPose(elapsed: number, clip: RecoilClip): Pose {
-  const t = aman(elapsed);
-  if (t <= 0 || t >= clip.seconds) return REST_POSE;
-  const bagian = t / clip.seconds;
-  // Naik cepat pada seperlima pertama, lalu turun halus sampai nol.
-  const bentuk =
-    bagian < 0.2
-      ? bagian / 0.2
-      : Math.cos(((bagian - 0.2) / 0.8) * (Math.PI / 2));
+export function recoilPose(
+  state: RecoilState,
+  clip: RecoilClip,
+  style: RecoilStyle,
+): Pose {
+  const kuat = aman(state.value);
+  if (kuat <= 0) return REST_POSE;
+
+  const kick = clip.kick * kuat;
+  const rise = clip.rise * kuat;
+  const goyang = shotWander(state.shot) * rise * style.wander;
+
   return {
-    px: 0,
-    py: clip.rise * bentuk * 0.35,
-    pz: clip.kick * bentuk,
-    rx: -clip.rise * bentuk,
-    ry: 0,
-    rz: clip.rise * bentuk * 0.25,
+    px: goyang,
+    py: rise * 0.35,
+    pz: kick,
+    rx: -rise,
+    ry: goyang * 0.6,
+    rz: rise * 0.25 + goyang * 0.8,
   };
 }
 
@@ -185,6 +196,8 @@ export interface ViewmodelClips {
   idle: IdleClip;
   walk: WalkClip;
   recoil: RecoilClip;
+  /** Watak menumpuknya sentakan sepanjang rentetan. */
+  recoilStyle: RecoilStyle;
   /** Seberapa jauh senjata turun dan miring saat isi ulang. */
   reload: ReloadLook;
   /** Cara senjata itu diisi ulang; menentukan irama tangannya. */
@@ -197,8 +210,11 @@ export interface ViewmodelInput {
   time: number;
   /** Kecepatan mendatar pemain, satuan dunia per detik. */
   speed: number;
-  /** Sudah berapa detik sejak tembakan terakhir; null bila belum menembak. */
-  sinceShot: number | null;
+  /**
+   * Keadaan sentakan sekarang: dorongan yang sedang meluruh, panas
+   * rentetannya, dan nomor tembakan terakhir. Null berarti belum menembak.
+   */
+  recoil: RecoilState | null;
   /**
    * Sudah berapa detik isi ulang berjalan; null bila tidak sedang mengisi.
    *
@@ -249,9 +265,7 @@ export function viewmodelFrame(
     pose: composePose(
       idlePose(input.time, clips.idle),
       walkPose(input.time, input.speed, clips.walk),
-      input.sinceShot === null
-        ? REST_POSE
-        : recoilPose(input.sinceShot, clips.recoil),
+      recoilPose(input.recoil ?? RECOIL_REST, clips.recoil, clips.recoilStyle),
       reloadPoseFrom(isiUlang, clips.reload),
       input.swapProgress === null
         ? REST_POSE
