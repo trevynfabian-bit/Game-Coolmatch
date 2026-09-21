@@ -160,9 +160,13 @@ export function shotDistanceMix(distance: number): ShotDistanceMix | null {
 }
 
 /**
- * Posisi kiri-kanan sebuah bunyi, -1..1, dari sudutnya relatif arah pandang
- * (konvensi yang sama dengan penunjuk arah kena: nol berarti tepat di depan,
- * positif berarti ke kiri).
+ * Posisi kiri-kanan sebuah bunyi, -1..1, dari sudutnya relatif arah pandang.
+ *
+ * Konvensi sudutnya sama dengan penunjuk arah kena dan DIUKUR dari arena, bukan
+ * diturunkan dari perkiraan sumbu: nol berarti tepat di depan, dan sudut
+ * POSITIF berarti penembak berada di sebelah kanan pemain. Sebelumnya tandanya
+ * ditebak terbalik, sehingga letupan musuh di kanan terdengar dari telinga
+ * kiri — cacat yang justru merusak satu-satunya gunanya menempatkan bunyi.
  *
  * Tidak pernah mentok di -1 atau 1: bunyi yang sepenuhnya berada di satu
  * telinga terdengar seperti cacat pemutaran, bukan seperti arah.
@@ -171,5 +175,5 @@ export const MAX_PAN = 0.85;
 
 export function shotPan(angleRad: number): number {
   if (!Number.isFinite(angleRad)) return 0;
-  return -Math.sin(angleRad) * MAX_PAN;
+  return Math.sin(angleRad) * MAX_PAN;
 }
