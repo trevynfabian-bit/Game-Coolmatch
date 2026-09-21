@@ -4,10 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useKeyboardControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { MathUtils, PerspectiveCamera, Vector3 } from "three";
-import {
-  ShotEffects,
-  type ShotEffectsHandle,
-} from "@/components/arena/shot-effects";
+import { ShotEffects } from "@/components/arena/shot-effects";
 import { livePosition, noteBotHit } from "@/lib/game/bot-runtime";
 import { buildColliders } from "@/lib/game/collision";
 import { type MoveAction } from "@/lib/game/controls";
@@ -24,6 +21,7 @@ import {
 } from "@/lib/game/shooting";
 import { eliminationKind } from "@/lib/audio/elimination-voice";
 import { hitKind } from "@/lib/audio/hit-voice";
+import { emitCombatEffect } from "@/lib/game/combat-effects";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { reportHit, reportKill } from "@/lib/game/session-runtime";
 import { resolveShotDamage } from "@/lib/game/damage";
@@ -66,7 +64,7 @@ function spreadToPixels(
 /**
  * Mekanik menembak pemain lokal: penjadwalan laju tembak, sebaran, hitscan ke
  * arena, sentakan kamera, amunisi, dan isi ulang. Efek visual diserahkan ke
- * `ShotEffects` lewat ref imperatif supaya menembak beruntun tidak memicu
+ * antrean efek kombat supaya menembak beruntun tidak memicu
  * render ulang React.
  *
  * Tembakan yang mengenai petarung diterapkan lewat `useMatchStore.damageFighter`
@@ -95,7 +93,6 @@ export function WeaponSystem({
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
   const [subscribeKeys] = useKeyboardControls<MoveAction>();
-  const effects = useRef<ShotEffectsHandle>(null);
 
   const colliders = useMemo(() => buildColliders(match.map), [match.map]);
 
@@ -236,11 +233,19 @@ export function WeaponSystem({
             originVec[2] + direction[2] * MAX_SHOT_DISTANCE,
           ];
 
-      effects.current?.spawnTracer([muzzle.x, muzzle.y, muzzle.z], end);
+      emitCombatEffect({
+        kind: "tracer",
+        from: [muzzle.x, muzzle.y, muzzle.z],
+        to: end,
+      });
       onShot?.(hit);
 
       if (hit) {
-        effects.current?.spawnImpact(hit.point, hit.kind === "fighter");
+        emitCombatEffect({
+          kind: "percikan",
+          at3: hit.point,
+          onFighter: hit.kind === "fighter",
+        });
         if (hit.kind === "fighter" && hit.fighterId) {
           const isHeadshot = hit.isHeadshot ?? false;
           const damage = resolveShotDamage(weapon.damage, isHeadshot);
@@ -322,7 +327,8 @@ export function WeaponSystem({
       useCombatStore.getState().registerHit(bestHitOnFighter.isHeadshot);
     }
 
-    effects.current?.flashMuzzle();
+    // Kilatan moncong pemain: menempel pada kamera, jadi tanpa posisi dunia.
+    emitCombatEffect({ kind: "moncong" });
     recoil.current += weapon.recoilDegrees;
     bloom.current = Math.min(MAX_BLOOM_DEGREES, bloom.current + BLOOM_PER_SHOT);
   };
@@ -394,5 +400,5 @@ export function WeaponSystem({
     }
   });
 
-  return <ShotEffects ref={effects} />;
+  return <ShotEffects />;
 }

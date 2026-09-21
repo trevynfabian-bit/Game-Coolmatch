@@ -3,6 +3,7 @@ import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { resetBotRuntime } from "@/lib/game/bot-runtime";
+import { resetCombatEffects } from "@/lib/game/combat-effects";
 import { reopenSessionFor } from "@/lib/game/session-runtime";
 import { pickSpawnPoint } from "@/lib/game/spawn";
 import { useMatchStore } from "@/lib/store/match-store";
@@ -45,6 +46,8 @@ export function restartMatch(map: ArenaMapInfo, snapshot: MatchSnapshot) {
   resetFighterHits();
   resetRespawnTimers();
   resetBotRuntime();
+  // Kilatan dan percikan dari pertandingan sebelumnya tidak ikut terbawa.
+  resetCombatEffects();
   useMatchStore.getState().startFreshMatch(snapshot, spawns);
   setRoundClock(useMatchStore.getState().round.secondsLeft);
 
