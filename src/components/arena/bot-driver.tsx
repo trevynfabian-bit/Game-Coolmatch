@@ -21,6 +21,7 @@ import {
   livePosition,
   syncBots,
 } from "@/lib/game/bot-runtime";
+import { playShotAt } from "@/lib/audio/audio-engine";
 import { buildColliders } from "@/lib/game/collision";
 import { PLAYER_BOUNDS } from "@/lib/game/controls";
 import { difficultyProfile } from "@/lib/game/difficulty";
@@ -79,6 +80,10 @@ export function BotDriver({
 
     const profile = difficultyProfile(difficulty);
     const now = performance.now() / 1000;
+    // Arah pandang pemain, dihitung sekali per frame: dipakai menempatkan
+    // bunyi tembakan musuh di kiri atau kanan, dan busur arah kena.
+    camera.getWorldDirection(forward.current);
+    const facing = Math.atan2(forward.current.x, forward.current.z);
     // Pemain diikuti dari kamera, karena di situlah posisi hidupnya berada.
     const target: Vec3 = [
       camera.position.x,
@@ -166,6 +171,22 @@ export function BotDriver({
       state.fire = pelatuk.state;
       if (!pelatuk.fire) continue;
 
+      /*
+        Letupan dibunyikan untuk SETIAP tarikan pelatuk musuh, bukan hanya
+        yang kena. Tembakan yang meleset justru yang paling berguna
+        didengar: itulah tanda ada yang menembak ke arahmu dari suatu tempat,
+        dan watak bunyinya memberi tahu senjata apa yang dipegangnya sebelum
+        pemain sempat melihat siapa pun.
+      */
+      playShotAt(weapon.type, {
+        distance,
+        angleRad: incomingAngle(
+          facing,
+          [camera.position.x, 0, camera.position.z],
+          [state.x, 0, state.z],
+        ),
+      });
+
       // Peluru dihitung dari keadaan penembak yang sungguhan: peluang kena
       // dari ketepatan profil, jarak, dan seberapa jauh moncongnya masih
       // melenceng; lalu lintasannya ditelusuri ke satu titik di badan pemain
@@ -212,8 +233,6 @@ export function BotDriver({
 
       // Sudut penyerang relatif arah pandang, supaya busur menunjuk ke arah
       // yang benar.
-      camera.getWorldDirection(forward.current);
-      const facing = Math.atan2(forward.current.x, forward.current.z);
       useCombatStore.getState().pushIncomingHit({
         angleRad: incomingAngle(
           facing,

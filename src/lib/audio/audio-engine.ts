@@ -4,6 +4,12 @@ import {
   channelLevels,
   type CombatChannel,
 } from "@/lib/game/combat-audio";
+import {
+  SHOT_VOICE,
+  shotDistanceMix,
+  shotPan,
+  type ShotVoice,
+} from "@/lib/audio/shot-voice";
 import type { WeaponType } from "@/types/game";
 
 /**
@@ -137,63 +143,148 @@ function busFor(channel: CombatChannel): (Engine & { bus: GainNode }) | null {
   return { ...eng, bus: eng.channels[channel] };
 }
 
-/** Watak letupan tiap jenis senjata. */
-const SHOT_VOICE: Record<
-  WeaponType,
-  { gain: number; decay: number; cutoff: number; body: number }
-> = {
-  pistol: { gain: 0.5, decay: 0.12, cutoff: 2600, body: 190 },
-  smg: { gain: 0.38, decay: 0.09, cutoff: 3000, body: 230 },
-  rifle: { gain: 0.6, decay: 0.16, cutoff: 2200, body: 150 },
-  shotgun: { gain: 0.85, decay: 0.3, cutoff: 1200, body: 90 },
-  sniper: { gain: 0.95, decay: 0.42, cutoff: 1600, body: 70 },
-};
+/** Di mana sebuah tembakan terjadi, dilihat dari telinga pemain. */
+export interface ShotOrigin {
+  /** Jarak dari pemain dalam satuan arena; nol berarti senjata sendiri. */
+  distance?: number;
+  /**
+   * Sudut penembak relatif arah pandang, radian, konvensi penunjuk arah kena:
+   * nol tepat di depan, positif di sebelah kiri.
+   */
+  angleRad?: number;
+}
 
 /**
- * Letupan tembakan: derau yang disaring untuk desisnya, ditumpuk nada rendah
- * yang jatuh cepat untuk dentumnya. Dua lapis itu yang membedakan "pistol"
- * dari "shotgun" di telinga, jauh lebih efektif daripada sekadar mengeraskan
- * volumenya.
+ * Letupan tembakan, disusun berlapis menurut watak senjatanya: desis tajam,
+ * dentum rendah, ekor gema, lalu bunyi mekanik untuk senjata yang bukan
+ * otomatis. Empat lapis itu yang membuat pistol, shotgun, dan sniper bisa
+ * dibedakan dengan mata tertutup — jauh lebih efektif daripada sekadar
+ * mengeraskan volumenya, dan itu jugalah yang memberi tahu pemain senjata apa
+ * yang sedang menembaknya.
+ *
+ * Tembakan yang datang dari kejauhan dilemahkan, ditumpulkan, dan ditunda
+ * sesuai jaraknya, lalu ditempatkan kiri-kanan sesuai arahnya. Dengan begitu
+ * pemain bisa menebak di mana pertempuran sedang berlangsung sebelum
+ * melihatnya.
  */
-export function playShot(type: WeaponType) {
+export function playShotAt(type: WeaponType, origin: ShotOrigin = {}) {
   const eng = busFor("tembakan");
   if (!eng) return;
   const { ctx, bus, noise } = eng;
-  const voice = SHOT_VOICE[type];
-  const now = ctx.currentTime;
+  const voice: ShotVoice = SHOT_VOICE[type];
 
+  const jauh = shotDistanceMix(origin.distance ?? 0);
+  // Di luar jangkauan dengar tidak ada satu pun node yang dibangun.
+  if (!jauh) return;
+
+  /*
+    Semua lapis melewati satu simpul muara: di situlah pelemahan jarak,
+    penumpulan nada tinggi, dan penempatan kiri-kanan dikenakan sekali saja.
+    Menaruhnya per lapis berarti empat tempat yang bisa berselisih.
+  */
+  const muara = ctx.createGain();
+  muara.gain.value = jauh.gain;
+
+  let ujung: AudioNode = muara;
+  if (jauh.cutoff < 17000) {
+    const udara = ctx.createBiquadFilter();
+    udara.type = "lowpass";
+    udara.frequency.value = jauh.cutoff;
+    muara.connect(udara);
+    ujung = udara;
+  }
+
+  // Penempatan kiri-kanan dilewati bila peramban tidak punya StereoPanner —
+  // bunyinya tetap terdengar, hanya di tengah.
+  const pan = shotPan(origin.angleRad ?? 0);
+  if (pan !== 0 && typeof ctx.createStereoPanner === "function") {
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = pan;
+    ujung.connect(panner).connect(bus);
+  } else {
+    ujung.connect(bus);
+  }
+
+  const now = ctx.currentTime + jauh.delay;
+
+  // Lapis satu: desis tajam dari derau yang disaring.
   const crack = ctx.createBufferSource();
   crack.buffer = noise;
   crack.playbackRate.value = 0.8 + Math.random() * 0.4;
 
   const bandpass = ctx.createBiquadFilter();
   bandpass.type = "bandpass";
-  bandpass.frequency.value = voice.cutoff;
-  bandpass.Q.value = 0.7;
+  bandpass.frequency.value = voice.crack.cutoff;
+  bandpass.Q.value = voice.crack.q;
 
   const crackGain = ctx.createGain();
-  crackGain.gain.setValueAtTime(voice.gain, now);
-  crackGain.gain.exponentialRampToValueAtTime(0.0001, now + voice.decay);
+  crackGain.gain.setValueAtTime(voice.crack.gain, now);
+  crackGain.gain.exponentialRampToValueAtTime(0.0001, now + voice.crack.decay);
 
-  crack.connect(bandpass).connect(crackGain).connect(bus);
+  crack.connect(bandpass).connect(crackGain).connect(muara);
   crack.start(now, Math.random() * 1.5);
-  crack.stop(now + voice.decay);
+  crack.stop(now + voice.crack.decay);
 
+  // Lapis dua: dentum rendah yang jatuh cepat.
   const thump = ctx.createOscillator();
   thump.type = "sine";
-  thump.frequency.setValueAtTime(voice.body, now);
+  thump.frequency.setValueAtTime(voice.body.freq, now);
   thump.frequency.exponentialRampToValueAtTime(
-    voice.body * 0.45,
-    now + voice.decay,
+    voice.body.freq * voice.body.drop,
+    now + voice.body.decay,
   );
 
   const thumpGain = ctx.createGain();
-  thumpGain.gain.setValueAtTime(voice.gain * 0.7, now);
-  thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + voice.decay);
+  thumpGain.gain.setValueAtTime(voice.body.gain, now);
+  thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + voice.body.decay);
 
-  thump.connect(thumpGain).connect(bus);
+  thump.connect(thumpGain).connect(muara);
   thump.start(now);
-  thump.stop(now + voice.decay);
+  thump.stop(now + voice.body.decay);
+
+  // Lapis tiga: ekor gema ruang arena, naik sekejap lalu surut.
+  const tail = ctx.createBufferSource();
+  tail.buffer = noise;
+  tail.playbackRate.value = 0.5 + Math.random() * 0.2;
+
+  const tailFilter = ctx.createBiquadFilter();
+  tailFilter.type = "lowpass";
+  tailFilter.frequency.value = voice.tail.cutoff;
+
+  const tailGain = ctx.createGain();
+  tailGain.gain.setValueAtTime(0.0001, now);
+  tailGain.gain.exponentialRampToValueAtTime(voice.tail.gain, now + 0.02);
+  tailGain.gain.exponentialRampToValueAtTime(0.0001, now + voice.tail.decay);
+
+  tail.connect(tailFilter).connect(tailGain).connect(muara);
+  tail.start(now, Math.random());
+  tail.stop(now + voice.tail.decay);
+
+  // Lapis empat: mekanik sesudah tembakan — slide, pompa, atau bolt.
+  const action = voice.action;
+  if (!action) return;
+  for (let i = 0; i < action.clicks; i++) {
+    const at = now + action.delay + i * 0.13;
+    const click = ctx.createBufferSource();
+    click.buffer = noise;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.value = action.cutoff;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(action.gain, at);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.045);
+
+    click.connect(filter).connect(gain).connect(muara);
+    click.start(at, Math.random());
+    click.stop(at + 0.045);
+  }
+}
+
+/** Letupan senjata pemain sendiri: tanpa jarak dan tanpa arah. */
+export function playShot(type: WeaponType) {
+  playShotAt(type);
 }
 
 /** Nada pendek saat sebuah tembakan kena; lebih tinggi untuk tembakan kepala. */
