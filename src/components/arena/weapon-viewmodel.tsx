@@ -2,7 +2,13 @@
 
 import { useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import type { Group } from "three";
+import type { Group, Mesh, PointLight } from "three";
+import {
+  currentEffectCursor,
+  readCombatEffects,
+} from "@/lib/game/combat-effects";
+import { BARREL_TIP, flashFor } from "@/lib/game/muzzle-flash";
+import type { WeaponType } from "@/types/game";
 
 /**
  * Jarak senjata dari kamera. Ditahan cukup jauh supaya popor tidak menembus
@@ -16,10 +22,28 @@ const GUN_SCALE = 0.78;
  * tiap frame sehingga offset di dalamnya berperilaku seperti anak kamera, lalu
  * ditambah ayunan idle halus supaya arena tidak terasa beku.
  */
-export function WeaponViewmodel({ color = "#39424d" }: { color?: string }) {
+export function WeaponViewmodel({
+  color = "#39424d",
+  weaponType,
+}: {
+  color?: string;
+  /** Menentukan watak kilatan moncongnya; kosong berarti senapan serbu. */
+  weaponType?: WeaponType;
+}) {
   const rigRef = useRef<Group>(null);
   const gunRef = useRef<Group>(null);
+  const flashRef = useRef<Mesh>(null);
+  const flashLightRef = useRef<PointLight>(null);
+  const flashUntil = useRef(0);
+  /**
+   * Batas baca antrean efek. Kilatan moncong pemain digambar DI SINI, sebagai
+   * anak grup senjatanya, bukan di lapisan efek dunia — dengan begitu ia ikut
+   * bergerak bersama ayunan dan sentakan senjata, dan tidak pernah melayang
+   * lepas dari ujung laras seperti saat posisinya ditulis terpisah.
+   */
+  const cursor = useRef(currentEffectCursor());
   const camera = useThree((state) => state.camera);
+  const flash = flashFor(weaponType);
 
   useFrame(({ clock }) => {
     const rig = rigRef.current;
@@ -28,6 +52,22 @@ export function WeaponViewmodel({ color = "#39424d" }: { color?: string }) {
 
     rig.position.copy(camera.position);
     rig.quaternion.copy(camera.quaternion);
+
+    const now = performance.now() / 1000;
+    // Kilatan moncong PEMAIN saja: kejadian tanpa posisi dunia.
+    const bacaan = readCombatEffects(cursor.current);
+    cursor.current = bacaan.cursor;
+    for (const event of bacaan.events) {
+      if (event.kind === "moncong" && event.at3 === null) {
+        flashUntil.current = now + flash.seconds;
+      }
+    }
+
+    const menyala = now < flashUntil.current;
+    if (flashRef.current) flashRef.current.visible = menyala;
+    if (flashLightRef.current) {
+      flashLightRef.current.intensity = menyala ? flash.intensity : 0;
+    }
 
     // Ayunan idle: napas vertikal pelan plus geser horizontal lebih pelan lagi.
     const t = clock.elapsedTime;
@@ -55,6 +95,24 @@ export function WeaponViewmodel({ color = "#39424d" }: { color?: string }) {
       />
 
       <group ref={gunRef} scale={GUN_SCALE}>
+        {/*
+          Kilatan dan cahayanya duduk di UJUNG LARAS, sebagai anak grup yang
+          sama dengan model senjatanya. Keduanya karena itu ikut bergerak
+          bersama ayunan senjata tanpa satu baris pun kode penyelaras.
+        */}
+        <mesh ref={flashRef} position={BARREL_TIP} visible={false}>
+          <sphereGeometry args={[flash.radius, 8, 8]} />
+          <meshBasicMaterial color={flash.color} transparent opacity={0.95} />
+        </mesh>
+        <pointLight
+          ref={flashLightRef}
+          position={BARREL_TIP}
+          intensity={0}
+          distance={flash.distance}
+          decay={2}
+          color={flash.color}
+        />
+
         <mesh>
           <boxGeometry args={[0.13, 0.17, 0.72]} />
           <meshStandardMaterial

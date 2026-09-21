@@ -75,6 +75,7 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
         color={
           spawnFighter.color === "#38bdf8" ? "#39424d" : spawnFighter.color
         }
+        weaponType={weapon.type}
       />
     </Canvas>
   );

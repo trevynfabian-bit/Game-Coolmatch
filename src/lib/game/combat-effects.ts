@@ -1,4 +1,4 @@
-import type { Vec3 } from "@/types/game";
+import type { Vec3, WeaponType } from "@/types/game";
 
 /**
  * Pengelola efek visual kombat: satu tempat yang tahu seluruh kilatan,
@@ -52,6 +52,8 @@ export interface MuzzleEffect extends BaseEffect {
   kind: "moncong";
   /** Posisi dunia moncongnya; null berarti menempel pada kamera pemain. */
   at3: Vec3 | null;
+  /** Senjata yang menembak, penentu besar dan lama kilatannya. */
+  weapon: WeaponType | null;
 }
 
 export interface ShakeEffect extends BaseEffect {
@@ -90,7 +92,12 @@ const queue: Antrean = { items: [], nextId: 1, dropped: 0 };
 export type EffectRequest =
   | { kind: "tracer"; owner?: EffectOwner; from: Vec3; to: Vec3 }
   | { kind: "percikan"; owner?: EffectOwner; at3: Vec3; onFighter: boolean }
-  | { kind: "moncong"; owner?: EffectOwner; at3?: Vec3 | null }
+  | {
+      kind: "moncong";
+      owner?: EffectOwner;
+      at3?: Vec3 | null;
+      weapon?: WeaponType | null;
+    }
   | { kind: "getar"; owner?: EffectOwner; strength: number };
 
 /**
@@ -133,6 +140,7 @@ export function emitCombatEffect(
         owner,
         kind: "moncong",
         at3: request.at3 ?? null,
+        weapon: request.weapon ?? null,
       };
       break;
     case "getar":

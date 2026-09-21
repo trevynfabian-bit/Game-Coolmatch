@@ -26,7 +26,9 @@ import {
   playShotAt,
   playTakenHit,
 } from "@/lib/audio/audio-engine";
+import { emitCombatEffect } from "@/lib/game/combat-effects";
 import { buildColliders } from "@/lib/game/collision";
+import { ENEMY_MUZZLE_FORWARD } from "@/lib/game/muzzle-flash";
 import { PLAYER_BOUNDS } from "@/lib/game/controls";
 import { difficultyProfile } from "@/lib/game/difficulty";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
@@ -189,6 +191,24 @@ export function BotDriver({
           [camera.position.x, 0, camera.position.z],
           [state.x, 0, state.z],
         ),
+      });
+
+      /*
+        Kilatan moncongnya ikut menyala di dunia, sedikit di depan dada ke
+        arah hadapnya. Inilah satu-satunya petunjuk terlihat dari mana peluru
+        datang: sebelum ini musuh menembak tanpa jejak visual sama sekali,
+        dan pemain yang kena tembak dari kegelapan tidak punya cara menebak
+        harus menoleh ke mana.
+      */
+      emitCombatEffect({
+        kind: "moncong",
+        owner: "musuh",
+        weapon: weapon.type,
+        at3: [
+          state.x + Math.sin(state.yaw) * ENEMY_MUZZLE_FORWARD,
+          state.y + BOT_EYE_HEIGHT - 0.15,
+          state.z + Math.cos(state.yaw) * ENEMY_MUZZLE_FORWARD,
+        ],
       });
 
       // Peluru dihitung dari keadaan penembak yang sungguhan: peluang kena

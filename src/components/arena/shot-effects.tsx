@@ -1,19 +1,36 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
-import { Vector3, type Group, type Mesh, type PointLight } from "three";
+import { useFrame } from "@react-three/fiber";
+import { Vector3, type Mesh, type PointLight } from "three";
 import {
   currentEffectCursor,
   pruneCombatEffects,
   readCombatEffects,
 } from "@/lib/game/combat-effects";
+import {
+  ENEMY_FLASH_SCALE,
+  MUZZLE_FLASH,
+  enemyFlashSeconds,
+  flashFor,
+} from "@/lib/game/muzzle-flash";
 
 const TRACER_POOL = 18;
 const IMPACT_POOL = 18;
 const TRACER_LIFETIME = 0.07;
 const IMPACT_LIFETIME = 0.38;
-const MUZZLE_LIFETIME = 0.055;
+/**
+ * Kolam kilatan moncong MUSUH di dunia. Beberapa musuh bisa menembak dalam
+ * frame yang sama, jadi satu objek saja akan membuat kilatan mereka saling
+ * menimpa dan hanya satu arah yang terlihat.
+ */
+const ENEMY_MUZZLE_POOL = 6;
+/**
+ * Jari-jari bola kilatan musuh sebelum diskalakan per senjata. Bolanya
+ * digambar sekali sebesar ini, lalu tiap kilatan menyesuaikan skalanya —
+ * dengan begitu lima watak senjata memakai satu geometri yang sama.
+ */
+const ENEMY_MUZZLE_RADIUS = MUZZLE_FLASH.rifle.radius * ENEMY_FLASH_SCALE;
 
 interface Slot {
   expiresAt: number;
@@ -32,13 +49,10 @@ interface Slot {
  * belum ada. Ia hanya menggambar apa yang masuk antrean.
  */
 export function ShotEffects() {
-  const camera = useThree((state) => state.camera);
-
   const tracerRefs = useRef<(Mesh | null)[]>([]);
   const impactRefs = useRef<(Mesh | null)[]>([]);
-  const muzzleRigRef = useRef<Group>(null);
-  const muzzleMeshRef = useRef<Mesh>(null);
-  const muzzleLightRef = useRef<PointLight>(null);
+  const enemyMuzzleRefs = useRef<(Mesh | null)[]>([]);
+  const enemyLightRefs = useRef<(PointLight | null)[]>([]);
 
   const tracerSlots = useRef<Slot[]>(
     Array.from({ length: TRACER_POOL }, () => ({
@@ -52,9 +66,12 @@ export function ShotEffects() {
       onFighter: false,
     })),
   );
-  const muzzleUntil = useRef(0);
+  const enemyMuzzleSlots = useRef<number[]>(
+    Array.from({ length: ENEMY_MUZZLE_POOL }, () => 0),
+  );
   const nextTracer = useRef(0);
   const nextImpact = useRef(0);
+  const nextEnemyMuzzle = useRef(0);
   /**
    * Batas baca antrean efek. Dimulai dari kejadian TERAKHIR yang sudah ada,
    * bukan dari nol: efek yang terjadi sebelum arena terpasang — misalnya di
@@ -86,6 +103,30 @@ export function ShotEffects() {
       performance.now() / 1000 + TRACER_LIFETIME;
   };
 
+  const spawnEnemyMuzzle = (
+    point: readonly number[],
+    weapon: Parameters<typeof flashFor>[0],
+  ) => {
+    const index = nextEnemyMuzzle.current % ENEMY_MUZZLE_POOL;
+    nextEnemyMuzzle.current += 1;
+    const mesh = enemyMuzzleRefs.current[index];
+    if (!mesh) return;
+
+    // Watak senjatanya menentukan besar dan terangnya: kilatan sniper harus
+    // menjadi petunjuk yang jauh lebih mudah dibaca daripada kilatan SMG.
+    const voice = flashFor(weapon);
+    mesh.position.set(point[0], point[1], point[2]);
+    mesh.scale.setScalar(voice.radius / MUZZLE_FLASH.rifle.radius);
+    mesh.visible = true;
+    const light = enemyLightRefs.current[index];
+    if (light) {
+      light.position.set(point[0], point[1], point[2]);
+      light.intensity = voice.intensity * ENEMY_FLASH_SCALE;
+    }
+    enemyMuzzleSlots.current[index] =
+      performance.now() / 1000 + enemyFlashSeconds(weapon);
+  };
+
   const spawnImpact = (point: readonly number[], onFighter: boolean) => {
     const index = nextImpact.current % IMPACT_POOL;
     nextImpact.current += 1;
@@ -115,9 +156,13 @@ export function ShotEffects() {
           spawnImpact(event.at3, event.onFighter);
           break;
         case "moncong":
-          // Kilatan moncong pemain menempel pada kamera; moncong musuh di
-          // dunia belum digambar komponen ini.
-          if (event.at3 === null) muzzleUntil.current = now + MUZZLE_LIFETIME;
+          /*
+            Hanya kilatan yang punya posisi DUNIA yang digambar di sini —
+            itulah kilatan musuh. Kilatan pemain menempel pada ujung laras
+            viewmodel dan digambar komponen senjata itu sendiri, supaya ikut
+            bergerak bersama ayunannya.
+          */
+          if (event.at3 !== null) spawnEnemyMuzzle(event.at3, event.weapon);
           break;
         default:
           break;
@@ -151,15 +196,14 @@ export function ShotEffects() {
       mesh.scale.setScalar(slot.onFighter ? life * 1.5 : life);
     }
 
-    // Kilatan moncong menempel pada kamera, sejajar dengan viewmodel senjata.
-    const rig = muzzleRigRef.current;
-    if (rig) {
-      rig.position.copy(camera.position);
-      rig.quaternion.copy(camera.quaternion);
+    for (let i = 0; i < ENEMY_MUZZLE_POOL; i++) {
+      const mesh = enemyMuzzleRefs.current[i];
+      if (!mesh || !mesh.visible) continue;
+      if (now < enemyMuzzleSlots.current[i]) continue;
+      mesh.visible = false;
+      const light = enemyLightRefs.current[i];
+      if (light) light.intensity = 0;
     }
-    const lit = now < muzzleUntil.current;
-    if (muzzleMeshRef.current) muzzleMeshRef.current.visible = lit;
-    if (muzzleLightRef.current) muzzleLightRef.current.intensity = lit ? 14 : 0;
   });
 
   return (
@@ -190,24 +234,32 @@ export function ShotEffects() {
         </mesh>
       ))}
 
-      <group ref={muzzleRigRef}>
-        <mesh
-          ref={muzzleMeshRef}
-          position={[0.36, -0.24, -1.65]}
-          visible={false}
-        >
-          <sphereGeometry args={[0.13, 8, 8]} />
-          <meshBasicMaterial color="#fff2c4" transparent opacity={0.95} />
-        </mesh>
-        <pointLight
-          ref={muzzleLightRef}
-          position={[0.36, -0.24, -1.65]}
-          intensity={0}
-          distance={9}
-          decay={2}
-          color="#ffd9a0"
-        />
-      </group>
+      {Array.from({ length: ENEMY_MUZZLE_POOL }, (_, i) => (
+        <group key={`moncong-musuh-${i}`}>
+          <mesh
+            ref={(node) => {
+              enemyMuzzleRefs.current[i] = node;
+            }}
+            visible={false}
+          >
+            <sphereGeometry args={[ENEMY_MUZZLE_RADIUS, 8, 8]} />
+            <meshBasicMaterial
+              color={MUZZLE_FLASH.rifle.color}
+              transparent
+              opacity={0.95}
+            />
+          </mesh>
+          <pointLight
+            ref={(node) => {
+              enemyLightRefs.current[i] = node;
+            }}
+            intensity={0}
+            distance={MUZZLE_FLASH.rifle.distance}
+            decay={2}
+            color={MUZZLE_FLASH.rifle.color}
+          />
+        </group>
+      ))}
     </group>
   );
 }
