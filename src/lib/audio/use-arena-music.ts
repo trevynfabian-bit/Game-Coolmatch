@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import { startMusic, stopMusic } from "@/lib/audio/audio-engine";
+import {
+  startAmbience,
+  startMusic,
+  stopAmbience,
+  stopMusic,
+} from "@/lib/audio/audio-engine";
 import { usePlayerStore } from "@/lib/store/player-store";
 
 /**
- * Menyalakan dengung latar selama pemain benar-benar bermain.
+ * Menyalakan dengung latar dan suasana arena selama pemain benar-benar
+ * bermain.
  *
  * Diikatkan pada kunci kursor, bukan pada terbukanya halaman. Browser menolak
  * memutar suara sebelum ada gerakan pengguna, dan klik yang mengunci kursor
@@ -16,15 +22,28 @@ import { usePlayerStore } from "@/lib/store/player-store";
  * jam ronde; dengung yang terus berjalan di atasnya membuat jeda terasa
  * seperti bukan jeda.
  */
-export function useArenaMusic() {
+export function useArenaMusic(mapId?: string | null) {
   const isLocked = usePlayerStore((state) => state.isLocked);
 
   useEffect(() => {
-    if (isLocked) startMusic();
-    else stopMusic();
-  }, [isLocked]);
+    if (isLocked) {
+      startMusic();
+      // Suasana mengikuti peta: gudang berdecit, pabrik berdengung, atap
+      // kena angin. Itulah yang membuat peta terasa sebagai tempat.
+      startAmbience(mapId);
+    } else {
+      stopMusic();
+      stopAmbience();
+    }
+  }, [isLocked, mapId]);
 
   // Meninggalkan halaman juga menghentikannya; tanpa ini dengungnya ikut
   // terbawa ke menu utama dan tidak ada lagi yang mematikannya.
-  useEffect(() => stopMusic, []);
+  useEffect(
+    () => () => {
+      stopMusic();
+      stopAmbience();
+    },
+    [],
+  );
 }

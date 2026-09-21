@@ -56,7 +56,8 @@ export function PracticeExperience() {
   // mustahil berjalan dengan pemetaan yang berbeda.
   const bindings = useKeybindStore((state) => state.bindings);
   useAudioSettings();
-  useArenaMusic();
+  // Tempat latihan memakai suasana bawaan: ia bukan salah satu peta arena.
+  useArenaMusic(null);
   const keyboardMap = useMemo(() => buildKeyboardMap(bindings), [bindings]);
 
   useEffect(() => {

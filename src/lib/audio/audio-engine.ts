@@ -5,6 +5,7 @@ import {
   type CombatChannel,
 } from "@/lib/game/combat-audio";
 import { EMPTY_VOICE, emptyClickAllowed } from "@/lib/audio/empty-voice";
+import { accentDelay, ambienceFor } from "@/lib/audio/ambience-voice";
 import {
   cueAllowed,
   eliminationCue,
@@ -611,6 +612,151 @@ export function playAmbienceSample() {
   wind.connect(filter).connect(gain).connect(bus);
   wind.start(now, Math.random());
   wind.stop(now + durasi);
+}
+
+/**
+ * Mesin audio tanpa memeriksa level kanal, untuk bunyi yang BERJALAN TERUS.
+ *
+ * Bunyi sekali-pakai boleh dilewati saat kanalnya nol — ia toh tidak akan
+ * terdengar. Bunyi yang berjalan terus tidak boleh: pemain yang menaikkan
+ * penggeser suasana di tengah pertandingan harus langsung mendengarnya, dan
+ * itu mustahil kalau latarnya tidak pernah dibangun.
+ */
+function laneEngine(): Engine | null {
+  return ensureEngine();
+}
+
+/**
+ * Suasana arena yang sedang berjalan, beserta cara menghentikannya. Null
+ * berarti arena sedang senyap — di menu, atau saat pemain menjeda.
+ */
+let ambience: { stop: () => void } | null = null;
+
+/**
+ * Menyalakan suasana arena sesuai petanya: lapisan angin yang disapu perlahan,
+ * dengung ruang, dan bunyi sesekali yang dijadwalkan acak.
+ *
+ * Semuanya dibangkitkan, tidak ada berkas audio yang diunduh. Lapisan anginnya
+ * satu derau yang diputar berulang di balik lowpass yang digoyang osilator
+ * sangat lambat — itu yang membuatnya terdengar "bernapas" alih-alih seperti
+ * desis tetap yang lekas menjemukan.
+ */
+export function startAmbience(mapId?: string | null) {
+  const eng = laneEngine();
+  if (!eng || ambience) return;
+  const { ctx, noise } = eng;
+  const bus = eng.channels.suasana;
+  const profile = ambienceFor(mapId);
+  const now = ctx.currentTime;
+
+  const stops: (() => void)[] = [];
+
+  // --- lapisan angin ---
+  const wind = ctx.createBufferSource();
+  wind.buffer = noise;
+  wind.loop = true;
+  wind.playbackRate.value = 0.6;
+
+  const windFilter = ctx.createBiquadFilter();
+  windFilter.type = "lowpass";
+  const tengah = (profile.wind.cutoffLow + profile.wind.cutoffHigh) / 2;
+  windFilter.frequency.value = tengah;
+  windFilter.Q.value = 0.8;
+
+  // Sapuan cutoff: satu osilator yang jauh di bawah ambang dengar, dipakai
+  // sebagai penggerak, bukan sebagai bunyi.
+  const sweep = ctx.createOscillator();
+  sweep.frequency.value = 1 / profile.wind.sweepSeconds;
+  const sweepGain = ctx.createGain();
+  sweepGain.gain.value = (profile.wind.cutoffHigh - profile.wind.cutoffLow) / 2;
+  sweep.connect(sweepGain).connect(windFilter.frequency);
+  sweep.start(now);
+
+  const windGain = ctx.createGain();
+  // Dinaikkan perlahan: suasana yang muncul seketika terdengar seperti
+  // saklar, dan pemain justru menyadari ada yang "menyala" alih-alih merasa
+  // ruangannya memang begitu.
+  windGain.gain.setValueAtTime(0.0001, now);
+  windGain.gain.exponentialRampToValueAtTime(profile.wind.gain, now + 1.6);
+
+  wind.connect(windFilter).connect(windGain).connect(bus);
+  wind.start(now, Math.random());
+  stops.push(() => {
+    wind.stop();
+    sweep.stop();
+  });
+
+  // --- dengung ruang ---
+  if (profile.rumble) {
+    const { freq, detune, gain } = profile.rumble;
+    const rumbleGain = ctx.createGain();
+    rumbleGain.gain.setValueAtTime(0.0001, now);
+    rumbleGain.gain.exponentialRampToValueAtTime(gain, now + 2.2);
+    rumbleGain.connect(bus);
+
+    const oscs = [freq, freq + detune].map((hz) => {
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = hz;
+      osc.connect(rumbleGain);
+      osc.start(now);
+      return osc;
+    });
+    stops.push(() => {
+      for (const osc of oscs) osc.stop();
+    });
+  }
+
+  // --- bunyi sesekali ---
+  const accent = profile.accent;
+  if (accent) {
+    let timer: number | null = null;
+    const sekali = () => {
+      const eng2 = laneEngine();
+      if (!eng2) return;
+      const at = eng2.ctx.currentTime;
+      const osc = eng2.ctx.createOscillator();
+      osc.type = accent.wave;
+      osc.frequency.setValueAtTime(accent.freq, at);
+      osc.frequency.exponentialRampToValueAtTime(
+        accent.freq * 0.82,
+        at + accent.decay,
+      );
+
+      const gain = eng2.ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(accent.gain, at + 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + accent.decay);
+
+      osc.connect(gain).connect(eng2.channels.suasana);
+      osc.start(at);
+      osc.stop(at + accent.decay);
+      jadwalkan();
+    };
+    const jadwalkan = () => {
+      timer = window.setTimeout(
+        sekali,
+        accentDelay(profile, Math.random()) * 1000,
+      );
+    };
+    jadwalkan();
+    stops.push(() => {
+      if (timer !== null) window.clearTimeout(timer);
+    });
+  }
+
+  ambience = {
+    stop: () => {
+      for (const stop of stops) stop();
+    },
+  };
+}
+
+/** Mematikan suasana arena. Aman dipanggil berkali-kali. */
+export function stopAmbience() {
+  if (!ambience) return;
+  ambience.stop();
+  ambience = null;
 }
 
 /**

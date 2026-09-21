@@ -161,7 +161,8 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
 
   const hydrated = useHydrated();
   useAudioSettings();
-  useArenaMusic();
+  // Suasana latar mengikuti peta yang sedang dimainkan.
+  useArenaMusic(entry.mapId);
 
   /**
    * Pemetaan tombol disusun dari pilihan pemain dan ikut berubah saat ia
