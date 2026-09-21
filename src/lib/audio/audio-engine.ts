@@ -26,6 +26,11 @@ import {
   takenGain,
   type HitKind,
 } from "@/lib/audio/hit-voice";
+import {
+  MUSIC_FADE_SECONDS,
+  MUSIC_PHASES,
+  type MusicPhase,
+} from "@/lib/audio/music-voice";
 import { reloadSequence } from "@/lib/audio/reload-voice";
 import {
   SHOT_VOICE,
@@ -61,7 +66,18 @@ interface Engine {
    */
   channels: Record<CombatChannel, GainNode>;
   noise: AudioBuffer;
-  musicNodes: { stop: () => void } | null;
+  /**
+   * Simpul musik yang sedang berjalan. Selain cara menghentikannya, ia
+   * menyimpan simpul yang bisa DIUBAH di tengah jalan: babak pertandingan
+   * mengubah dengung yang sama alih-alih memulai musik baru.
+   */
+  musicNodes: {
+    stop: () => void;
+    filter: BiquadFilterNode;
+    layer: GainNode;
+    tension: GainNode;
+    lfo: OscillatorNode;
+  } | null;
 }
 
 let engine: Engine | null = null;
@@ -631,6 +647,12 @@ function laneEngine(): Engine | null {
  * berarti arena sedang senyap — di menu, atau saat pemain menjeda.
  */
 let ambience: { stop: () => void } | null = null;
+/**
+ * Babak musik yang berlaku sekarang. Disimpan di tingkat modul supaya musik
+ * yang baru dinyalakan — sesudah jeda, misalnya — langsung berbunyi sesuai
+ * keadaan pertandingan, bukan memulai dari babak pembuka lalu melompat.
+ */
+let musicPhase: MusicPhase = "bersiap";
 
 /**
  * Menyalakan suasana arena sesuai petanya: lapisan angin yang disapu perlahan,
@@ -769,15 +791,27 @@ export function startMusic() {
   const eng = ensureEngine();
   if (!eng || eng.musicNodes) return;
   const { ctx, music } = eng;
+  const voice = MUSIC_PHASES[musicPhase];
+
+  /*
+    Lapisan musik punya gain sendiri di atas bus musik. Bus-nya milik
+    pengaturan pemain — ia yang menentukan seberapa keras musik boleh
+    terdengar — sedangkan lapisan ini milik pertandingan. Memisahkannya
+    membuat babak yang memanas tidak pernah mengubah angka yang dipilih
+    pemain, dan sebaliknya.
+  */
+  const layer = ctx.createGain();
+  layer.gain.value = voice.gain;
+  layer.connect(music);
 
   const filter = ctx.createBiquadFilter();
   filter.type = "lowpass";
-  filter.frequency.value = 420;
+  filter.frequency.value = voice.cutoff;
   filter.Q.value = 3;
-  filter.connect(music);
+  filter.connect(layer);
 
   const lfo = ctx.createOscillator();
-  lfo.frequency.value = 0.05;
+  lfo.frequency.value = voice.lfoRate;
   const lfoGain = ctx.createGain();
   lfoGain.gain.value = 160;
   lfo.connect(lfoGain).connect(filter.frequency);
@@ -794,12 +828,58 @@ export function startMusic() {
     return osc;
   });
 
+  /*
+    Suara tambahan yang hanya muncul saat bertempur: satu nada di atas dengung
+    dasarnya, ditumpuk agar terdengar tegang tanpa menjadi melodi. Gain-nya
+    dimulai dari babak yang berlaku, jadi menyalakan musik di tengah ronde
+    penentuan langsung terdengar seperti ronde penentuan.
+  */
+  const tension = ctx.createGain();
+  tension.gain.value = voice.tension * 0.07;
+  tension.connect(filter);
+  const tensionOscs = [246.9, 247.6].map((freq) => {
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.value = freq;
+    osc.connect(tension);
+    osc.start();
+    return osc;
+  });
+
   eng.musicNodes = {
+    filter,
+    layer,
+    tension,
+    lfo,
     stop: () => {
       lfo.stop();
-      for (const osc of oscs) osc.stop();
+      for (const osc of [...oscs, ...tensionOscs]) osc.stop();
     },
   };
+}
+
+/**
+ * Mengalirkan musik ke babak berikutnya: dengung yang sama dibuka lebih
+ * terang, dikeraskan sedikit, digoyang lebih cepat, dan ditemani suara
+ * tambahan — semuanya dilandaikan, bukan dilompati.
+ *
+ * Babaknya diingat meski musik sedang mati, supaya musik yang menyala lagi
+ * sesudah jeda tidak memulai dari babak pembuka.
+ */
+export function setMusicPhase(phase: MusicPhase) {
+  musicPhase = phase;
+  const nodes = engine?.musicNodes;
+  if (!engine || !nodes) return;
+
+  const voice = MUSIC_PHASES[phase];
+  const now = engine.ctx.currentTime;
+  // setTargetAtTime menuju nilainya secara eksponensial; sepertiga dari lama
+  // peralihan membuat ia praktis sampai pada akhir rentang itu.
+  const tau = MUSIC_FADE_SECONDS / 3;
+  nodes.filter.frequency.setTargetAtTime(voice.cutoff, now, tau);
+  nodes.layer.gain.setTargetAtTime(voice.gain, now, tau);
+  nodes.tension.gain.setTargetAtTime(voice.tension * 0.07, now, tau);
+  nodes.lfo.frequency.setTargetAtTime(voice.lfoRate, now, tau);
 }
 
 export function stopMusic() {

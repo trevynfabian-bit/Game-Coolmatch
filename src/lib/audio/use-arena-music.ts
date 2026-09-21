@@ -2,11 +2,14 @@
 
 import { useEffect } from "react";
 import {
+  setMusicPhase,
   startAmbience,
   startMusic,
   stopAmbience,
   stopMusic,
 } from "@/lib/audio/audio-engine";
+import { musicPhaseFor } from "@/lib/audio/music-voice";
+import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 
 /**
@@ -36,6 +39,21 @@ export function useArenaMusic(mapId?: string | null) {
       stopAmbience();
     }
   }, [isLocked, mapId]);
+
+  /*
+    Musik mengikuti jalannya pertandingan: menunggu, bertempur, ronde
+    penentuan, jeda, usai. Yang dilanggani hanya ketiga angka yang
+    menentukan babaknya, bukan seluruh keadaan ronde — jam ronde berubah tiap
+    detik, dan melangganinya berarti menghitung ulang babak enam puluh kali
+    per menit untuk jawaban yang sama.
+  */
+  const status = useMatchStore((state) => state.round.status);
+  const current = useMatchStore((state) => state.round.current);
+  const total = useMatchStore((state) => state.round.total);
+
+  useEffect(() => {
+    setMusicPhase(musicPhaseFor({ status, current, total }));
+  }, [status, current, total]);
 
   // Meninggalkan halaman juga menghentikannya; tanpa ini dengungnya ikut
   // terbawa ke menu utama dan tidak ada lagi yang mematikannya.
