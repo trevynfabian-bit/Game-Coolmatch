@@ -1,3 +1,4 @@
+import { breathPose, type BreathState } from "@/lib/game/breath-anim";
 import {
   RECOIL_REST,
   shotWander,
@@ -76,20 +77,17 @@ export interface IdleClip {
 }
 
 /**
- * Ayunan diam: napas pelan supaya arena tidak terasa beku. Sengaja kecil —
- * ayunan yang terlalu besar membuat bidikan terasa tidak bisa dipercaya
- * padahal peluru tetap berangkat dari tengah layar.
+ * Ayunan diam: napas pelan supaya arena tidak terasa beku.
+ *
+ * Bentuk napasnya sendiri ada di breath-anim: tidak simetris, dan besarnya
+ * mengikuti kelelahan pemain. Di sini ia hanya salah satu lapisan.
  */
-export function idlePose(time: number, clip: IdleClip): Pose {
-  const t = aman(time);
-  return {
-    px: Math.sin(t * clip.rate * 0.48) * clip.sway,
-    py: Math.sin(t * clip.rate) * clip.bob,
-    pz: 0,
-    rx: Math.sin(t * clip.rate) * clip.bob * 0.6,
-    ry: Math.sin(t * clip.rate * 0.48) * clip.sway * 1.2,
-    rz: 0,
-  };
+export function idlePose(
+  time: number,
+  clip: IdleClip,
+  breath: BreathState | null = null,
+): Pose {
+  return breathPose(aman(time), breath ?? { exertion: 0, at: 0 }, clip);
 }
 
 export interface WalkClip {
@@ -211,6 +209,11 @@ export interface ViewmodelInput {
   /** Kecepatan mendatar pemain, satuan dunia per detik. */
   speed: number;
   /**
+   * Kelelahan pemain; menentukan seberapa besar dan cepat napasnya. Null
+   * berarti pemain dianggap sudah tenang sepenuhnya.
+   */
+  breath: BreathState | null;
+  /**
    * Keadaan sentakan sekarang: dorongan yang sedang meluruh, panas
    * rentetannya, dan nomor tembakan terakhir. Null berarti belum menembak.
    */
@@ -263,7 +266,7 @@ export function viewmodelFrame(
 
   return {
     pose: composePose(
-      idlePose(input.time, clips.idle),
+      idlePose(input.time, clips.idle, input.breath),
       walkPose(input.time, input.speed, clips.walk),
       recoilPose(input.recoil ?? RECOIL_REST, clips.recoil, clips.recoilStyle),
       reloadPoseFrom(isiUlang, clips.reload),
