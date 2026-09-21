@@ -1,3 +1,4 @@
+import { DEFAULT_COMBAT_MIX } from "@/lib/game/combat-audio";
 import { DEFAULT_SETTINGS } from "@/lib/game/settings";
 import { DEFAULT_BINDINGS } from "@/lib/game/keybinds";
 import { guardWrite, readOr } from "@/server/api/fallback";
@@ -37,6 +38,7 @@ export function GET(): Response {
   const cadangan = {
     ...DEFAULT_SETTINGS,
     bindings: DEFAULT_BINDINGS,
+    combatMix: DEFAULT_COMBAT_MIX,
     updatedAt: null,
   };
 

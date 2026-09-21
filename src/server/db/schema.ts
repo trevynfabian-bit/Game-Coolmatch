@@ -690,6 +690,23 @@ export const playerSettings = sqliteTable(
     musicVolume: integer("music_volume").notNull().default(45),
     muted: integer("muted", { mode: "boolean" }).notNull().default(false),
 
+    /*
+      Campuran tempur: volume tiap jenis bunyi pertempuran, 0..100.
+
+      Satu kolom per kanal, bukan satu teks JSON seperti pemetaan tombol.
+      Bedanya bukan selera: daftar kanal ini PENDEK dan tidak bertambah
+      seiring fitur — ia menggambarkan jenis bunyi yang memang ada di
+      pertempuran — sementara tiap nilainya adalah volume biasa yang bisa
+      dijaga database dengan batasan yang sama seperti dua volume di atas.
+      Menyimpannya sebagai teks berarti membuang penjagaan itu untuk
+      fleksibilitas yang tidak dibutuhkan.
+    */
+    mixTembakan: integer("mix_tembakan").notNull().default(100),
+    mixIsiUlang: integer("mix_isi_ulang").notNull().default(100),
+    mixKena: integer("mix_kena").notNull().default(100),
+    mixEliminasi: integer("mix_eliminasi").notNull().default(100),
+    mixSuasana: integer("mix_suasana").notNull().default(50),
+
     quality: text("quality", { enum: QUALITY_LEVELS })
       .notNull()
       .default("sedang"),
@@ -718,6 +735,10 @@ export const playerSettings = sqliteTable(
     check(
       "player_settings_volume_wajar",
       sql`${table.effectsVolume} BETWEEN ${sql.raw(String(VOLUME_FLOOR))} AND ${sql.raw(String(VOLUME_CEILING))} AND ${table.musicVolume} BETWEEN ${sql.raw(String(VOLUME_FLOOR))} AND ${sql.raw(String(VOLUME_CEILING))}`,
+    ),
+    check(
+      "player_settings_campuran_wajar",
+      sql`${table.mixTembakan} BETWEEN ${sql.raw(String(VOLUME_FLOOR))} AND ${sql.raw(String(VOLUME_CEILING))} AND ${table.mixIsiUlang} BETWEEN ${sql.raw(String(VOLUME_FLOOR))} AND ${sql.raw(String(VOLUME_CEILING))} AND ${table.mixKena} BETWEEN ${sql.raw(String(VOLUME_FLOOR))} AND ${sql.raw(String(VOLUME_CEILING))} AND ${table.mixEliminasi} BETWEEN ${sql.raw(String(VOLUME_FLOOR))} AND ${sql.raw(String(VOLUME_CEILING))} AND ${table.mixSuasana} BETWEEN ${sql.raw(String(VOLUME_FLOOR))} AND ${sql.raw(String(VOLUME_CEILING))}`,
     ),
     check(
       "player_settings_skala_wajar",

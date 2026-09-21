@@ -12,6 +12,12 @@ import {
   type QualityLevel,
 } from "@/lib/game/settings";
 import {
+  COMBAT_CHANNELS,
+  DEFAULT_COMBAT_MIX,
+  type CombatChannel,
+  type CombatMix,
+} from "@/lib/game/combat-audio";
+import {
   BINDABLE_ACTIONS,
   DEFAULT_BINDINGS,
   bindingProblemMessage,
@@ -26,12 +32,17 @@ import { playerSettings } from "@/server/db/schema";
 /** Bentuk yang dikirim dan diterima endpoint pengaturan. */
 export interface SettingsPayload extends GameSettings {
   bindings: KeyBindings;
+  /** Volume tiap jenis bunyi pertempuran, 0..100. */
+  combatMix: CombatMix;
   /** Epoch milidetik saat terakhir disimpan; null berarti masih bawaan. */
   updatedAt: number | null;
 }
 
 export type ParsedSettings =
-  | { ok: true; value: GameSettings & { bindings: KeyBindings } }
+  | {
+      ok: true;
+      value: GameSettings & { bindings: KeyBindings; combatMix: CombatMix };
+    }
   | { ok: false; message: string };
 
 function bilanganDalam(
@@ -144,6 +155,38 @@ export function parseSettings(body: unknown): ParsedSettings {
   }
 
   /*
+    Campuran tempur boleh tidak dikirim sama sekali — klien lama tidak
+    mengenalnya — dan yang tidak dikirim memakai bawaannya. Yang DIKIRIM
+    diperiksa sama ketatnya dengan volume lain: kanal tak dikenal ditolak
+    alih-alih diabaikan diam-diam, sebab kanal yang salah eja akan tersimpan
+    sebagai bawaan dan pemain melihat pilihannya menghilang tanpa keterangan.
+  */
+  const combatMix = { ...DEFAULT_COMBAT_MIX };
+  const campuran = b.combatMix;
+  if (campuran !== undefined) {
+    if (
+      typeof campuran !== "object" ||
+      campuran === null ||
+      Array.isArray(campuran)
+    ) {
+      return { ok: false, message: "`combatMix` harus berupa objek." };
+    }
+    const dikenalKanal = new Set<string>(COMBAT_CHANNELS);
+    for (const [kanal, nilai] of Object.entries(campuran)) {
+      if (!dikenalKanal.has(kanal)) {
+        return { ok: false, message: `Kanal suara "${kanal}" tidak dikenal.` };
+      }
+      if (!bilanganDalam(nilai, VOLUME_MIN, VOLUME_MAX)) {
+        return {
+          ok: false,
+          message: `Volume kanal "${kanal}" harus bilangan bulat antara ${VOLUME_MIN} dan ${VOLUME_MAX}.`,
+        };
+      }
+      combatMix[kanal as CombatChannel] = nilai;
+    }
+  }
+
+  /*
     Diperiksa sesudah digabung, bukan per kiriman. Kiriman separuh pun bisa
     melahirkan bentrokan yang tidak ada di dalamnya: mengirim `jump` ke KeyW
     saja akan bertemu `forward` bawaan yang juga KeyW, dan tidak satu pun dari
@@ -175,6 +218,7 @@ export function parseSettings(body: unknown): ParsedSettings {
       },
       controls: { sensitivity: controls.sensitivity },
       bindings,
+      combatMix,
     },
   };
 }
@@ -217,6 +261,13 @@ function dariBaris(row: typeof playerSettings.$inferSelect): SettingsPayload {
     },
     controls: { sensitivity: row.sensitivity },
     bindings: bacaBindings(row.keyBindings),
+    combatMix: {
+      tembakan: row.mixTembakan,
+      isiUlang: row.mixIsiUlang,
+      kena: row.mixKena,
+      eliminasi: row.mixEliminasi,
+      suasana: row.mixSuasana,
+    },
     updatedAt: row.updatedAt,
   };
 }
@@ -238,7 +289,12 @@ export function loadPlayerSettings(playerId: number): SettingsPayload {
     .all();
 
   if (!row) {
-    return { ...DEFAULT_SETTINGS, bindings: DEFAULT_BINDINGS, updatedAt: null };
+    return {
+      ...DEFAULT_SETTINGS,
+      bindings: DEFAULT_BINDINGS,
+      combatMix: DEFAULT_COMBAT_MIX,
+      updatedAt: null,
+    };
   }
 
   return dariBaris(row);
@@ -258,7 +314,7 @@ export function loadPlayerSettings(playerId: number): SettingsPayload {
  */
 export function savePlayerSettings(
   playerId: number,
-  value: GameSettings & { bindings: KeyBindings },
+  value: GameSettings & { bindings: KeyBindings; combatMix: CombatMix },
 ): SettingsPayload {
   const perubahanTombol: Record<string, string> = {};
   for (const entry of BINDABLE_ACTIONS) {
@@ -275,6 +331,11 @@ export function savePlayerSettings(
     showFps: value.display.showFps,
     sensitivity: value.controls.sensitivity,
     keyBindings: JSON.stringify(perubahanTombol),
+    mixTembakan: value.combatMix.tembakan,
+    mixIsiUlang: value.combatMix.isiUlang,
+    mixKena: value.combatMix.kena,
+    mixEliminasi: value.combatMix.eliminasi,
+    mixSuasana: value.combatMix.suasana,
   };
 
   const [row] = db
