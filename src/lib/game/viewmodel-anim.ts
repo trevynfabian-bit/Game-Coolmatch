@@ -1,5 +1,6 @@
 import { breathPose, type BreathState } from "@/lib/game/breath-anim";
 import { STEP_REST, stepPose, type StepState } from "@/lib/game/step-anim";
+import { swapPose, type SwapClip } from "@/lib/game/swap-anim";
 import {
   RECOIL_REST,
   shotWander,
@@ -157,31 +158,7 @@ export function recoilPose(
   };
 }
 
-export interface SwapClip {
-  /** Seberapa jauh senjata diturunkan saat berganti. */
-  drop: number;
-  tilt: number;
-}
-
-/**
- * Ganti senjata: yang lama dijatuhkan keluar layar, yang baru diangkat masuk.
- * Titik terendahnya persis di tengah waktu pergantian — di situlah senjatanya
- * benar-benar bertukar.
- */
-export function swapPose(progress: number, clip: SwapClip): Pose {
-  const p = Math.min(1, Math.max(0, aman(progress)));
-  if (p <= 0 || p >= 1) return REST_POSE;
-  // Segitiga: nol di kedua ujung, satu di tengah.
-  const kuat = 1 - Math.abs(p - 0.5) * 2;
-  return {
-    px: 0,
-    py: -clip.drop * kuat,
-    pz: clip.drop * 0.3 * kuat,
-    rx: clip.tilt * kuat,
-    ry: 0,
-    rz: -clip.tilt * 0.6 * kuat,
-  };
-}
+export type { SwapClip };
 
 /** Seluruh kelompok gerakan untuk satu jenis senjata. */
 export interface ViewmodelClips {
