@@ -286,10 +286,18 @@ export function BotDriver({
         menatap bidikannya; dentum ini selalu sampai, dan kerasnya
         memberitahu seberapa parah lukanya.
       */
+      const berat = (report.healthLost + report.armorLost) / local.maxHealth;
       playTakenHit(
-        (report.healthLost + report.armorLost) / local.maxHealth,
+        berat,
         report.armorLost > 0 && report.armorLost >= report.healthLost,
       );
+      /*
+        Pandangan ikut tersentak. Angka nyawa yang berkurang adalah kabar;
+        pandangan yang tersentak adalah akibatnya — dan akibat itulah yang
+        membuat pemain refleks mencari perlindungan alih-alih bertahan di
+        tempat sambil membaca HUD.
+      */
+      emitCombatEffect({ kind: "getar", owner: "musuh", strength: berat });
       markFighterHit(local.id);
 
       // Sudut penyerang relatif arah pandang, supaya busur menunjuk ke arah

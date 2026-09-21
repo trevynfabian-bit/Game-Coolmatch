@@ -9,6 +9,7 @@ import { MapLights } from "@/components/arena/map-lights";
 import { PlayerController } from "@/components/arena/player-controller";
 import { RespawnTicker } from "@/components/arena/respawn-ticker";
 import { RoundTicker } from "@/components/arena/round-ticker";
+import { CameraShake } from "@/components/arena/camera-shake";
 import { WeaponSwap } from "@/components/arena/weapon-swap";
 import { WeaponSystem } from "@/components/arena/weapon-system";
 import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
@@ -62,6 +63,7 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
       <RoundTicker map={match.map} />
       <WeaponSystem match={match} weapon={weapon} />
       <WeaponSwap />
+      <CameraShake />
       <BotDriver map={match.map} difficulty={match.difficulty} />
       <ArenaMap map={match.map} />
 

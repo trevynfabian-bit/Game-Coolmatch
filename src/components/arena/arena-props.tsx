@@ -55,10 +55,7 @@ export function CrateProp({ block }: { block: MapBlock }) {
   ];
 
   return (
-    <group
-      position={block.position}
-      rotation={[0, block.rotationY ?? 0, 0]}
-    >
+    <group position={block.position} rotation={[0, block.rotationY ?? 0, 0]}>
       <mesh castShadow receiveShadow>
         <boxGeometry args={block.size} />
         <BoxSurface bahan={[...BAHAN_PETI]} size={block.size} color={warna} />
@@ -99,10 +96,7 @@ export function DrumProp({ block }: { block: MapBlock }) {
   const keliling = 2 * Math.PI * jari;
 
   return (
-    <group
-      position={block.position}
-      rotation={[0, block.rotationY ?? 0, 0]}
-    >
+    <group position={block.position} rotation={[0, block.rotationY ?? 0, 0]}>
       <mesh castShadow receiveShadow>
         <cylinderGeometry args={[jari, jari, sy, SISI_TABUNG]} />
         <Surface kind="metal" lebar={keliling} tinggi={sy} color={warna} />
@@ -145,10 +139,7 @@ export function PillarProp({ block }: { block: MapBlock }) {
   const batang = sy - kaki * 2;
 
   return (
-    <group
-      position={block.position}
-      rotation={[0, block.rotationY ?? 0, 0]}
-    >
+    <group position={block.position} rotation={[0, block.rotationY ?? 0, 0]}>
       <mesh castShadow receiveShadow>
         <boxGeometry args={[bx, batang, bz]} />
         <Surface kind="pillar" lebar={bx} tinggi={batang} color={warna} />
