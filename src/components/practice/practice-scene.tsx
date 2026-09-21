@@ -133,7 +133,7 @@ export function PracticeScene({
       <WeaponSystem match={snapshot} weapon={weapon} onShot={handleShot} />
       <ArenaMap map={RANGE_MAP} />
       <TargetFlashes />
-      <WeaponViewmodel />
+      <WeaponViewmodel weaponType={weapon.type} weaponId={weapon.id} />
     </Canvas>
   );
 }

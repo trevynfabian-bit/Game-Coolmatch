@@ -190,8 +190,21 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   },
 
   beginReload: (seconds) => {
-    const { ammoInMagazine, ammoReserve, magazineSize, isReloading } = get();
+    const {
+      ammoInMagazine,
+      ammoReserve,
+      magazineSize,
+      isReloading,
+      isSwapping,
+    } = get();
     if (isReloading) return;
+    /*
+      Tangan yang sedang mengganti senjata tidak bisa sekaligus mengisi ulang.
+      Diperiksa DI SINI, bukan di tombolnya: isi ulang juga dimulai sendiri
+      saat magasin habis, dan aturan yang hanya dipasang di tombol akan
+      terlewat oleh jalur itu.
+    */
+    if (isSwapping) return;
     if (ammoReserve <= 0 || ammoInMagazine >= magazineSize) return;
     set({ isReloading: true, reloadSeconds: seconds });
   },

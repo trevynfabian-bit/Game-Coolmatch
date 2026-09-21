@@ -1,4 +1,3 @@
-
 /**
  * Sentakan senjata saat menembak.
  *
@@ -46,6 +45,8 @@ export interface RecoilStyle {
 }
 
 export interface RecoilState {
+  /** Senjata yang keadaan ini milik; null berarti belum ada senjata. */
+  weapon: string | null;
   /** Simpangan sentakan sekarang; nol berarti senjata di tempatnya. */
   value: number;
   /** Jam halaman saat simpangan itu dicatat, detik. */
@@ -64,6 +65,7 @@ export interface RecoilState {
 }
 
 export const RECOIL_REST: RecoilState = {
+  weapon: null,
   value: 0,
   at: 0,
   heat: 0,
@@ -152,6 +154,7 @@ export function recoilShot(
   // sebuah rentetan menyentak tepat sebesar yang tertulis di klipnya.
   const dasar = heatAt(state, saat, style);
   return {
+    weapon: maju.weapon,
     value: Math.min(2, maju.value + heatScale(dasar, style)),
     at: saat,
     heat: Math.min(style.maxHeat, dasar + style.perShot),
@@ -171,6 +174,22 @@ export function shotWander(shot: number): number {
   if (!Number.isFinite(shot)) return 0;
   const x = Math.sin(shot * 12.9898) * 43758.5453;
   return (x - Math.floor(x)) * 2 - 1;
+}
+
+/**
+ * Keadaan sentakan untuk senjata yang sedang dipegang.
+ *
+ * Senjata yang baru diangkat mulai DINGIN. Tanpa aturan ini, SMG yang
+ * dipungut sesudah rentetan panjang senapan serbu akan menyentak seolah ia
+ * sendiri yang baru menembakkan tiga puluh peluru — panas rentetan melekat
+ * pada tangan yang menembak, bukan pada senjata yang baru saja diangkat.
+ */
+export function recoilArm(
+  state: RecoilState,
+  weaponId: string | null,
+): RecoilState {
+  if (state.weapon === weaponId) return state;
+  return { ...RECOIL_REST, weapon: weaponId };
 }
 
 /** Pengali besar dorongan pada panas tertentu. */

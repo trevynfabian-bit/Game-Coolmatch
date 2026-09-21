@@ -11,7 +11,12 @@ import { BARREL_TIP, flashFor } from "@/lib/game/muzzle-flash";
 import { BREATH_REST, breathStep } from "@/lib/game/breath-anim";
 import { STEP_REST, stepStep } from "@/lib/game/step-anim";
 import { playerRuntime } from "@/lib/game/player-runtime";
-import { RECOIL_REST, recoilShot, recoilStep } from "@/lib/game/recoil-anim";
+import {
+  RECOIL_REST,
+  recoilArm,
+  recoilShot,
+  recoilStep,
+} from "@/lib/game/recoil-anim";
 import { magazineMotion } from "@/lib/game/reload-anim";
 import { viewmodelFrame } from "@/lib/game/viewmodel-anim";
 import {
@@ -41,10 +46,16 @@ const MAG_TILT = 0.18;
 export function WeaponViewmodel({
   color = "#39424d",
   weaponType,
+  weaponId = null,
 }: {
   color?: string;
   /** Menentukan watak kilatan moncongnya; kosong berarti senapan serbu. */
   weaponType?: WeaponType;
+  /**
+   * Senjata yang sedang dipegang. Dipakai memastikan senjata yang baru
+   * diangkat mulai dingin, bukan mewarisi panas rentetan senjata sebelumnya.
+   */
+  weaponId?: string | null;
 }) {
   const rigRef = useRef<Group>(null);
   const gunRef = useRef<Group>(null);
@@ -131,7 +142,12 @@ export function WeaponViewmodel({
       tembakan barusan karena itu terbaca utuh pada frame yang sama, sementara
       sisa tembakan sebelumnya sudah meluruh sebagaimana mestinya.
     */
-    recoil.current = recoilStep(recoil.current, now, clips.recoil.seconds);
+    // Senjata yang baru diangkat mulai dingin; lihat recoil-anim.
+    recoil.current = recoilStep(
+      recoilArm(recoil.current, weaponId),
+      now,
+      clips.recoil.seconds,
+    );
     breath.current = breathStep(breath.current, now, playerRuntime.planarSpeed);
     step.current = stepStep(step.current, now, playerRuntime.planarSpeed);
 
