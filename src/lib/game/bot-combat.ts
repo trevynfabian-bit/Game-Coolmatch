@@ -186,7 +186,7 @@ export function burstSize(weapon: Weapon): number {
  * tembakan per menit — dan dengan itu kerusakan per menit yang dijanjikan
  * profil kesulitan — tidak berubah; hanya sebarannya yang berubah.
  */
-const BURST_TIGHTEN = 0.5;
+export const BURST_TIGHTEN = 0.5;
 
 /**
  * Lama musuh menahan diri sesudah satu rentetan, dalam detik.

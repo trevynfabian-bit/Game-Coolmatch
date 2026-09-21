@@ -13,6 +13,7 @@ import {
   pruneCombatEffects,
   readCombatEffects,
 } from "@/lib/game/combat-effects";
+import { EFFECT_POOLS, pickSlot } from "@/lib/game/effect-budget";
 import {
   ENEMY_FLASH_SCALE,
   MUZZLE_FLASH,
@@ -28,15 +29,21 @@ import {
   type TracerStyle,
 } from "@/lib/game/tracer-style";
 
-const TRACER_POOL = 24;
-const IMPACT_POOL = 18;
+/*
+  Ukuran kolam tidak ditulis tangan di sini melainkan dihitung dari
+  permainannya sendiri — laju tembak, jumlah butir, jumlah musuh terbanyak,
+  dan umur tiap efek. Menambah senjata atau memperpanjang umur sebuah efek
+  otomatis menaikkan kolamnya, tanpa seorang pun harus ingat menyetelnya.
+*/
+const TRACER_POOL = EFFECT_POOLS.tracer;
+const IMPACT_POOL = EFFECT_POOLS.impact;
 
 /**
  * Kolam kilatan moncong MUSUH di dunia. Beberapa musuh bisa menembak dalam
  * frame yang sama, jadi satu objek saja akan membuat kilatan mereka saling
  * menimpa dan hanya satu arah yang terlihat.
  */
-const ENEMY_MUZZLE_POOL = 6;
+const ENEMY_MUZZLE_POOL = EFFECT_POOLS.enemyMuzzle;
 /**
  * Jari-jari bola kilatan musuh sebelum diskalakan per senjata. Bolanya
  * digambar sekali sebesar ini, lalu tiap kilatan menyesuaikan skalanya —
@@ -96,12 +103,13 @@ export function ShotEffects() {
       active: false,
     })),
   );
-  const enemyMuzzleSlots = useRef<number[]>(
-    Array.from({ length: ENEMY_MUZZLE_POOL }, () => 0),
+  const enemyMuzzleSlots = useRef(
+    Array.from({ length: ENEMY_MUZZLE_POOL }, () => ({
+      firedAt: 0,
+      expiresAt: 0,
+      active: false,
+    })),
   );
-  const nextTracer = useRef(0);
-  const nextImpact = useRef(0);
-  const nextEnemyMuzzle = useRef(0);
   /**
    * Batas baca antrean efek. Dimulai dari kejadian TERAKHIR yang sudah ada,
    * bukan dari nol: efek yang terjadi sebelum arena terpasang — misalnya di
@@ -124,8 +132,9 @@ export function ShotEffects() {
     b: readonly number[],
     weapon: Parameters<typeof tracerFor>[0],
   ) => {
-    const index = nextTracer.current % TRACER_POOL;
-    nextTracer.current += 1;
+    // Petak yang menganggur didahulukan; bila semua terpakai, yang paling
+    // TUA yang dipakai ulang — itulah yang paling dekat ke akhir umurnya.
+    const index = pickSlot(tracerSlots.current);
     const mesh = tracerRefs.current[index];
     if (!mesh) return;
 
@@ -161,8 +170,7 @@ export function ShotEffects() {
   };
 
   const spawnImpact = (point: readonly number[], onFighter: boolean) => {
-    const index = nextImpact.current % IMPACT_POOL;
-    nextImpact.current += 1;
+    const index = pickSlot(impactSlots.current);
     const mesh = impactRefs.current[index];
     if (!mesh) return;
 
@@ -184,8 +192,7 @@ export function ShotEffects() {
     point: readonly number[],
     weapon: Parameters<typeof flashFor>[0],
   ) => {
-    const index = nextEnemyMuzzle.current % ENEMY_MUZZLE_POOL;
-    nextEnemyMuzzle.current += 1;
+    const index = pickSlot(enemyMuzzleSlots.current);
     const mesh = enemyMuzzleRefs.current[index];
     if (!mesh) return;
 
@@ -200,8 +207,12 @@ export function ShotEffects() {
       light.position.set(point[0], point[1], point[2]);
       light.intensity = voice.intensity * ENEMY_FLASH_SCALE;
     }
-    enemyMuzzleSlots.current[index] =
-      performance.now() / 1000 + enemyFlashSeconds(weapon);
+    const sekarang = performance.now() / 1000;
+    enemyMuzzleSlots.current[index] = {
+      firedAt: sekarang,
+      expiresAt: sekarang + enemyFlashSeconds(weapon),
+      active: true,
+    };
   };
 
   useFrame(() => {
@@ -231,8 +242,13 @@ export function ShotEffects() {
           break;
       }
     }
-    // Kejadian yang sudah lewat masa gambarnya tidak perlu disimpan.
-    if (bacaan.events.length > 0) pruneCombatEffects(1, now);
+    /*
+      Antrean dibersihkan tiap frame, bukan hanya saat ada kejadian baru.
+      Kejadian yang tertinggal membuat tiap pembacaan menyaring lebih banyak
+      daripada yang perlu — dan pembacaan itu terjadi enam puluh kali per
+      detik oleh beberapa penggambar sekaligus.
+    */
+    pruneCombatEffects(1, now);
 
     // --- jejak peluru: tumbuh dari moncong, lalu memudar ---
     for (let i = 0; i < TRACER_POOL; i++) {
@@ -278,10 +294,12 @@ export function ShotEffects() {
     }
 
     for (let i = 0; i < ENEMY_MUZZLE_POOL; i++) {
+      const slot = enemyMuzzleSlots.current[i];
+      if (!slot.active) continue;
+      if (now < slot.expiresAt) continue;
+      slot.active = false;
       const mesh = enemyMuzzleRefs.current[i];
-      if (!mesh || !mesh.visible) continue;
-      if (now < enemyMuzzleSlots.current[i]) continue;
-      mesh.visible = false;
+      if (mesh) mesh.visible = false;
       const light = enemyLightRefs.current[i];
       if (light) light.intensity = 0;
     }
