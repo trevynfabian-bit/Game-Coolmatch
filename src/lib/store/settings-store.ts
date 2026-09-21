@@ -24,7 +24,21 @@ import {
 
 /** Kunci penyimpanan; diawali nama game supaya tidak bentrok di domain yang sama. */
 const STORAGE_KEY = STORAGE_KEYS.settings;
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2;
+
+/**
+ * Simpanan dari versi mana pun tetap DIPAKAI, bukan dibuang.
+ *
+ * Tanpa fungsi ini, menaikkan nomor versi membuat zustand membuang seluruh
+ * simpanan lama diam-diam: pemain yang sudah menyetel volume, campuran suara
+ * tempur, kualitas gambar, dan sensitivitasnya mendapati semuanya kembali ke
+ * bawaan hanya karena ada bidang baru yang ditambahkan. Pembersihan per bidang
+ * di `merge` sudah tahu cara menangani bidang yang hilang atau rusak, jadi
+ * yang perlu dilakukan di sini hanyalah meneruskan apa adanya.
+ */
+function migrateSettings(persisted: unknown): unknown {
+  return persisted ?? {};
+}
 
 /**
  * Isi localStorage bisa berasal dari versi lama, disunting tangan, atau rusak
@@ -204,6 +218,7 @@ export const useSettingsStore = create<SettingsState>()(
       name: STORAGE_KEY,
       version: STORAGE_VERSION,
       storage: createJSONStorage(() => localStorage),
+      migrate: migrateSettings,
       partialize: (state): PersistedSettings => ({
         audio: state.audio,
         display: state.display,

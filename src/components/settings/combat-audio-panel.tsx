@@ -13,11 +13,15 @@ import {
 import {
   COMBAT_CHANNELS,
   COMBAT_CHANNEL_INFO,
+  DEFAULT_COMBAT_MIX,
+  isDefaultCombatMix,
   matchingPreset,
   type CombatChannel,
 } from "@/lib/game/combat-audio";
 import { MOCK_COMBAT_AUDIO_CATALOGUE } from "@/lib/mock/combat-audio";
 import { useSettingsStore } from "@/lib/store/settings-store";
+import { canPersist } from "@/lib/store/storage";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 
 /**
  * Contoh bunyi tiap kanal untuk tombol Dengar. Diputar lewat kanal yang sama
@@ -68,6 +72,16 @@ export function CombatAudioPanel({ disabled = false }: { disabled?: boolean }) {
 
   const { presets } = MOCK_COMBAT_AUDIO_CATALOGUE;
   const aktif = matchingPreset(presets, mix);
+  const bawaan = isDefaultCombatMix(mix);
+
+  /*
+    Apakah perangkat ini benar-benar mau menyimpan hanya bisa diketahui di
+    browser, dan hanya dengan mencoba menulis. Sebelum hidrasi, kalimat yang
+    ditampilkan adalah yang berlaku untuk hampir semua orang — sama seperti
+    yang dilakukan kepala halaman ini.
+  */
+  const hydrated = useHydrated();
+  const tersimpan = !hydrated || canPersist();
 
   return (
     <div
@@ -153,18 +167,38 @@ export function CombatAudioPanel({ disabled = false }: { disabled?: boolean }) {
       </div>
 
       {/*
-        Dikatakan apa adanya: preset dan kanal ini baru hidup di perangkat
-        ini. Pemain yang berganti perangkat dan mendapati campurannya kembali
-        ke bawaan lebih baik sudah tahu sejak awal daripada menyangka
-        simpanannya hilang.
+        Dikatakan apa adanya, dan hanya bila memang bisa ditepati: janji
+        "tersimpan" kepada peramban yang menolak menyimpan data situs adalah
+        janji yang pasti dilanggar, dan pemain baru menyadarinya besok saat
+        campurannya kembali ke bawaan.
       */}
-      <p
-        className="mt-3 text-[11px] leading-relaxed text-slate-500"
-        data-sinkron="perangkat"
-      >
-        Tersimpan di perangkat ini. Sinkron ke akun menyusul saat server
-        pengaturan audio siap.
-      </p>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <p
+          className="text-[11px] leading-relaxed text-slate-500"
+          data-sinkron={tersimpan ? "perangkat" : "sementara"}
+        >
+          {tersimpan
+            ? "Tersimpan di perangkat ini. Sinkron ke akun menyusul saat server pengaturan audio siap."
+            : "Peramban ini menolak menyimpan data situs, jadi campuran di atas hanya berlaku sampai halaman ditutup."}
+        </p>
+
+        {/*
+          Pemulih khusus campuran, terpisah dari "Kembalikan semua ke bawaan"
+          di kaki halaman. Pemain yang mengacak lima kanal sampai bingung
+          biasanya tidak ingin kehilangan tata tombol dan kualitas gambarnya
+          sekalian.
+        */}
+        {bawaan ? null : (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => applyCombatMix(DEFAULT_COMBAT_MIX)}
+            className={TOMBOL_KECIL}
+          >
+            Kembalikan campuran
+          </button>
+        )}
+      </div>
     </div>
   );
 }
