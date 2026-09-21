@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { livePosition } from "@/lib/game/bot-runtime";
 import {
   ARROW_MS,
+  arrowOpacity,
   arrowSpread,
   arrowStroke,
   directionText,
   edgeRadius,
+  separateAngles,
 } from "@/lib/game/hit-direction";
 import { incomingAngle } from "@/lib/game/incoming-fire";
 import { playerRuntime } from "@/lib/game/player-runtime";
@@ -64,23 +66,31 @@ function angleToAttacker(hit: IncomingHit): number {
   );
 }
 
+interface ArrowHandles {
+  arc: HTMLSpanElement | null;
+  label: HTMLSpanElement | null;
+}
+
 /**
  * Penunjuk arah penyerang di TEPI layar, beserta namanya.
  *
- * Sudutnya ditulis langsung ke DOM tiap frame lewat requestAnimationFrame,
- * bukan lewat state React: penunjuk harus ikut berputar saat pemain menoleh,
- * dan menoleh terjadi tiap frame — menyalurkannya lewat state berarti
- * puluhan render ulang per detik.
- *
- * Jaraknya dari tengah mengikuti sisi terpendek jendela, jadi ia menyusuri
- * tepi layar pada jendela selebar apa pun tanpa pernah keluar darinya. Label
- * namanya diputar balik supaya tetap tegak, dan digeser ke DALAM supaya tidak
- * ikut terpotong tepi.
+ * Komponen ini hanya MENGGAMBAR. Sudutnya ditulis dari satu loop bersama di
+ * induknya, bukan dari rAF miliknya sendiri, karena penunjuk yang banyak
+ * harus saling tahu: dua penyerang yang kebetulan berdiri pada arah yang
+ * hampir sama perlu dijauhkan, dan itu mustahil diputuskan oleh penunjuk yang
+ * hanya mengenal dirinya sendiri.
  */
-function DirectionArrow({ hit }: { hit: IncomingHit }) {
+function DirectionArrow({
+  hit,
+  rank,
+  daftar,
+}: {
+  hit: IncomingHit;
+  /** Nol berarti paling baru; dipakai menentukan kepekatannya. */
+  rank: number;
+  daftar: Map<number, ArrowHandles>;
+}) {
   const removeIncomingHit = useCombatStore((state) => state.removeIncomingHit);
-  const arc = useRef<HTMLSpanElement>(null);
-  const label = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const id = setTimeout(() => removeIncomingHit(hit.id), ARROW_MS);
@@ -88,23 +98,12 @@ function DirectionArrow({ hit }: { hit: IncomingHit }) {
   }, [hit.id, removeIncomingHit]);
 
   useEffect(() => {
-    let frame = 0;
-    const ikuti = () => {
-      const angle = angleToAttacker(hit);
-      const jari = edgeRadius(window.innerWidth, window.innerHeight);
-      if (arc.current) {
-        arc.current.style.transform = `translate(-50%, -50%) rotate(${angle}rad) translateY(${-jari}px)`;
-        arc.current.dataset.sudut = angle.toFixed(3);
-        arc.current.dataset.jari = String(Math.round(jari));
-      }
-      if (label.current) {
-        label.current.style.transform = `translate(-50%, -50%) rotate(${angle}rad) translateY(${-(jari - LABEL_INSET)}px) rotate(${-angle}rad)`;
-      }
-      frame = requestAnimationFrame(ikuti);
+    const entry: ArrowHandles = { arc: null, label: null };
+    daftar.set(hit.id, entry);
+    return () => {
+      daftar.delete(hit.id);
     };
-    ikuti();
-    return () => cancelAnimationFrame(frame);
-  }, [hit]);
+  }, [hit.id, daftar]);
 
   // Tembakan berat menggambar penunjuk lebih tebal dan lebih lebar.
   const stroke = arrowStroke(hit.severity);
@@ -113,8 +112,7 @@ function DirectionArrow({ hit }: { hit: IncomingHit }) {
     Busurnya melengkung mengikuti tepi layar, dan titik TENGAHNYA berada tepat
     di pusat kotak gambar — pusat itulah yang digeser ke tepi. Pusat
     lingkarannya karena itu diletakkan sejauh R di bawahnya, sehingga
-    puncaknya jatuh persis di titik yang dituju. Sudut setengah-lebarnya
-    menentukan panjang busur, jadi menyetel lebar cukup mengubah satu angka.
+    puncaknya jatuh persis di titik yang dituju.
   */
   const R = 150;
   const setengah = (spread / 2) * (Math.PI / 180);
@@ -125,11 +123,16 @@ function DirectionArrow({ hit }: { hit: IncomingHit }) {
   return (
     <>
       <span
-        ref={arc}
+        ref={(node) => {
+          const entry = daftar.get(hit.id);
+          if (entry) entry.arc = node;
+        }}
         className="arah-kena absolute top-1/2 left-1/2"
         data-penembak={hit.attackerId}
+        data-urutan={rank}
         style={{
           transform: `translate(-50%, -50%) rotate(${hit.angleRad}rad)`,
+          opacity: arrowOpacity(rank),
           animation: `damage-arc ${ARROW_MS}ms ease-out forwards`,
         }}
         aria-hidden
@@ -145,11 +148,15 @@ function DirectionArrow({ hit }: { hit: IncomingHit }) {
         </svg>
       </span>
       <span
-        ref={label}
+        ref={(node) => {
+          const entry = daftar.get(hit.id);
+          if (entry) entry.label = node;
+        }}
         className="absolute top-1/2 left-1/2 rounded bg-slate-950/70 px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap text-rose-200"
         data-arah={hit.attackerName}
         style={{
           transform: `translate(-50%, -50%) rotate(${hit.angleRad}rad) translateY(-160px) rotate(${-hit.angleRad}rad)`,
+          opacity: arrowOpacity(rank),
           animation: `damage-arc ${ARROW_MS}ms ease-out forwards`,
         }}
         aria-hidden
@@ -166,12 +173,58 @@ function DirectionArrow({ hit }: { hit: IncomingHit }) {
 }
 
 /**
+ * Satu loop yang memperbarui SEMUA penunjuk arah tiap frame.
+ *
+ * Dikerjakan bersama, bukan sendiri-sendiri, karena penunjuk yang berdekatan
+ * harus saling menjauh: keputusan itu hanya bisa diambil oleh yang melihat
+ * semuanya sekaligus. Satu loop juga berarti satu requestAnimationFrame
+ * untuk berapa pun penunjuk yang tampil.
+ */
+function useArrowLayout(
+  hits: readonly IncomingHit[],
+  daftar: Map<number, ArrowHandles>,
+) {
+  useEffect(() => {
+    if (hits.length === 0) return;
+    let frame = 0;
+    const ikuti = () => {
+      const jari = edgeRadius(window.innerWidth, window.innerHeight);
+      const sudut = separateAngles(hits.map((hit) => angleToAttacker(hit)));
+
+      hits.forEach((hit, i) => {
+        const entry = daftar.get(hit.id);
+        if (!entry) return;
+        const a = sudut[i];
+        if (entry.arc) {
+          entry.arc.style.transform = `translate(-50%, -50%) rotate(${a}rad) translateY(${-jari}px)`;
+          entry.arc.dataset.sudut = a.toFixed(3);
+          entry.arc.dataset.jari = String(Math.round(jari));
+        }
+        if (entry.label) {
+          entry.label.style.transform = `translate(-50%, -50%) rotate(${a}rad) translateY(${-(jari - LABEL_INSET)}px) rotate(${-a}rad)`;
+        }
+      });
+      frame = requestAnimationFrame(ikuti);
+    };
+    ikuti();
+    return () => cancelAnimationFrame(frame);
+  }, [hits, daftar]);
+}
+
+/**
  * Umpan balik layar penuh saat pemain kena tembak: kilat merah di tepi layar,
  * penunjuk arah penyerang yang menyusuri tepi, dan denyut merah tetap selama
  * nyawa kritis.
  */
 export function DamageVignette({ fighter }: { fighter: Fighter }) {
   const incomingHits = useCombatStore((state) => state.incomingHits);
+  /*
+    Peta pegangan DOM tiap penunjuk, diisi komponen anaknya saat terpasang.
+    Dibuat lewat useMemo, bukan useRef: isinya memang dipakai saat render —
+    dioper ke anak-anaknya — sementara ref hanya boleh disentuh di luar render.
+  */
+  const daftar = useMemo(() => new Map<number, ArrowHandles>(), []);
+  useArrowLayout(incomingHits, daftar);
 
   const critical = fighter.isAlive && fighter.health <= CRITICAL_HEALTH;
   const newest = incomingHits[incomingHits.length - 1];
@@ -191,8 +244,18 @@ export function DamageVignette({ fighter }: { fighter: Fighter }) {
 
       {newest ? <Flash key={newest.id} hit={newest} /> : null}
 
-      {incomingHits.map((hit) => (
-        <DirectionArrow key={hit.id} hit={hit} />
+      {/*
+        Yang paling BARU digambar paling pekat: saat tiga penyerang menembak
+        sekaligus, yang masih menembaki pemain detik ini adalah yang paling
+        berguna untuk ditoleh lebih dulu.
+      */}
+      {incomingHits.map((hit, i) => (
+        <DirectionArrow
+          key={hit.id}
+          hit={hit}
+          rank={incomingHits.length - 1 - i}
+          daftar={daftar}
+        />
       ))}
 
       {!fighter.isAlive ? (
