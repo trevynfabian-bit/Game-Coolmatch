@@ -228,6 +228,30 @@ export function BotDriver({
         target: [camera.position.x, local.position[1], camera.position.z],
         colliders,
       });
+      /*
+        Jejak pelurunya digambar untuk tembakan yang KENA maupun yang meleset.
+        Justru yang meleset paling berguna: garis yang lewat di samping kepala
+        adalah satu-satunya cara pemain tahu ia sedang ditembaki dari arah itu
+        sebelum nyawanya berkurang. Yang meleset digeser sedikit dari titik
+        bidik supaya benar-benar terlihat lewat, bukan berhenti di badan.
+      */
+      const meleset = peluru.hit ? 0 : 0.5 + Math.random() * 0.5;
+      emitCombatEffect({
+        kind: "tracer",
+        owner: "musuh",
+        weapon: weapon.type,
+        from: [
+          state.x + Math.sin(state.yaw) * ENEMY_MUZZLE_FORWARD,
+          state.y + BOT_EYE_HEIGHT - 0.15,
+          state.z + Math.cos(state.yaw) * ENEMY_MUZZLE_FORWARD,
+        ],
+        to: [
+          peluru.aimPoint[0] + (Math.random() - 0.5) * 2 * meleset,
+          peluru.aimPoint[1] + (Math.random() - 0.5) * 2 * meleset,
+          peluru.aimPoint[2] + (Math.random() - 0.5) * 2 * meleset,
+        ],
+      });
+
       if (!peluru.hit) continue;
 
       const isHeadshot = peluru.isHeadshot;

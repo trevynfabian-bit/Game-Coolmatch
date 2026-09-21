@@ -39,6 +39,8 @@ export interface TracerEffect extends BaseEffect {
   kind: "tracer";
   from: Vec3;
   to: Vec3;
+  /** Senjata yang menembak, penentu tebal, cepat, dan umur jejaknya. */
+  weapon: WeaponType | null;
 }
 
 export interface ImpactEffect extends BaseEffect {
@@ -90,7 +92,13 @@ const queue: Antrean = { items: [], nextId: 1, dropped: 0 };
 
 /** Kejadian efek tanpa nomor urut dan waktunya — itu diisi di sini. */
 export type EffectRequest =
-  | { kind: "tracer"; owner?: EffectOwner; from: Vec3; to: Vec3 }
+  | {
+      kind: "tracer";
+      owner?: EffectOwner;
+      from: Vec3;
+      to: Vec3;
+      weapon?: WeaponType | null;
+    }
   | { kind: "percikan"; owner?: EffectOwner; at3: Vec3; onFighter: boolean }
   | {
       kind: "moncong";
@@ -121,6 +129,7 @@ export function emitCombatEffect(
         kind: "tracer",
         from: request.from,
         to: request.to,
+        weapon: request.weapon ?? null,
       };
       break;
     case "percikan":

@@ -237,6 +237,7 @@ export function WeaponSystem({
         kind: "tracer",
         from: [muzzle.x, muzzle.y, muzzle.z],
         to: end,
+        weapon: weapon.type,
       });
       onShot?.(hit);
 

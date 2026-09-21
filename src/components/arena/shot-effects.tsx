@@ -2,7 +2,12 @@
 
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Vector3, type Mesh, type PointLight } from "three";
+import {
+  Vector3,
+  type Mesh,
+  type MeshBasicMaterial,
+  type PointLight,
+} from "three";
 import {
   currentEffectCursor,
   pruneCombatEffects,
@@ -14,11 +19,18 @@ import {
   enemyFlashSeconds,
   flashFor,
 } from "@/lib/game/muzzle-flash";
+import {
+  IMPACT_STYLE,
+  impactFrame,
+  tracerFor,
+  tracerFrame,
+  type ImpactStyle,
+  type TracerStyle,
+} from "@/lib/game/tracer-style";
 
-const TRACER_POOL = 18;
+const TRACER_POOL = 24;
 const IMPACT_POOL = 18;
-const TRACER_LIFETIME = 0.07;
-const IMPACT_LIFETIME = 0.38;
+
 /**
  * Kolam kilatan moncong MUSUH di dunia. Beberapa musuh bisa menembak dalam
  * frame yang sama, jadi satu objek saja akan membuat kilatan mereka saling
@@ -32,21 +44,36 @@ const ENEMY_MUZZLE_POOL = 6;
  */
 const ENEMY_MUZZLE_RADIUS = MUZZLE_FLASH.rifle.radius * ENEMY_FLASH_SCALE;
 
-interface Slot {
-  expiresAt: number;
-  /** Diisi impact: apakah mengenai petarung, bukan geometri peta. */
-  onFighter: boolean;
+/** Satu jejak peluru yang sedang hidup. */
+interface TracerSlot {
+  /** Jam saat tembakannya dilepas, detik. */
+  firedAt: number;
+  /** Panjang lintasannya, satuan dunia. */
+  total: number;
+  style: TracerStyle;
+  active: boolean;
+}
+
+/** Satu kilau tumbukan yang sedang hidup. */
+interface ImpactSlot {
+  firedAt: number;
+  style: ImpactStyle;
+  active: boolean;
 }
 
 /**
- * Efek visual tembakan: garis tracer, percikan di titik jatuh, dan kilatan
- * moncong. Semuanya memakai kolam objek tetap yang dihidup-matikan di dalam
- * useFrame, jadi menembak beruntun tidak pernah memicu render ulang React.
+ * Efek visual tembakan: jejak peluru yang tumbuh dari moncong ke titik jatuh,
+ * kilau tumbukan, dan kilatan moncong musuh. Semuanya memakai kolam objek
+ * tetap yang dihidup-matikan di dalam useFrame, jadi menembak beruntun tidak
+ * pernah memicu render ulang React.
  *
  * Apa yang digambar datang dari antrean efek kombat, bukan dari ref yang
  * dipegang sistem senjata. Komponen ini karena itu tidak tahu — dan tidak
  * perlu tahu — siapa yang menembak: pemain, musuh, atau sistem lain yang
  * belum ada. Ia hanya menggambar apa yang masuk antrean.
+ *
+ * Kilatan moncong PEMAIN tidak digambar di sini: ia menempel di ujung laras
+ * viewmodel supaya ikut bergerak bersama ayunan senjatanya.
  */
 export function ShotEffects() {
   const tracerRefs = useRef<(Mesh | null)[]>([]);
@@ -54,16 +81,19 @@ export function ShotEffects() {
   const enemyMuzzleRefs = useRef<(Mesh | null)[]>([]);
   const enemyLightRefs = useRef<(PointLight | null)[]>([]);
 
-  const tracerSlots = useRef<Slot[]>(
+  const tracerSlots = useRef<TracerSlot[]>(
     Array.from({ length: TRACER_POOL }, () => ({
-      expiresAt: 0,
-      onFighter: false,
+      firedAt: 0,
+      total: 0,
+      style: tracerFor("rifle"),
+      active: false,
     })),
   );
-  const impactSlots = useRef<Slot[]>(
+  const impactSlots = useRef<ImpactSlot[]>(
     Array.from({ length: IMPACT_POOL }, () => ({
-      expiresAt: 0,
-      onFighter: false,
+      firedAt: 0,
+      style: IMPACT_STYLE.world,
+      active: false,
     })),
   );
   const enemyMuzzleSlots = useRef<number[]>(
@@ -81,9 +111,19 @@ export function ShotEffects() {
 
   const from = useMemo(() => new Vector3(), []);
   const to = useMemo(() => new Vector3(), []);
-  const mid = useMemo(() => new Vector3(), []);
+  const arah = useMemo(() => new Vector3(), []);
+  const titik = useMemo(() => new Vector3(), []);
 
-  const spawnTracer = (a: readonly number[], b: readonly number[]) => {
+  /**
+   * Menyiapkan satu jejak. Arah dan panjangnya dipasang sekali di sini;
+   * pertumbuhannya tiap frame hanya mengubah skala dan posisi tengahnya, jadi
+   * tidak ada perhitungan arah yang diulang enam puluh kali per detik.
+   */
+  const spawnTracer = (
+    a: readonly number[],
+    b: readonly number[],
+    weapon: Parameters<typeof tracerFor>[0],
+  ) => {
     const index = nextTracer.current % TRACER_POOL;
     nextTracer.current += 1;
     const mesh = tracerRefs.current[index];
@@ -94,13 +134,50 @@ export function ShotEffects() {
     const length = from.distanceTo(to);
     if (length < 0.05) return;
 
-    mid.addVectors(from, to).multiplyScalar(0.5);
-    mesh.position.copy(mid);
+    const style = tracerFor(weapon);
+    /*
+      Posisi dipasang SEBELUM lookAt, dan arahnya disimpan sendiri.
+      `lookAt` menghitung putaran dari posisi objek SAAT ITU — memanggilnya
+      lebih dulu berarti jejaknya menghadap ke arah yang dihitung dari tempat
+      pemakaian slot ini sebelumnya. Arahnya juga tidak dibaca ulang dari
+      matriks dunia tiap frame: matriks itu baru diperbarui saat render, jadi
+      pada frame pertama ia masih berisi keadaan lama.
+    */
+    mesh.position.copy(from);
     mesh.lookAt(to);
-    mesh.scale.set(1, 1, length);
     mesh.visible = true;
-    tracerSlots.current[index].expiresAt =
-      performance.now() / 1000 + TRACER_LIFETIME;
+    const material = mesh.material as MeshBasicMaterial;
+    material.color.set(style.color);
+    material.opacity = style.opacity;
+
+    const slot = tracerSlots.current[index];
+    slot.firedAt = performance.now() / 1000;
+    slot.total = length;
+    slot.style = style;
+    slot.active = true;
+    arah.subVectors(to, from).normalize();
+    mesh.userData.from = [from.x, from.y, from.z];
+    mesh.userData.dir = [arah.x, arah.y, arah.z];
+  };
+
+  const spawnImpact = (point: readonly number[], onFighter: boolean) => {
+    const index = nextImpact.current % IMPACT_POOL;
+    nextImpact.current += 1;
+    const mesh = impactRefs.current[index];
+    if (!mesh) return;
+
+    const style = onFighter ? IMPACT_STYLE.fighter : IMPACT_STYLE.world;
+    mesh.position.set(point[0], point[1], point[2]);
+    mesh.scale.setScalar(0.05);
+    mesh.visible = true;
+    const material = mesh.material as MeshBasicMaterial;
+    material.color.set(style.color);
+    material.opacity = 1;
+
+    const slot = impactSlots.current[index];
+    slot.firedAt = performance.now() / 1000;
+    slot.style = style;
+    slot.active = true;
   };
 
   const spawnEnemyMuzzle = (
@@ -127,20 +204,6 @@ export function ShotEffects() {
       performance.now() / 1000 + enemyFlashSeconds(weapon);
   };
 
-  const spawnImpact = (point: readonly number[], onFighter: boolean) => {
-    const index = nextImpact.current % IMPACT_POOL;
-    nextImpact.current += 1;
-    const mesh = impactRefs.current[index];
-    if (!mesh) return;
-
-    mesh.position.set(point[0], point[1], point[2]);
-    mesh.scale.setScalar(1);
-    mesh.visible = true;
-    const slot = impactSlots.current[index];
-    slot.expiresAt = performance.now() / 1000 + IMPACT_LIFETIME;
-    slot.onFighter = onFighter;
-  };
-
   useFrame(() => {
     const now = performance.now() / 1000;
 
@@ -150,7 +213,7 @@ export function ShotEffects() {
     for (const event of bacaan.events) {
       switch (event.kind) {
         case "tracer":
-          spawnTracer(event.from, event.to);
+          spawnTracer(event.from, event.to, event.weapon);
           break;
         case "percikan":
           spawnImpact(event.at3, event.onFighter);
@@ -171,29 +234,47 @@ export function ShotEffects() {
     // Kejadian yang sudah lewat masa gambarnya tidak perlu disimpan.
     if (bacaan.events.length > 0) pruneCombatEffects(1, now);
 
+    // --- jejak peluru: tumbuh dari moncong, lalu memudar ---
     for (let i = 0; i < TRACER_POOL; i++) {
-      const mesh = tracerRefs.current[i];
-      if (!mesh || !mesh.visible) continue;
       const slot = tracerSlots.current[i];
-      if (now >= slot.expiresAt) {
+      if (!slot.active) continue;
+      const mesh = tracerRefs.current[i];
+      if (!mesh) continue;
+
+      const frame = tracerFrame(slot.total, now - slot.firedAt, slot.style);
+      if (frame.done) {
         mesh.visible = false;
+        slot.active = false;
         continue;
       }
-      const life = (slot.expiresAt - now) / TRACER_LIFETIME;
-      mesh.scale.x = life;
-      mesh.scale.y = life;
+
+      // Kotak jejak berpusat di tengah bagian yang sudah terbentuk, jadi
+      // ujung belakangnya tetap menempel di moncong selama ia tumbuh.
+      const awal = (mesh.userData.from as number[] | undefined) ?? [0, 0, 0];
+      const dir = (mesh.userData.dir as number[] | undefined) ?? [0, 0, 1];
+      titik
+        .set(awal[0], awal[1], awal[2])
+        .addScaledVector(arah.set(dir[0], dir[1], dir[2]), frame.head / 2);
+      mesh.position.copy(titik);
+      mesh.scale.set(1, 1, Math.max(0.001, frame.head));
+      (mesh.material as MeshBasicMaterial).opacity = frame.alpha;
     }
 
+    // --- kilau tumbukan: mekar cepat lalu surut ---
     for (let i = 0; i < IMPACT_POOL; i++) {
-      const mesh = impactRefs.current[i];
-      if (!mesh || !mesh.visible) continue;
       const slot = impactSlots.current[i];
-      if (now >= slot.expiresAt) {
+      if (!slot.active) continue;
+      const mesh = impactRefs.current[i];
+      if (!mesh) continue;
+
+      const frame = impactFrame(now - slot.firedAt, slot.style);
+      if (frame.done) {
         mesh.visible = false;
+        slot.active = false;
         continue;
       }
-      const life = (slot.expiresAt - now) / IMPACT_LIFETIME;
-      mesh.scale.setScalar(slot.onFighter ? life * 1.5 : life);
+      mesh.scale.setScalar(frame.scale * (slot.style.radius / 0.1));
+      (mesh.material as MeshBasicMaterial).opacity = frame.alpha;
     }
 
     for (let i = 0; i < ENEMY_MUZZLE_POOL; i++) {
@@ -216,7 +297,7 @@ export function ShotEffects() {
           }}
           visible={false}
         >
-          <boxGeometry args={[0.035, 0.035, 1]} />
+          <boxGeometry args={[0.036, 0.036, 1]} />
           <meshBasicMaterial color="#ffe8a3" transparent opacity={0.85} />
         </mesh>
       ))}
@@ -229,7 +310,7 @@ export function ShotEffects() {
           }}
           visible={false}
         >
-          <sphereGeometry args={[0.09, 8, 8]} />
+          <sphereGeometry args={[0.1, 8, 8]} />
           <meshBasicMaterial color="#ffd27a" transparent opacity={0.9} />
         </mesh>
       ))}
