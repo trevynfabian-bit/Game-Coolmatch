@@ -22,6 +22,7 @@ import {
   shotInterval,
   type ShotHit,
 } from "@/lib/game/shooting";
+import { eliminationKind } from "@/lib/audio/elimination-voice";
 import { hitKind } from "@/lib/audio/hit-voice";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { reportHit, reportKill } from "@/lib/game/session-runtime";
@@ -30,6 +31,7 @@ import { useCombatStore } from "@/lib/store/combat-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import {
+  playElimination,
   playEmpty,
   playHit,
   playReload,
@@ -269,6 +271,11 @@ export function WeaponSystem({
               isHeadshot,
             });
             if (report.isLethal) {
+              // Kabar "urusannya selesai", yang berbeda dari "pelurumu
+              // sampai": pemain boleh berpindah sasaran.
+              playElimination(
+                eliminationKind({ isOwnDeath: false, isHeadshot }),
+              );
               reportKill({
                 killerName: shooterName,
                 victimName: report.targetName,

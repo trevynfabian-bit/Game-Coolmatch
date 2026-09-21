@@ -6,6 +6,10 @@ import {
 } from "@/lib/game/combat-audio";
 import { EMPTY_VOICE, emptyClickAllowed } from "@/lib/audio/empty-voice";
 import {
+  ELIMINATION_TONE,
+  type EliminationKind,
+} from "@/lib/audio/elimination-voice";
+import {
   HIT_TONE,
   TAKEN_TONE,
   takenGain,
@@ -490,43 +494,56 @@ export function playEmpty(type: WeaponType = "pistol") {
 }
 
 /**
- * Tanda eliminasi: dua nada naik yang pendek, ditutup dentum rendah. Naik
- * untuk lawan yang tumbang, turun untuk pemain sendiri: telinga menangkap
- * arah nadanya lebih cepat daripada mata membaca umpan kill.
+ * Nada eliminasi: deret nada yang NAIK saat lawan tumbang — dengan satu nada
+ * tambahan bila lewat tembakan kepala — dan TURUN saat pemain sendiri yang
+ * tumbang, masing-masing ditutup dentum badan yang jatuh.
+ *
+ * Arah nadanya yang membawa maknanya, bukan kerasnya. Dalam baku tembak jarak
+ * dekat, dua orang bisa sama-sama menembak dan hanya satu yang berdiri; arah
+ * nada ini yang menjawabnya sebelum mata sempat membaca umpan kill.
  */
-export function playElimination(isOwnDeath = false) {
+export function playElimination(kind: EliminationKind = "lawan") {
   const eng = busFor("eliminasi");
   if (!eng) return;
   const { ctx, bus } = eng;
+  const tone = ELIMINATION_TONE[kind];
   const now = ctx.currentTime;
 
-  const nada = isOwnDeath ? [660, 440] : [520, 780];
-  nada.forEach((freq, i) => {
-    const at = now + i * 0.11;
+  tone.notes.forEach((freq, i) => {
+    const at = now + i * tone.gap;
     const osc = ctx.createOscillator();
-    osc.type = "square";
+    osc.type = tone.wave;
     osc.frequency.setValueAtTime(freq, at);
 
     const gain = ctx.createGain();
+    // Dinaikkan sekejap alih-alih dipasang penuh seketika: nada kotak yang
+    // dimulai pada nilai penuh berbunyi seperti letusan kecil di depannya.
     gain.gain.setValueAtTime(0.0001, at);
-    gain.gain.exponentialRampToValueAtTime(0.14, at + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
+    gain.gain.exponentialRampToValueAtTime(tone.gain, at + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + tone.decay);
 
     osc.connect(gain).connect(bus);
     osc.start(at);
-    osc.stop(at + 0.16);
+    osc.stop(at + tone.decay);
   });
 
-  const thud = ctx.createOscillator();
-  thud.type = "sine";
-  thud.frequency.setValueAtTime(120, now);
-  thud.frequency.exponentialRampToValueAtTime(45, now + 0.35);
-  const thudGain = ctx.createGain();
-  thudGain.gain.setValueAtTime(0.3, now);
-  thudGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-  thud.connect(thudGain).connect(bus);
-  thud.start(now);
-  thud.stop(now + 0.35);
+  const thud = tone.thud;
+  if (!thud) return;
+  const osc = ctx.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(thud.freq, now);
+  osc.frequency.exponentialRampToValueAtTime(
+    thud.freq * thud.drop,
+    now + thud.decay,
+  );
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(thud.gain, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + thud.decay);
+
+  osc.connect(gain).connect(bus);
+  osc.start(now);
+  osc.stop(now + thud.decay);
 }
 
 /**

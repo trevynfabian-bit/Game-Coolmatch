@@ -35,7 +35,12 @@ const SAMPLE: Record<CombatChannel, () => void> = {
     window.setTimeout(() => playHit("rompi"), 340);
     window.setTimeout(() => playTakenHit(0.5), 520);
   },
-  eliminasi: () => playElimination(false),
+  eliminasi: () => {
+    playElimination("lawan");
+    // Disusul nada kematian sendiri supaya arah naik dan turunnya bisa
+    // dibandingkan langsung — di situlah seluruh maknanya.
+    window.setTimeout(() => playElimination("sendiri"), 700);
+  },
   suasana: () => playAmbienceSample(),
 };
 

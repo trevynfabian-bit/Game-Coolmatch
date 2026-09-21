@@ -21,7 +21,11 @@ import {
   livePosition,
   syncBots,
 } from "@/lib/game/bot-runtime";
-import { playShotAt, playTakenHit } from "@/lib/audio/audio-engine";
+import {
+  playElimination,
+  playShotAt,
+  playTakenHit,
+} from "@/lib/audio/audio-engine";
 import { buildColliders } from "@/lib/game/collision";
 import { PLAYER_BOUNDS } from "@/lib/game/controls";
 import { difficultyProfile } from "@/lib/game/difficulty";
@@ -223,6 +227,9 @@ export function BotDriver({
         isHeadshot,
       });
       if (report.isLethal) {
+        // Nada yang JATUH: pemain sendiri yang tumbang, dan itu harus
+        // terdengar berbeda dari lawan yang tumbang sedetik sebelumnya.
+        playElimination("sendiri");
         reportKill({
           killerName: fighter.name,
           victimName: local.name,
