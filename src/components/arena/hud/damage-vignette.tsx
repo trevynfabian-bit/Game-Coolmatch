@@ -12,6 +12,11 @@ import {
   separateAngles,
 } from "@/lib/game/hit-direction";
 import { incomingAngle } from "@/lib/game/incoming-fire";
+import {
+  flashPeak,
+  vignetteLook,
+  vignetteTier,
+} from "@/lib/game/vitals-vignette";
 import { playerRuntime } from "@/lib/game/player-runtime";
 import { useCombatStore, type IncomingHit } from "@/lib/store/combat-store";
 import { useMatchStore } from "@/lib/store/match-store";
@@ -21,25 +26,41 @@ import type { Fighter } from "@/types/game";
 const FLASH_MS = 520;
 /** Jarak label nama ke dalam dari penunjuknya, dalam piksel. */
 const LABEL_INSET = 34;
-/** Ambang nyawa yang memicu denyut merah permanen. */
-const CRITICAL_HEALTH = 30;
-
-const RED_EDGE =
-  "radial-gradient(ellipse at center, transparent 42%, rgba(190,18,60,0.55) 82%, rgba(136,10,42,0.9) 100%)";
+/**
+ * Tepi merah yang merambat dari pinggir layar. Seberapa jauh ia merambat ikut
+ * berubah menurut keadaan pemain, jadi bentuknya dibuat dari fungsi, bukan
+ * ditulis sebagai satu nilai tetap.
+ */
+function redEdge(reach = 42): string {
+  return `radial-gradient(ellipse at center, transparent ${reach}%, rgba(190,18,60,0.55) ${
+    reach + 40
+  }%, rgba(136,10,42,0.9) 100%)`;
+}
 
 /**
  * Kilat merah sekali jalan; elemennya di-remount lewat key tiap kena. Murni
  * visual — penghapusan entri diserahkan ke DirectionArc yang berumur lebih
  * panjang, supaya busurnya tidak ikut tercabut lebih awal.
  */
-function Flash({ hit }: { hit: IncomingHit }) {
+function Flash({
+  hit,
+  tier,
+}: {
+  hit: IncomingHit;
+  tier: ReturnType<typeof vignetteTier>;
+}) {
   return (
     <span
       className="absolute inset-0"
+      data-kilat={tier}
       style={{
-        background: RED_EDGE,
-        // Tembakan berat memerahkan layar lebih pekat daripada serempetan.
-        ["--flash-peak" as string]: `${0.35 + hit.severity * 0.6}`,
+        background: redEdge(),
+        /*
+          Tembakan berat memerahkan layar lebih pekat daripada serempetan —
+          dan tembakan yang sama terasa lebih mengancam saat nyawa tinggal
+          sedikit, jadi keadaan pemain ikut menambahnya.
+        */
+        ["--flash-peak" as string]: `${flashPeak(hit.severity, tier)}`,
         animation: `damage-flash ${FLASH_MS}ms ease-out forwards`,
       }}
     />
@@ -226,23 +247,40 @@ export function DamageVignette({ fighter }: { fighter: Fighter }) {
   const daftar = useMemo(() => new Map<number, ArrowHandles>(), []);
   useArrowLayout(incomingHits, daftar);
 
-  const critical = fighter.isAlive && fighter.health <= CRITICAL_HEALTH;
+  /*
+    Keadaan pemain dibaca sebagai TINGKAT, bukan satu ambang. Satu ambang
+    menyembunyikan seluruh perjalanan menuju ke sana: pemain bernyawa 31
+    melihat layar sebersih pemain bernyawa penuh, lalu tiba-tiba semuanya
+    merah.
+  */
+  const tier = vignetteTier(fighter.health, fighter.maxHealth);
+  const look = vignetteLook(fighter.health, fighter.maxHealth);
+  const tampak = fighter.isAlive && look.opacity > 0;
   const newest = incomingHits[incomingHits.length - 1];
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {critical ? (
+      {tampak ? (
         <span
           className="absolute inset-0"
+          data-vignette={tier}
+          data-denyut={look.pulseSeconds ?? 0}
           style={{
-            background: RED_EDGE,
-            animation: "low-health-pulse 1.6s ease-in-out infinite",
+            background: redEdge(look.reach),
+            opacity: look.pulseSeconds === null ? look.opacity : undefined,
+            ["--vignette-peak" as string]: `${look.opacity}`,
+            // Berdenyut hanya mulai tingkat kritis; di bawah itu bayangannya
+            // menetap supaya tidak mengganggu membidik.
+            animation:
+              look.pulseSeconds === null
+                ? undefined
+                : `low-health-pulse ${look.pulseSeconds}s ease-in-out infinite`,
           }}
           aria-hidden
         />
       ) : null}
 
-      {newest ? <Flash key={newest.id} hit={newest} /> : null}
+      {newest ? <Flash key={newest.id} hit={newest} tier={tier} /> : null}
 
       {/*
         Yang paling BARU digambar paling pekat: saat tiga penyerang menembak

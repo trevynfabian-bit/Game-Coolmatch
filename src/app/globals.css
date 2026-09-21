@@ -78,13 +78,19 @@ body {
   }
 }
 
+/*
+  Denyut merah nyawa rendah. Puncaknya dibaca dari custom property, bukan
+  ditulis tetap di sini: tiap tingkat keadaan punya kepekatannya sendiri, dan
+  angka tetap di keyframe akan membuat "kritis" dan "sekarat" terlihat sama
+  pekat meski keduanya berarti hal yang berbeda.
+*/
 @keyframes low-health-pulse {
   0%,
   100% {
-    opacity: 0.32;
+    opacity: calc(var(--vignette-peak, 0.45) * 0.55);
   }
   50% {
-    opacity: 0.62;
+    opacity: var(--vignette-peak, 0.45);
   }
 }
 
