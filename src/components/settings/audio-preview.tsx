@@ -29,7 +29,7 @@ export function EffectsPreview({ disabled = false }: { disabled?: boolean }) {
         playShot("rifle");
         // Denting kena menyusul sepersekian detik kemudian, seperti saat
         // tembakan benar-benar mengenai lawan.
-        window.setTimeout(() => playHit(false), 90);
+        window.setTimeout(() => playHit("badan"), 90);
       }}
       className="shrink-0 rounded-lg border border-white/15 px-3 py-1 text-[12px] font-medium text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
     >

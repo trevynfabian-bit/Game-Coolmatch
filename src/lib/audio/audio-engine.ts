@@ -5,6 +5,12 @@ import {
   type CombatChannel,
 } from "@/lib/game/combat-audio";
 import { EMPTY_VOICE, emptyClickAllowed } from "@/lib/audio/empty-voice";
+import {
+  HIT_TONE,
+  TAKEN_TONE,
+  takenGain,
+  type HitKind,
+} from "@/lib/audio/hit-voice";
 import { reloadSequence } from "@/lib/audio/reload-voice";
 import {
   SHOT_VOICE,
@@ -296,24 +302,82 @@ export function playShot(type: WeaponType) {
   playShotAt(type);
 }
 
-/** Nada pendek saat sebuah tembakan kena; lebih tinggi untuk tembakan kepala. */
-export function playHit(isHeadshot: boolean) {
+/**
+ * Nada saat tembakan PEMAIN mengenai lawan: pendek, jernih, dan berbeda
+ * menurut apa yang terkena. Kepala bernada ganda dan naik; rompi berdenting
+ * logam dan lebih pendek daripada kena badan.
+ */
+export function playHit(kind: HitKind = "badan") {
+  const eng = busFor("kena");
+  if (!eng) return;
+  const { ctx, bus } = eng;
+  const tone = HIT_TONE[kind];
+  const now = ctx.currentTime;
+
+  const nada = [{ freq: tone.freq, at: now }];
+  if (tone.freq2 !== null) nada.push({ freq: tone.freq2, at: now + tone.gap });
+
+  for (const { freq, at } of nada) {
+    const osc = ctx.createOscillator();
+    osc.type = tone.wave;
+    osc.frequency.setValueAtTime(freq, at);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(tone.gain, at);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + tone.decay);
+
+    osc.connect(gain).connect(bus);
+    osc.start(at);
+    osc.stop(at + tone.decay);
+  }
+}
+
+/**
+ * Nada saat PEMAIN yang kena tembak: dentum rendah yang kerasnya mengikuti
+ * besar lukanya, ditambah denting logam bila rompi yang menanggungnya.
+ *
+ * Bentuknya sengaja sejauh mungkin dari nada mengenai lawan. Keduanya
+ * terjadi di tengah keributan yang sama, dan salah mengira "aku yang kena"
+ * sebagai "aku yang kena sasaran" adalah kesalahan yang mahal.
+ */
+export function playTakenHit(severity: number, onArmor = false) {
   const eng = busFor("kena");
   if (!eng) return;
   const { ctx, bus } = eng;
   const now = ctx.currentTime;
+  const gain = takenGain(severity);
 
-  const osc = ctx.createOscillator();
-  osc.type = "triangle";
-  osc.frequency.setValueAtTime(isHeadshot ? 1320 : 880, now);
+  const thud = ctx.createOscillator();
+  thud.type = TAKEN_TONE.wave;
+  thud.frequency.setValueAtTime(TAKEN_TONE.freq, now);
+  thud.frequency.exponentialRampToValueAtTime(
+    TAKEN_TONE.freq * TAKEN_TONE.drop,
+    now + TAKEN_TONE.decay,
+  );
 
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.18, now);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+  const thudGain = ctx.createGain();
+  thudGain.gain.setValueAtTime(gain, now);
+  thudGain.gain.exponentialRampToValueAtTime(0.0001, now + TAKEN_TONE.decay);
 
-  osc.connect(gain).connect(bus);
-  osc.start(now);
-  osc.stop(now + 0.09);
+  thud.connect(thudGain).connect(bus);
+  thud.start(now);
+  thud.stop(now + TAKEN_TONE.decay);
+
+  if (!onArmor) return;
+  const ring = ctx.createOscillator();
+  ring.type = "square";
+  ring.frequency.setValueAtTime(TAKEN_TONE.armorRing.freq, now);
+
+  const ringGain = ctx.createGain();
+  ringGain.gain.setValueAtTime(TAKEN_TONE.armorRing.gain, now);
+  ringGain.gain.exponentialRampToValueAtTime(
+    0.0001,
+    now + TAKEN_TONE.armorRing.decay,
+  );
+
+  ring.connect(ringGain).connect(bus);
+  ring.start(now);
+  ring.stop(now + TAKEN_TONE.armorRing.decay);
 }
 
 /**

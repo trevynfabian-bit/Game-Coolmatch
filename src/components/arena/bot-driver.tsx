@@ -21,7 +21,7 @@ import {
   livePosition,
   syncBots,
 } from "@/lib/game/bot-runtime";
-import { playShotAt } from "@/lib/audio/audio-engine";
+import { playShotAt, playTakenHit } from "@/lib/audio/audio-engine";
 import { buildColliders } from "@/lib/game/collision";
 import { PLAYER_BOUNDS } from "@/lib/game/controls";
 import { difficultyProfile } from "@/lib/game/difficulty";
@@ -229,6 +229,16 @@ export function BotDriver({
           isHeadshot,
         });
       }
+      /*
+        Kena tembak akhirnya terdengar, bukan hanya terlihat. Kabut merah di
+        tepi layar hanya tertangkap kalau pemain kebetulan tidak sedang
+        menatap bidikannya; dentum ini selalu sampai, dan kerasnya
+        memberitahu seberapa parah lukanya.
+      */
+      playTakenHit(
+        (report.healthLost + report.armorLost) / local.maxHealth,
+        report.armorLost > 0 && report.armorLost >= report.healthLost,
+      );
       markFighterHit(local.id);
 
       // Sudut penyerang relatif arah pandang, supaya busur menunjuk ke arah

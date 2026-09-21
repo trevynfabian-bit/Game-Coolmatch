@@ -7,6 +7,7 @@ import {
   playElimination,
   playHit,
   playReload,
+  playTakenHit,
   playShot,
 } from "@/lib/audio/audio-engine";
 import {
@@ -27,9 +28,12 @@ const SAMPLE: Record<CombatChannel, () => void> = {
   tembakan: () => playShot("rifle"),
   isiUlang: () => playReload("rifle"),
   kena: () => {
-    playHit(false);
-    // Disusul denting kepala supaya kedua nadanya bisa dibandingkan.
-    window.setTimeout(() => playHit(true), 140);
+    playHit("badan");
+    // Disusul denting kepala dan rompi supaya ketiganya bisa dibandingkan,
+    // lalu dentum kena tembak sendiri yang memang harus terdengar berbeda.
+    window.setTimeout(() => playHit("kepala"), 150);
+    window.setTimeout(() => playHit("rompi"), 340);
+    window.setTimeout(() => playTakenHit(0.5), 520);
   },
   eliminasi: () => playElimination(false),
   suasana: () => playAmbienceSample(),

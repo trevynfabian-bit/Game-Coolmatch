@@ -52,7 +52,7 @@ export const COMBAT_CHANNEL_INFO: Record<CombatChannel, CombatChannelInfo> = {
   },
   kena: {
     label: "Tembakan kena",
-    hint: "Denting saat pelurumu mengenai lawan, lebih tinggi untuk kepala.",
+    hint: "Denting saat pelurumu mengenai lawan, dan dentum saat kamu yang kena.",
   },
   eliminasi: {
     label: "Eliminasi",

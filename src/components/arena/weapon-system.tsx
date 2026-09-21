@@ -22,6 +22,7 @@ import {
   shotInterval,
   type ShotHit,
 } from "@/lib/game/shooting";
+import { hitKind } from "@/lib/audio/hit-voice";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { reportHit, reportKill } from "@/lib/game/session-runtime";
 import { resolveShotDamage } from "@/lib/game/damage";
@@ -277,7 +278,13 @@ export function WeaponSystem({
             // Denting kena menemani penanda kena di layar. Butir shotgun yang
             // datang sesudah sasaran tumbang tidak sampai ke sini, jadi satu
             // tembakan tidak pernah berbunyi berkali-kali.
-            playHit(isHeadshot);
+            playHit(
+              hitKind({
+                isHeadshot,
+                armorLost: report.armorLost,
+                healthLost: report.healthLost,
+              }),
+            );
             markFighterHit(hit.fighterId);
             // Musuh yang kena terhuyung ke arah larinya peluru dan sadar dari
             // mana peluru itu datang.
