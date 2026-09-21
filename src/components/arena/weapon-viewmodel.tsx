@@ -9,12 +9,7 @@ import {
 } from "@/lib/game/combat-effects";
 import { BARREL_TIP, flashFor } from "@/lib/game/muzzle-flash";
 import { playerRuntime } from "@/lib/game/player-runtime";
-import {
-  RECOIL_REST,
-  recoilShot,
-  recoilStep,
-  recoilStyleFor,
-} from "@/lib/game/recoil-anim";
+import { RECOIL_REST, recoilShot, recoilStep } from "@/lib/game/recoil-anim";
 import { magazineMotion } from "@/lib/game/reload-anim";
 import { viewmodelFrame } from "@/lib/game/viewmodel-anim";
 import {
@@ -71,7 +66,6 @@ export function WeaponViewmodel({
   const camera = useThree((state) => state.camera);
   const flash = flashFor(weaponType);
   const clips = clipsFor(weaponType);
-  const recoilStyle = recoilStyleFor(weaponType);
   /**
    * Keadaan sentakan: dorongan yang sedang meluruh dan panas rentetannya.
    *
@@ -106,7 +100,7 @@ export function WeaponViewmodel({
           recoil.current,
           now,
           clips.recoil.seconds,
-          recoilStyle,
+          clips.recoilStyle,
         );
       }
     }
