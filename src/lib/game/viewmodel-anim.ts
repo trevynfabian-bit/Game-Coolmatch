@@ -1,4 +1,5 @@
 import { breathPose, type BreathState } from "@/lib/game/breath-anim";
+import { STEP_REST, stepPose, type StepState } from "@/lib/game/step-anim";
 import {
   RECOIL_REST,
   shotWander,
@@ -102,24 +103,17 @@ export interface WalkClip {
 }
 
 /**
- * Ayunan langkah: mengikuti kecepatan pemain, bukan tombol yang ditekan.
+ * Ayunan langkah: mengikuti LANGKAH pemain, bukan jam halaman.
  *
- * Naik-turunnya berfrekuensi DUA kali kiri-kanannya, sebab satu langkah kiri
- * dan satu langkah kanan sama-sama menurunkan badan — itulah yang membuat
- * gerakannya terbaca sebagai berjalan alih-alih bergoyang.
+ * Fasenya datang dari step-anim, yang menghitungnya dari jarak yang
+ * benar-benar ditempuh. Di sini ia hanya salah satu lapisan.
  */
-export function walkPose(time: number, speed: number, clip: WalkClip): Pose {
-  const laju = Math.min(1, Math.max(0, aman(speed) / clip.fullSpeed));
-  if (laju <= 0.001) return REST_POSE;
-  const t = aman(time) * clip.rate * Math.PI * 2 * (0.6 + 0.4 * laju);
-  return {
-    px: Math.sin(t) * clip.sway * laju,
-    py: -Math.abs(Math.sin(t)) * clip.bob * laju,
-    pz: 0,
-    rx: Math.sin(t * 2) * clip.bob * laju * 0.8,
-    ry: Math.sin(t) * clip.sway * laju * 0.9,
-    rz: Math.sin(t) * clip.sway * laju * 1.6,
-  };
+export function walkPose(
+  step: StepState | null,
+  speed: number,
+  clip: WalkClip,
+): Pose {
+  return stepPose(step ?? STEP_REST, speed, clip);
 }
 
 export interface RecoilClip {
@@ -214,6 +208,11 @@ export interface ViewmodelInput {
    */
   breath: BreathState | null;
   /**
+   * Fase langkah pemain; menentukan di mana goyangan jalannya berada. Null
+   * berarti pemain dianggap belum melangkah sama sekali.
+   */
+  step: StepState | null;
+  /**
    * Keadaan sentakan sekarang: dorongan yang sedang meluruh, panas
    * rentetannya, dan nomor tembakan terakhir. Null berarti belum menembak.
    */
@@ -267,7 +266,7 @@ export function viewmodelFrame(
   return {
     pose: composePose(
       idlePose(input.time, clips.idle, input.breath),
-      walkPose(input.time, input.speed, clips.walk),
+      walkPose(input.step, input.speed, clips.walk),
       recoilPose(input.recoil ?? RECOIL_REST, clips.recoil, clips.recoilStyle),
       reloadPoseFrom(isiUlang, clips.reload),
       input.swapProgress === null

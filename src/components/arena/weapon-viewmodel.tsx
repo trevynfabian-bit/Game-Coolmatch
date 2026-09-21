@@ -9,6 +9,7 @@ import {
 } from "@/lib/game/combat-effects";
 import { BARREL_TIP, flashFor } from "@/lib/game/muzzle-flash";
 import { BREATH_REST, breathStep } from "@/lib/game/breath-anim";
+import { STEP_REST, stepStep } from "@/lib/game/step-anim";
 import { playerRuntime } from "@/lib/game/player-runtime";
 import { RECOIL_REST, recoilShot, recoilStep } from "@/lib/game/recoil-anim";
 import { magazineMotion } from "@/lib/game/reload-anim";
@@ -85,6 +86,13 @@ export function WeaponViewmodel({
    * adalah apa yang pemain lakukan beberapa detik terakhir.
    */
   const breath = useRef(BREATH_REST);
+  /**
+   * Fase langkah pemain, dijalankan dari jarak yang ditempuhnya tiap frame.
+   * Disimpan sebagai fase yang terus maju, bukan dihitung dari jam halaman:
+   * frekuensi yang dikalikan ke jam akan melompat tiap kali kecepatan
+   * berubah, dan senjata menyentak tanpa satu langkah pun diambil.
+   */
+  const step = useRef(STEP_REST);
 
   useFrame(({ clock }) => {
     const rig = rigRef.current;
@@ -125,6 +133,7 @@ export function WeaponViewmodel({
     */
     recoil.current = recoilStep(recoil.current, now, clips.recoil.seconds);
     breath.current = breathStep(breath.current, now, playerRuntime.planarSpeed);
+    step.current = stepStep(step.current, now, playerRuntime.planarSpeed);
 
     /*
       Seluruh gerakan senjata datang dari kontroler animasi: napas diam,
@@ -137,6 +146,7 @@ export function WeaponViewmodel({
         time: clock.elapsedTime,
         speed: playerRuntime.planarSpeed,
         breath: breath.current,
+        step: step.current,
         recoil: recoil.current,
         reloadElapsed: runtimeElapsed(
           weaponRuntime.reloadEndsAt,
