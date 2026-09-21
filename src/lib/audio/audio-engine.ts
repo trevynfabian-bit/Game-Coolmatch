@@ -7,6 +7,12 @@ import {
 import { EMPTY_VOICE, emptyClickAllowed } from "@/lib/audio/empty-voice";
 import { accentDelay, ambienceFor } from "@/lib/audio/ambience-voice";
 import {
+  duckFor,
+  mergeDuck,
+  type DuckSource,
+  type DuckState,
+} from "@/lib/audio/ducking";
+import {
   cueAllowed,
   eliminationCue,
   hitCue,
@@ -65,6 +71,15 @@ interface Engine {
    * pemain bisa memelankan letupannya sendiri tanpa kehilangan denting kena.
    */
   channels: Record<CombatChannel, GainNode>;
+  /**
+   * Dua simpul peredam: satu untuk latar arena, satu untuk musik. Keduanya
+   * berdiri SENDIRI di antara sumbernya dan bus induknya, dan hanya disentuh
+   * oleh peredaman. Menumpangkannya pada gain yang sudah ada — campuran kanal
+   * atau babak musik — berarti dua penulis pada satu angka, dan yang kalah
+   * selalu pilihan pemain.
+   */
+  duckAmbience: GainNode;
+  duckMusic: GainNode;
   noise: AudioBuffer;
   /**
    * Simpul musik yang sedang berjalan. Selain cara menghentikannya, ia
@@ -158,8 +173,16 @@ function ensureEngine(): Engine | null {
   for (const channel of COMBAT_CHANNELS) {
     const bus = ctx.createGain();
     bus.gain.value = channelMix[channel];
-    bus.connect(effects);
     channels[channel] = bus;
+  }
+
+  // Latar arena lewat peredam lebih dulu; kanal lain langsung ke bus efek.
+  const duckAmbience = ctx.createGain();
+  duckAmbience.connect(effects);
+  const duckMusic = ctx.createGain();
+  duckMusic.connect(music);
+  for (const channel of COMBAT_CHANNELS) {
+    channels[channel].connect(channel === "suasana" ? duckAmbience : effects);
   }
 
   engine = {
@@ -167,6 +190,8 @@ function ensureEngine(): Engine | null {
     effects,
     music,
     channels,
+    duckAmbience,
+    duckMusic,
     noise: buildNoise(ctx),
     musicNodes: null,
   };
@@ -217,6 +242,30 @@ export interface ShotOrigin {
    * nol tepat di depan, positif di sebelah kiri.
    */
   angleRad?: number;
+}
+
+/**
+ * Menyingkirkan latar arena dan musik sebentar supaya bunyi tempur terdengar
+ * jelas, lalu mengembalikannya sendiri.
+ *
+ * Dijadwalkan seluruhnya pada jam audio: turun cepat, ditahan, lalu naik
+ * perlahan. Bunyi tempur yang datang beruntun hanya memperpanjang tahanan
+ * yang sama alih-alih menghentak ulang — hentakan berulang itulah yang
+ * terdengar sebagai latar yang memompa mengikuti laju tembak.
+ */
+export function duckBackground(source: DuckSource) {
+  const eng = engine;
+  if (!eng) return;
+  const now = eng.ctx.currentTime;
+  const shape = duckFor(source);
+  const next = mergeDuck(duckState, shape, now);
+  duckState = next;
+
+  for (const node of [eng.duckAmbience, eng.duckMusic]) {
+    node.gain.cancelScheduledValues(now);
+    node.gain.setTargetAtTime(next.level, now, shape.attack / 3);
+    node.gain.setTargetAtTime(1, next.until, next.release / 3);
+  }
 }
 
 /**
@@ -271,6 +320,9 @@ export function playShotAt(type: WeaponType, origin: ShotOrigin = {}) {
   }
 
   const now = ctx.currentTime + jauh.delay;
+  // Letupan menyingkirkan latar sebentar. Tembakan jauh yang sudah lirih
+  // tidak perlu: ia tidak sedang menutupi apa pun.
+  if (jauh.gain > 0.25) duckBackground("tembakan");
 
   // Lapis satu: desis tajam dari derau yang disaring.
   const crack = ctx.createBufferSource();
@@ -364,6 +416,7 @@ export function playHit(kind: HitKind = "badan") {
   const tone = HIT_TONE[kind];
   const now = ctx.currentTime;
   if (!cueWins(hitCue(kind), now)) return;
+  duckBackground("kena");
 
   const nada = [{ freq: tone.freq, at: now }];
   if (tone.freq2 !== null) nada.push({ freq: tone.freq2, at: now + tone.gap });
@@ -397,6 +450,7 @@ export function playTakenHit(severity: number, onArmor = false) {
   const { ctx, bus } = eng;
   const now = ctx.currentTime;
   if (!cueWins(takenCue(severity), now)) return;
+  duckBackground("kena");
   const gain = takenGain(severity);
 
   const thud = ctx.createOscillator();
@@ -559,6 +613,7 @@ export function playElimination(kind: EliminationKind = "lawan") {
   // Selalu lolos, tetapi tetap dicatat: denting kena yang menyusul di
   // jendela yang sama akan kalah peringkat dan tidak menimpanya.
   cueWins(eliminationCue(kind), now);
+  duckBackground("eliminasi");
 
   tone.notes.forEach((freq, i) => {
     const at = now + i * tone.gap;
@@ -653,6 +708,8 @@ let ambience: { stop: () => void } | null = null;
  * keadaan pertandingan, bukan memulai dari babak pembuka lalu melompat.
  */
 let musicPhase: MusicPhase = "bersiap";
+/** Peredaman latar yang sedang berlaku; null berarti latar sedang penuh. */
+let duckState: DuckState | null = null;
 
 /**
  * Menyalakan suasana arena sesuai petanya: lapisan angin yang disapu perlahan,
@@ -790,7 +847,7 @@ export function stopAmbience() {
 export function startMusic() {
   const eng = ensureEngine();
   if (!eng || eng.musicNodes) return;
-  const { ctx, music } = eng;
+  const { ctx } = eng;
   const voice = MUSIC_PHASES[musicPhase];
 
   /*
@@ -802,7 +859,7 @@ export function startMusic() {
   */
   const layer = ctx.createGain();
   layer.gain.value = voice.gain;
-  layer.connect(music);
+  layer.connect(eng.duckMusic);
 
   const filter = ctx.createBiquadFilter();
   filter.type = "lowpass";
