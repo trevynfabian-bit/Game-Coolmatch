@@ -21,6 +21,7 @@ import {
 } from "@/lib/game/shooting";
 import { eliminationKind } from "@/lib/audio/elimination-voice";
 import { hitKind } from "@/lib/audio/hit-voice";
+import { markerFor } from "@/lib/game/hit-marker";
 import { emitCombatEffect } from "@/lib/game/combat-effects";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { reportHit, reportKill } from "@/lib/game/session-runtime";
@@ -319,13 +320,22 @@ export function WeaponSystem({
             if (!bestHitOnFighter || isHeadshot) {
               bestHitOnFighter = { fighterId: hit.fighterId, isHeadshot };
             }
+            /*
+              Penanda dipasang per peluru yang benar-benar kena, dengan kabar
+              lengkapnya: rompi, badan, kepala, atau tumbang. Store yang
+              memutuskan mana yang tampil bila beberapa datang sekaligus.
+            */
+            useCombatStore.getState().registerHit(
+              markerFor({
+                isHeadshot,
+                armorLost: report.armorLost,
+                healthLost: report.healthLost,
+                isLethal: report.isLethal,
+              }),
+            );
           }
         }
       }
-    }
-
-    if (bestHitOnFighter) {
-      useCombatStore.getState().registerHit(bestHitOnFighter.isHeadshot);
     }
 
     // Kilatan moncong pemain: menempel pada kamera, jadi tanpa posisi dunia.

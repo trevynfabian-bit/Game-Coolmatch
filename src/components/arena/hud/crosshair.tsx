@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { HIT_MARKER, type HitMarkerKind } from "@/lib/game/hit-marker";
 import { useCombatStore } from "@/lib/store/combat-store";
-
-/** Lama penanda kena tampil, harus sejalan dengan keyframe hit-marker. */
-const HIT_MARKER_MS = 340;
 
 const TICK = "absolute bg-emerald-300/90 shadow-[0_0_4px_rgba(16,185,129,0.8)]";
 
@@ -12,15 +10,68 @@ const TICK = "absolute bg-emerald-300/90 shadow-[0_0_4px_rgba(16,185,129,0.8)]";
  * Crosshair dinamis. Celah tiap sirip dibaca dari custom property CSS
  * `--crosshair-gap` yang ditulis sistem senjata tiap frame, jadi lebarnya
  * benar-benar menggambarkan sebaran peluru saat ini tanpa memicu render ulang
- * React. Saat tembakan mengenai petarung, penanda X berkelip di atasnya.
+ * React.
+ *
+ * Saat tembakan mengenai petarung, penanda berkelip di atasnya — dan
+ * bentuknya mengabarkan APA yang terjadi: silang kecil kebiruan untuk yang
+ * tertahan rompi, silang putih untuk kena badan, silang kuning yang lebih
+ * panjang untuk kepala, dan tanda tambah kemerahan yang paling besar untuk
+ * lawan yang tumbang. Bentuk yang berbeda terbaca lebih cepat daripada warna
+ * yang berbeda, dan penanda inilah satu-satunya umpan balik yang selalu
+ * berada tepat di tempat mata pemain sedang menatap.
  */
+/**
+ * Satu penanda kena. Empat gores disusun dari angka pada tabelnya, jadi
+ * menyetel panjang, tebal, atau putarannya cukup dilakukan di satu tempat —
+ * bukan dengan menulis ulang jalur SVG-nya.
+ */
+function Marker({ kind, id }: { kind: HitMarkerKind; id: number }) {
+  const style = HIT_MARKER[kind];
+  const ukuran = (style.gap + style.arm + style.stroke) * 2;
+  const tengah = ukuran / 2;
+  const ujung = style.gap + style.arm;
+
+  return (
+    <span
+      key={id}
+      className="absolute"
+      data-penanda={kind}
+      style={{
+        transform: `translate(-50%, -50%) rotate(${style.rotate}deg)`,
+        animation: `hit-marker ${style.ms}ms ease-out forwards`,
+      }}
+      aria-hidden
+    >
+      <svg width={ukuran} height={ukuran} fill="none">
+        {[
+          [-1, -1],
+          [1, -1],
+          [-1, 1],
+          [1, 1],
+        ].map(([sx, sy]) => (
+          <path
+            key={`${sx}:${sy}`}
+            d={`M${tengah + sx * ujung} ${tengah + sy * ujung} L${
+              tengah + sx * style.gap
+            } ${tengah + sy * style.gap}`}
+            stroke={style.color}
+            strokeWidth={style.stroke}
+            strokeLinecap="round"
+          />
+        ))}
+      </svg>
+    </span>
+  );
+}
+
 export function Crosshair() {
   const hitMarker = useCombatStore((state) => state.hitMarker);
   const clearHitMarker = useCombatStore((state) => state.clearHitMarker);
 
   useEffect(() => {
     if (!hitMarker) return;
-    const id = setTimeout(() => clearHitMarker(hitMarker.id), HIT_MARKER_MS);
+    const ms = HIT_MARKER[hitMarker.kind].ms;
+    const id = setTimeout(() => clearHitMarker(hitMarker.id), ms);
     return () => clearTimeout(id);
   }, [hitMarker, clearHitMarker]);
 
@@ -58,34 +109,7 @@ export function Crosshair() {
           style={{ transform: "translate(-50%, -50%)" }}
         />
 
-        {hitMarker ? (
-          <span
-            key={hitMarker.id}
-            className="absolute"
-            style={{
-              transform: "translate(-50%, -50%)",
-              animation: `hit-marker ${HIT_MARKER_MS}ms ease-out forwards`,
-            }}
-            aria-hidden
-          >
-            <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-              {[
-                "M5 5 L9 9",
-                "M21 5 L17 9",
-                "M5 21 L9 17",
-                "M21 21 L17 17",
-              ].map((d) => (
-                <path
-                  key={d}
-                  d={d}
-                  stroke={hitMarker.isHeadshot ? "#fbbf24" : "#f8fafc"}
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              ))}
-            </svg>
-          </span>
-        ) : null}
+        {hitMarker ? <Marker kind={hitMarker.kind} id={hitMarker.id} /> : null}
       </div>
     </div>
   );

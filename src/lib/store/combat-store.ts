@@ -1,9 +1,14 @@
 import { create } from "zustand";
 
+import { markerWins, type HitMarkerKind } from "@/lib/game/hit-marker";
+
 export interface HitMarker {
   /** Penanda waktu agar HUD bisa memicu ulang animasi tiap kena. */
   id: number;
-  isHeadshot: boolean;
+  /** Kabar apa yang dibawa penanda ini: rompi, badan, kepala, atau eliminasi. */
+  kind: HitMarkerKind;
+  /** Jam saat ia dipasang; dipakai aturan prioritas antar tembakan beruntun. */
+  at: number;
 }
 
 /** Angka kerusakan yang melayang sesaat di dekat crosshair. */
@@ -95,7 +100,7 @@ interface CombatState {
   consumeRound: () => boolean;
   beginReload: (seconds: number) => void;
   finishReload: () => void;
-  registerHit: (isHeadshot: boolean) => void;
+  registerHit: (kind: HitMarkerKind) => void;
   clearHitMarker: (id: number) => void;
   pushDamagePop: (pop: {
     amount: number;
@@ -205,8 +210,18 @@ export const useCombatStore = create<CombatState>((set, get) => ({
     });
   },
 
-  registerHit: (isHeadshot) =>
-    set({ hitMarker: { id: Date.now() + Math.random(), isHeadshot } }),
+  /*
+    Penanda yang sedang tampil hanya diganti bila kabarnya lebih penting —
+    atau bila jendelanya sudah lewat. Satu tarikan pelatuk shotgun mengenai
+    sampai delapan kali dalam satu frame, dan tanpa aturan ini yang tampil
+    adalah butir terakhir yang kebetulan dihitung, bukan yang paling berarti.
+  */
+  registerHit: (kind) =>
+    set((state) => {
+      const now = Date.now();
+      if (!markerWins(state.hitMarker, kind, now)) return state;
+      return { hitMarker: { id: now + Math.random(), kind, at: now } };
+    }),
 
   clearHitMarker: (id) =>
     set((state) => (state.hitMarker?.id === id ? { hitMarker: null } : state)),
