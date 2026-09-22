@@ -66,8 +66,21 @@ export interface MatchCoinFacts {
   isTrial?: boolean;
 }
 
+/**
+ * Baris ini datang dari MENYELESAIKAN pertandingan, atau dari cara pemain
+ * bermain di dalamnya.
+ *
+ * Pemisahan ini yang membuat rincian koin mengajarkan sesuatu. Daftar rata
+ * berisi lima baris hanya memberi tahu pemain bahwa ia dapat sekian; daftar
+ * yang terbagi memberi tahu bahwa sebagian besar koinnya datang karena ia
+ * menumbangkan banyak lawan — dan itu yang membuat pertandingan berikutnya
+ * terasa layak diperjuangkan alih-alih sekadar diselesaikan.
+ */
+export type RewardGroup = "dasar" | "performa";
+
 export interface CoinRewardLine {
   reason: CoinReason;
+  group: RewardGroup;
   /** Nama baris ini di layar. */
   label: string;
   /** Keterangan singkat: dari apa angkanya dihitung. */
@@ -78,6 +91,15 @@ export interface CoinRewardLine {
 export interface MatchCoinReward {
   lines: CoinRewardLine[];
   total: number;
+  /** Koin yang didapat sekadar karena pertandingannya selesai. */
+  baseTotal: number;
+  /** Koin yang didapat karena cara pemain bermain. */
+  performanceTotal: number;
+  /**
+   * Bagian total yang datang dari performa, 0..1. Nol bila tidak ada koin
+   * sama sekali — bukan NaN, yang akan sampai ke layar sebagai "NaN%".
+   */
+  performanceShare: number;
 }
 
 function bulat(nilai: number | undefined): number {
@@ -93,7 +115,15 @@ function bulat(nilai: number | undefined): number {
  * memanjangkan daftar dan mengaburkan baris yang benar-benar berisi.
  */
 export function matchCoinReward(facts: MatchCoinFacts): MatchCoinReward {
-  if (facts.isTrial) return { lines: [], total: 0 };
+  if (facts.isTrial) {
+    return {
+      lines: [],
+      total: 0,
+      baseTotal: 0,
+      performanceTotal: 0,
+      performanceShare: 0,
+    };
+  }
 
   const kills = bulat(facts.kills);
   const roundWins = bulat(facts.roundWins);
@@ -104,6 +134,7 @@ export function matchCoinReward(facts: MatchCoinFacts): MatchCoinReward {
 
   lines.push({
     reason: "hasil-match",
+    group: "dasar",
     label: menang ? "Menang bertanding" : "Menyelesaikan pertandingan",
     detail: menang
       ? `Imbalan dasar ${COIN_RATES.finish} + bonus juara ${COIN_RATES.win}`
@@ -114,6 +145,7 @@ export function matchCoinReward(facts: MatchCoinFacts): MatchCoinReward {
   if (kills > 0) {
     lines.push({
       reason: "bonus-kill",
+      group: "performa",
       label: "Bonus kill",
       detail: `${kills} kill × ${COIN_RATES.perKill}`,
       amount: kills * COIN_RATES.perKill,
@@ -123,6 +155,7 @@ export function matchCoinReward(facts: MatchCoinFacts): MatchCoinReward {
   if (roundWins > 0) {
     lines.push({
       reason: "bonus-ronde",
+      group: "performa",
       label: "Bonus ronde",
       detail: `${roundWins} ronde × ${COIN_RATES.perRoundWin}`,
       amount: roundWins * COIN_RATES.perRoundWin,
@@ -133,14 +166,48 @@ export function matchCoinReward(facts: MatchCoinFacts): MatchCoinReward {
   if (killDalamRentetan > 0) {
     lines.push({
       reason: "bonus-killstreak",
+      group: "performa",
       label: "Bonus killstreak",
       detail: `${streak} kill beruntun`,
       amount: killDalamRentetan * COIN_RATES.perStreakKill,
     });
   }
 
+  const jumlahkan = (group: RewardGroup) =>
+    lines
+      .filter((line) => line.group === group)
+      .reduce((jumlah, line) => jumlah + line.amount, 0);
+
+  const baseTotal = jumlahkan("dasar");
+  const performanceTotal = jumlahkan("performa");
+  const total = baseTotal + performanceTotal;
+
   return {
     lines,
-    total: lines.reduce((jumlah, line) => jumlah + line.amount, 0),
+    total,
+    baseTotal,
+    performanceTotal,
+    performanceShare: total > 0 ? performanceTotal / total : 0,
   };
+}
+
+/**
+ * Kalimat pendek tentang dari mana sebagian besar koinnya datang.
+ *
+ * Angka bagian performa sendiri tidak berarti apa-apa bagi pemain — "0,62"
+ * bukan kabar. Yang berarti adalah apa yang angka itu katakan tentang
+ * pertandingannya barusan, dan itulah yang membuat pemain tahu apa yang
+ * sebaiknya ia kejar di pertandingan berikutnya.
+ */
+export function performanceSentence(reward: MatchCoinReward): string {
+  if (reward.total <= 0) return "";
+  if (reward.performanceTotal <= 0) {
+    return "Seluruh koin ini datang dari menyelesaikan pertandingan. Kill dan ronde yang dimenangkan membayar tambahan.";
+  }
+
+  const persen = Math.round(reward.performanceShare * 100);
+  if (persen >= 60) {
+    return `${persen} persen koin ini datang dari cara kamu bermain, bukan dari sekadar menyelesaikan pertandingan.`;
+  }
+  return `${persen} persen koin ini datang dari cara kamu bermain — masih ada ruang untuk menaikkannya.`;
 }
