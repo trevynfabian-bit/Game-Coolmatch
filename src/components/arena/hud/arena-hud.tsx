@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { AmmoPanel } from "@/components/arena/hud/ammo-panel";
+import { CoinCounter } from "@/components/arena/hud/coin-counter";
 import { ControlHints } from "@/components/arena/hud/control-hints";
 import { DamageNumbers } from "@/components/arena/hud/damage-numbers";
 import { DamageVignette } from "@/components/arena/hud/damage-vignette";
@@ -120,6 +121,14 @@ export function ArenaHud({
         <StanceBadge />
         <VitalsPanel fighter={local} weapon={weapon} round={activeRound} />
         <AmmoPanel weapon={weapon} />
+        {/*
+          Saldo koin tidak ditampilkan pada pertandingan uji coba. Uji coba
+          memang tidak mengubah progres apa pun, jadi saldo yang terpampang di
+          sana adalah angka yang dijamin tidak bergerak — dan angka yang tidak
+          pernah bergerak di tengah pertandingan hanya mengajari pemain untuk
+          berhenti memperhatikannya.
+        */}
+        {isTrial ? null : <CoinCounter />}
         <WeaponSlots />
         <MatchInfoStrip match={match} />
         <FpsMeter />

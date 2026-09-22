@@ -1,4 +1,4 @@
-import type { CoinEntry } from "@/lib/game/wallet";
+import { walletBalance, type CoinEntry } from "@/lib/game/wallet";
 
 /**
  * Riwayat koin tiruan.
@@ -88,3 +88,14 @@ export const MOCK_COIN_ENTRIES: CoinEntry[] = [
     note: "Tujuh kill beruntun",
   },
 ];
+
+/**
+ * Saldo koin tiruan, DIJUMLAHKAN dari riwayat di atas — bukan ditulis sebagai
+ * angka tersendiri.
+ *
+ * Menu utama, HUD arena, dan halaman dompet membaca satu angka yang sama dari
+ * sini. Kalau masing-masing menulis angkanya sendiri, cepat atau lambat menu
+ * akan menjanjikan saldo yang berbeda dari yang tertulis di dompet, dan pemain
+ * tidak punya cara tahu yang mana yang benar.
+ */
+export const MOCK_COIN_BALANCE = walletBalance(MOCK_COIN_ENTRIES);

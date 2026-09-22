@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MenuProgress } from "@/components/menu/menu-progress";
+import { MenuWallet } from "@/components/menu/menu-wallet";
 import { PlayerStatus } from "@/components/menu/player-status";
 
 /** Tujuan sekunder menu, diurutkan mengikuti urutan pemain menyiapkannya. */
@@ -77,6 +78,7 @@ export default function Home() {
           turun demi angka yang tidak menghalangi siapa pun.
         */}
         <MenuProgress />
+        <MenuWallet />
       </div>
     </main>
   );
