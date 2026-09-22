@@ -1,14 +1,9 @@
 import { CoinBalance } from "@/components/wallet/coin-balance";
-import { CoinEntryRow } from "@/components/wallet/coin-entry-row";
+import { CoinLedger } from "@/components/wallet/coin-ledger";
 import { StatTile } from "@/components/scoreboard/stat-tile";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
-import { formatMatchDate, formatMatchTime } from "@/lib/game/scoreboard";
-import {
-  formatCoins,
-  ledgerDays,
-  signedCoins,
-  walletSummary,
-} from "@/lib/game/wallet";
+import { formatMatchTime } from "@/lib/game/scoreboard";
+import { formatCoins, walletSummary } from "@/lib/game/wallet";
 import { MOCK_COIN_ENTRIES } from "@/lib/mock/wallet";
 
 /**
@@ -29,7 +24,6 @@ import { MOCK_COIN_ENTRIES } from "@/lib/mock/wallet";
 export function WalletScreen() {
   const entries = MOCK_COIN_ENTRIES;
   const summary = walletSummary(entries);
-  const days = ledgerDays(entries);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8">
@@ -84,49 +78,13 @@ export function WalletScreen() {
           Riwayat transaksi
         </h2>
 
-        {days.length === 0 ? (
-          /*
-            Dompet kosong bukan keadaan galat, jadi ia tidak diperlakukan
-            seperti galat. Yang dibutuhkan pemain di sini bukan permintaan maaf
-            melainkan arah: koin pertamanya datang dari pertandingan pertama.
-          */
-          <div className="rounded-lg border border-white/10 bg-slate-900/40 px-4 py-6 text-center">
-            <p className="text-sm text-slate-300">Belum ada koin yang masuk.</p>
-            <p className="mt-1 text-[11px] text-slate-500">
-              Selesaikan satu pertandingan untuk mendapatkan koin pertamamu.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            {days.map((day) => (
-              <div key={day.key}>
-                {/*
-                  Selisih harian ikut ditulis di kepala tiap hari. Pemain
-                  mengingat koinnya dalam satuan sesi bermain — "tadi malam aku
-                  dapat berapa" — bukan dalam satuan transaksi.
-                */}
-                <div className="flex items-baseline justify-between gap-2">
-                  <h3 className="text-[11px] text-slate-400">
-                    {formatMatchDate(day.at)}
-                  </h3>
-                  <p
-                    className={`font-mono text-[11px] font-semibold tabular-nums ${
-                      day.net < 0 ? "text-rose-300/80" : "text-emerald-300/80"
-                    }`}
-                  >
-                    {signedCoins(day.net)}
-                  </p>
-                </div>
-
-                <ul className="mt-1 rounded-lg border border-white/10 bg-slate-900/40 px-4">
-                  {day.rows.map((row) => (
-                    <CoinEntryRow key={row.id} row={row} />
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        )}
+        {/*
+          Daftarnya sendiri berjalan di browser — ia punya saringan dan bisa
+          dipanjangkan — sementara saldo dan ikhtisar di atasnya tetap
+          terprerender. Pemain yang membuka halaman ini untuk melihat saldonya
+          tidak perlu menunggu berkas skrip apa pun.
+        */}
+        <CoinLedger entries={entries} />
 
         <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
           Angka kecil di bawah tiap jumlah adalah{" "}

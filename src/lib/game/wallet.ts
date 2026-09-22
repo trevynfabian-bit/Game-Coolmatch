@@ -175,6 +175,22 @@ export function ledgerRows(entries: readonly CoinEntry[]): LedgerRow[] {
   return rows.reverse();
 }
 
+/** Arah transaksi yang sedang dilihat pemain. */
+export type LedgerFilter = "semua" | "masuk" | "keluar";
+
+export const LEDGER_FILTER_LABEL: Record<LedgerFilter, string> = {
+  semua: "Semua",
+  masuk: "Masuk",
+  keluar: "Keluar",
+};
+
+/** Benar bila baris ini lolos saringan arah. */
+export function passesFilter(row: CoinEntry, filter: LedgerFilter): boolean {
+  if (filter === "masuk") return row.amount > 0;
+  if (filter === "keluar") return row.amount < 0;
+  return true;
+}
+
 export interface LedgerDay {
   /** Kunci hari, dipakai sebagai key daftar. */
   key: string;
@@ -204,11 +220,22 @@ const KUNCI_HARI = new Intl.DateTimeFormat("en-CA", {
  * selisih hariannya menjawab pertanyaan itu langsung, tanpa ia perlu
  * menjumlahkan sendiri lima baris yang berdempetan.
  */
-export function ledgerDays(entries: readonly CoinEntry[]): LedgerDay[] {
+export function ledgerDays(
+  entries: readonly CoinEntry[],
+  filter: LedgerFilter = "semua",
+): LedgerDay[] {
   const days: LedgerDay[] = [];
   const index = new Map<string, LedgerDay>();
 
+  /*
+    Saldo berjalannya dihitung dari SELURUH riwayat lebih dulu, baru barisnya
+    disaring. Menyaring lebih dulu lalu menjumlahkan sisanya menghasilkan
+    angka yang tampak masuk akal tetapi bohong: melihat "hanya pengeluaran"
+    akan membacakan saldo yang terus menurun dari nol, seolah pemain tidak
+    pernah mendapat koin sama sekali.
+  */
   for (const row of ledgerRows(entries)) {
+    if (!passesFilter(row, filter)) continue;
     const key = KUNCI_HARI.format(new Date(row.at));
     let day = index.get(key);
     if (!day) {
