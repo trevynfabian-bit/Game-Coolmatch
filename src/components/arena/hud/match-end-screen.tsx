@@ -9,9 +9,12 @@ import {
   scoreRowFromFighter,
 } from "@/components/scoreboard/score-row";
 import { PlayerStatTiles } from "@/components/scoreboard/stat-tile";
+import { CoinRewardPanel } from "@/components/wallet/coin-reward-panel";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { WinnerIndicator } from "@/components/scoreboard/winner-indicator";
+import { matchCoinReward } from "@/lib/game/coin-reward";
 import { restartMatch } from "@/lib/game/match-reset";
+import { MOCK_COIN_BALANCE } from "@/lib/mock/wallet";
 import {
   findTiedLeaders,
   formatDuration,
@@ -218,6 +221,31 @@ export function MatchEndScreen({
               deaths={local.deaths}
               ratio={killRatio(local.kills, local.deaths)}
               score={local.score}
+            />
+          </div>
+        ) : null}
+
+        {/*
+          Koin berdiri tepat di bawah perolehan pemain, bukan di bawah tabel
+          klasemen. Urutannya mengikuti pertanyaan yang muncul di kepala
+          pemain: aku bermain sebagus apa, lalu aku dapat apa dari itu.
+          Menaruhnya sesudah tabel enam kolom berarti sebagian pemain tidak
+          pernah sampai ke sana.
+
+          Sumber saldonya masih data tiruan. Ketika layer backend siap, yang
+          berubah hanya dari mana saldo sebelumnya dibaca dan ke mana
+          perolehan ini dicatat — rinciannya sudah dihitung dari fakta
+          pertandingan yang sungguhan sejak sekarang.
+        */}
+        {local && !isTrial ? (
+          <div className="mt-6">
+            <CoinRewardPanel
+              reward={matchCoinReward({
+                result: matchResult,
+                kills: local.kills,
+                roundWins: local.roundWins,
+              })}
+              balanceBefore={MOCK_COIN_BALANCE}
             />
           </div>
         ) : null}
