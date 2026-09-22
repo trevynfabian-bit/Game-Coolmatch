@@ -80,6 +80,7 @@ export function ArenaHud({
   const matchResult = useMatchStore((state) => state.matchResult);
   const startedAt = useMatchStore((state) => state.startedAt);
   const endedAt = useMatchStore((state) => state.endedAt);
+  const generation = useMatchStore((state) => state.generation);
 
   // Sebelum store terisi pada render pertama, jatuh ke potret pertandingan
   // supaya HUD tidak pernah kosong sekejap.
@@ -148,6 +149,13 @@ export function ArenaHud({
 
       <MatchEndScreen
         isTrial={isTrial}
+        /*
+          Kunci pertandingan menggabungkan id dan generasinya. Id sendiri tidak
+          berganti saat pemain menekan "Main lagi", jadi memakainya sendirian
+          berarti pertandingan kedua dianggap pertandingan yang sudah dibayar
+          dan koinnya tidak pernah masuk.
+        */
+        matchKey={`${match.matchId}-g${generation}`}
         round={activeRound}
         fighters={fighters.length > 0 ? fighters : match.fighters}
         map={match.map}

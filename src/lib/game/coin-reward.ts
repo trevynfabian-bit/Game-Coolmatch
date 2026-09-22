@@ -1,4 +1,4 @@
-import type { CoinReason } from "@/lib/game/wallet";
+import type { CoinEntry, CoinReason } from "@/lib/game/wallet";
 import type { MatchResult } from "@/types/game";
 
 /**
@@ -189,6 +189,54 @@ export function matchCoinReward(facts: MatchCoinFacts): MatchCoinReward {
     performanceTotal,
     performanceShare: total > 0 ? performanceTotal / total : 0,
   };
+}
+
+/**
+ * Perolehan sebuah pertandingan sebagai BARIS RIWAYAT dompet.
+ *
+ * Satu baris per sebab, bukan satu baris gabungan. Pemain baru saja membaca
+ * rinciannya di layar akhir pertandingan — "Bonus kill 70", "Bonus ronde 60" —
+ * dan membuka dompet untuk menemukan satu baris "+250 Hasil pertandingan"
+ * berarti rincian yang tadi ditunjukkan kepadanya ternyata tidak disimpan di
+ * mana pun. Sebabnya juga sudah memakai kosakata riwayat sejak awal, jadi
+ * tidak ada yang perlu diterjemahkan di sini.
+ *
+ * Seluruh baris memakai waktu yang sama karena memang satu kejadian yang sama,
+ * jadi urutannya di dalam riwayat sepenuhnya ditentukan idnya. Nomornya
+ * sengaja MENURUN: riwayat dibaca dari yang terbaru, sehingga id yang paling
+ * besar muncul paling atas. Yang harus berdiri di atas adalah imbalan dasar —
+ * baris itulah yang membawa catatan "Menang di Gudang Tua", dan membacanya
+ * sesudah tiga baris bonus tanpa keterangan berarti membaca satu pertandingan
+ * secara terbalik.
+ */
+export function rewardEntries(
+  reward: MatchCoinReward,
+  meta: {
+    /** Kunci pertandingan; menjadi awalan id tiap barisnya. */
+    matchKey: string;
+    /** Epoch milidetik saat pertandingan ditutup. */
+    at: number;
+    /** Keterangan pertandingannya, misalnya "Menang di Gudang Tua". */
+    note?: string;
+  },
+): CoinEntry[] {
+  return reward.lines.map((line, index) => {
+    const nomor = reward.lines.length - index;
+    const entry: CoinEntry = {
+      id: `${meta.matchKey}-${String(nomor).padStart(2, "0")}`,
+      at: meta.at,
+      amount: line.amount,
+      reason: line.reason,
+    };
+    /*
+      Catatannya hanya di baris pertama. Menempelkan "Menang di Gudang Tua" ke
+      keempat barisnya membuat riwayat mengulang kalimat yang sama empat kali
+      berturut-turut, dan yang tenggelam justru keterangan tiap baris yang
+      benar-benar berbeda.
+    */
+    if (index === 0 && meta.note) entry.note = meta.note;
+    return entry;
+  });
 }
 
 /**

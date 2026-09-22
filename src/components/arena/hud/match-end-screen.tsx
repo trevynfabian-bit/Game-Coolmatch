@@ -9,12 +9,10 @@ import {
   scoreRowFromFighter,
 } from "@/components/scoreboard/score-row";
 import { PlayerStatTiles } from "@/components/scoreboard/stat-tile";
-import { CoinRewardPanel } from "@/components/wallet/coin-reward-panel";
+import { MatchCoinSummary } from "@/components/wallet/match-coin-summary";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { WinnerIndicator } from "@/components/scoreboard/winner-indicator";
-import { matchCoinReward } from "@/lib/game/coin-reward";
 import { restartMatch } from "@/lib/game/match-reset";
-import { MOCK_COIN_BALANCE } from "@/lib/mock/wallet";
 import {
   findTiedLeaders,
   formatDuration,
@@ -33,6 +31,23 @@ import type {
 const RESULT_LABEL: Record<MatchResult, string> = {
   menang: "Kamu menang",
   kalah: "Kamu kalah",
+  seri: "Seri",
+  ditinggal: "Ditinggalkan",
+};
+
+/**
+ * Hasil yang sama, tetapi untuk baris riwayat dompet — bukan untuk layar ini.
+ *
+ * Tabelnya terpisah dari RESULT_LABEL karena keduanya berbicara kepada pembaca
+ * yang berbeda. "Kamu menang" ditujukan kepada pemain yang baru saja selesai
+ * bertanding; baris dompet dibaca berhari-hari kemudian, berjejer dengan
+ * belasan baris lain, dan di sana yang dibutuhkan adalah keterangan yang
+ * berdiri sendiri: "Menang di Gudang Tua" menjelaskan dirinya, "Kamu menang"
+ * justru menimbulkan pertanyaan menang di mana.
+ */
+const RESULT_NOTE: Record<MatchResult, string> = {
+  menang: "Menang",
+  kalah: "Kalah",
   seri: "Seri",
   ditinggal: "Ditinggalkan",
 };
@@ -65,6 +80,7 @@ export function MatchEndScreen({
   startedAt,
   endedAt,
   isTrial = false,
+  matchKey,
 }: {
   round: RoundState;
   fighters: Fighter[];
@@ -90,6 +106,11 @@ export function MatchEndScreen({
    * penuh yang aneh pendeknya.
    */
   isTrial?: boolean;
+  /**
+   * Kunci pertandingan ini, dipakai dompet untuk memastikan koinnya hanya
+   * dibayarkan sekali. Dioper dari ArenaHud bersama data lainnya.
+   */
+  matchKey: string;
 }) {
   const ranked = useMemo(
     () =>
@@ -232,20 +253,27 @@ export function MatchEndScreen({
           Menaruhnya sesudah tabel enam kolom berarti sebagian pemain tidak
           pernah sampai ke sana.
 
-          Sumber saldonya masih data tiruan. Ketika layer backend siap, yang
-          berubah hanya dari mana saldo sebelumnya dibaca dan ke mana
-          perolehan ini dicatat — rinciannya sudah dihitung dari fakta
-          pertandingan yang sungguhan sejak sekarang.
+          Koinnya benar-benar masuk ke dompet di sini, bukan sekadar
+          diumumkan: angka yang muncul di layar ini adalah angka yang sama
+          yang akan dibaca pemain di menu utama dan di halaman dompet
+          sesudahnya. Riwayat awalnya masih data tiruan dan perolehan sesi ini
+          belum disimpan ke mana pun; ketika layer backend siap, yang berubah
+          hanya tempat penyimpanannya — perhitungan dan rinciannya sudah
+          dihitung dari fakta pertandingan yang sungguhan sejak sekarang.
+
+          Pertandingan uji coba tidak dipasangi ringkasan ini sama sekali,
+          bukan dipasang lalu dikosongkan. Komponen yang tidak terpasang tidak
+          punya cara membayarkan koin apa pun.
         */}
         {local && !isTrial ? (
           <div className="mt-6">
-            <CoinRewardPanel
-              reward={matchCoinReward({
-                result: matchResult,
-                kills: local.kills,
-                roundWins: local.roundWins,
-              })}
-              balanceBefore={MOCK_COIN_BALANCE}
+            <MatchCoinSummary
+              matchKey={matchKey}
+              result={matchResult}
+              kills={local.kills}
+              roundWins={local.roundWins}
+              endedAt={endedAt}
+              note={`${matchResult ? RESULT_NOTE[matchResult] : "Bertanding"} di ${map.name}`}
             />
           </div>
         ) : null}

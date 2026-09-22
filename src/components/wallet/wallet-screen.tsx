@@ -1,10 +1,12 @@
+"use client";
+
 import { CoinBalance } from "@/components/wallet/coin-balance";
 import { CoinLedger } from "@/components/wallet/coin-ledger";
 import { StatTile } from "@/components/scoreboard/stat-tile";
 import { ActionButton, ActionRow } from "@/components/ui/action-button";
 import { formatMatchTime } from "@/lib/game/scoreboard";
 import { formatCoins, walletSummary } from "@/lib/game/wallet";
-import { MOCK_COIN_ENTRIES } from "@/lib/mock/wallet";
+import { useCoinEntries } from "@/lib/store/wallet-store";
 
 /**
  * Halaman Dompet Koin: berapa koin yang dimiliki pemain, dan dari mana
@@ -17,12 +19,19 @@ import { MOCK_COIN_ENTRIES } from "@/lib/mock/wallet";
  * baris riwayat ikut menyebutkan saldo sesudahnya: baris teratas selalu sama
  * persis dengan angka besar di kepala halaman.
  *
- * Sumber datanya masih tiruan. Saat layer backend siap, riwayatnya diambil
- * dari tabel transaksi koin — bentuk yang dibaca halaman ini tidak berubah,
- * sebab saldonya memang sudah dijumlahkan dari riwayat sejak sekarang.
+ * Riwayat awalnya masih tiruan, tetapi pertandingan yang benar-benar dimainkan
+ * sesi ini sudah masuk ke dalamnya: pemain yang baru menang lalu membuka
+ * halaman ini menemukan baris pertandingannya di paling atas, dengan saldo
+ * yang sudah bertambah. Saat layer backend siap, riwayatnya diambil dari tabel
+ * transaksi koin — bentuk yang dibaca halaman ini tidak berubah, sebab
+ * saldonya memang sudah dijumlahkan dari riwayat sejak sekarang.
+ *
+ * Halaman ini berjalan di browser karena riwayatnya hidup, dan itu tetap aman:
+ * perolehan sesi mulai dari kosong di server maupun di browser, jadi hasil
+ * prerender dan hasil hidrasi sama persis.
  */
 export function WalletScreen() {
-  const entries = MOCK_COIN_ENTRIES;
+  const entries = useCoinEntries();
   const summary = walletSummary(entries);
 
   return (
@@ -79,10 +88,10 @@ export function WalletScreen() {
         </h2>
 
         {/*
-          Daftarnya sendiri berjalan di browser — ia punya saringan dan bisa
-          dipanjangkan — sementara saldo dan ikhtisar di atasnya tetap
-          terprerender. Pemain yang membuka halaman ini untuk melihat saldonya
-          tidak perlu menunggu berkas skrip apa pun.
+          Daftarnya dipisah sebagai komponennya sendiri karena ia menyimpan
+          keadaan: saringan arah dan berapa hari yang sudah dibuka. Halaman ini
+          hanya perlu tahu riwayatnya, bukan bagian mana darinya yang sedang
+          dilihat pemain.
         */}
         <CoinLedger entries={entries} />
 

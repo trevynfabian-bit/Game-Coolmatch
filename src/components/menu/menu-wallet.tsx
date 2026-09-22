@@ -1,7 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { CoinChip } from "@/components/wallet/coin-balance";
 import { walletSummary } from "@/lib/game/wallet";
-import { MOCK_COIN_BALANCE, MOCK_COIN_ENTRIES } from "@/lib/mock/wallet";
+import { useCoinBalance, useCoinEntries } from "@/lib/store/wallet-store";
 
 /**
  * Saldo koin di kaki menu utama.
@@ -15,12 +17,20 @@ import { MOCK_COIN_BALANCE, MOCK_COIN_ENTRIES } from "@/lib/mock/wallet";
  * sebelahnya: angka yang menimbulkan pertanyaan sebaiknya berdiri tepat di
  * atas jawabannya.
  *
- * Sama seperti kartu progres, bagian ini belum perlu berjalan di browser —
- * sumbernya masih data tiruan yang sama untuk semua orang, jadi hasil
- * prerender dan hasil hidrasi pasti sama.
+ * Angkanya harus HIDUP, dan itu sebabnya bagian ini berjalan di browser:
+ * pemain yang baru saja menyelesaikan pertandingan lalu kembali ke menu harus
+ * melihat saldo yang sudah bertambah. Saldo yang kembali ke angka lama begitu
+ * ia keluar dari arena terbaca sebagai koin yang hilang.
+ *
+ * Hidrasinya tetap aman tanpa penanda apa pun: perolehan sesi mulai dari
+ * kosong baik di server maupun di browser, jadi render pertama keduanya sama
+ * persis. Angkanya baru berubah sesudah sebuah pertandingan usai, dan pada
+ * saat itu tidak ada lagi hasil render server yang perlu dicocokkan.
  */
 export function MenuWallet() {
-  const summary = walletSummary(MOCK_COIN_ENTRIES);
+  const entries = useCoinEntries();
+  const summary = walletSummary(entries);
+  const balance = useCoinBalance();
 
   return (
     <Link
@@ -44,7 +54,7 @@ export function MenuWallet() {
           koin sejauh ini
         </span>
       </span>
-      <CoinChip balance={MOCK_COIN_BALANCE} />
+      <CoinChip balance={balance} />
     </Link>
   );
 }
