@@ -10,6 +10,7 @@ const DESTINATIONS = [
   { href: "/latihan", label: "Latihan" },
   { href: "/uji", label: "Coba di Arena" },
   { href: "/koleksi", label: "Koleksi" },
+  { href: "/dompet", label: "Dompet" },
   { href: "/skor", label: "Papan Skor" },
   { href: "/profil", label: "Profil" },
   { href: "/pengaturan", label: "Pengaturan" },

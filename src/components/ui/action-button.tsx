@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import type { MouseEvent, ReactNode } from "react";
 
@@ -48,6 +50,12 @@ export type ActionSize = keyof typeof SIZE;
  * menu" dari layar jeda justru melanjutkan pertandingan alih-alih keluar
  * darinya. Itu detail yang mudah terlupa saat menambah tombol baru, jadi
  * ditaruh di sini sekali untuk semuanya; di halaman biasa ia tidak berpengaruh.
+ *
+ * Karena penghentian itu, tombol ini SELALU memasang penyimak klik — jadi ia
+ * memang komponen klien, dan ditandai begitu. Tanpa penanda itu ia hanya bisa
+ * dipakai dari komponen yang sudah klien, dan halaman biasa yang memakainya
+ * gagal dibangun dengan pesan yang menunjuk pemanggilnya alih-alih sebabnya
+ * yang sebenarnya.
  */
 export function ActionButton({
   href,
