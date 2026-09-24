@@ -622,6 +622,32 @@ export const matchKillEvents = sqliteTable(
   ],
 );
 
+/**
+ * Preferensi audio pemain, satu baris per pemain. Volume disimpan sebagai
+ * persen bulat 0..100 (klien memakai 0..1) supaya perbandingan dan batasnya
+ * tegas di tingkat database.
+ */
+export const playerAudioSettings = sqliteTable(
+  "player_audio_settings",
+  {
+    playerId: integer("player_id")
+      .primaryKey()
+      .references(() => players.id, { onDelete: "cascade" }),
+    masterPercent: integer("master_percent").notNull().default(80),
+    sfxPercent: integer("sfx_percent").notNull().default(90),
+    musicPercent: integer("music_percent").notNull().default(50),
+    uiPercent: integer("ui_percent").notNull().default(70),
+    muted: integer("muted", { mode: "boolean" }).notNull().default(false),
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (table) => [
+    check(
+      "player_audio_settings_rentang_volume",
+      sql`${table.masterPercent} BETWEEN 0 AND 100 AND ${table.sfxPercent} BETWEEN 0 AND 100 AND ${table.musicPercent} BETWEEN 0 AND 100 AND ${table.uiPercent} BETWEEN 0 AND 100`,
+    ),
+  ],
+);
+
 /** Jenis notifikasi hadiah; sama dengan `RewardNotificationKind` di klien. */
 export const REWARD_NOTIFICATION_KINDS = ["koin", "skin", "upgrade", "hadiah", "senjata"] as const;
 
@@ -689,3 +715,4 @@ export type NewRewardNotificationRow = typeof rewardNotifications.$inferInsert;
 export type MatchKillEventRow = typeof matchKillEvents.$inferSelect;
 export type WeaponRow = typeof weapons.$inferSelect;
 export type PlayerLoadoutRow = typeof playerLoadouts.$inferSelect;
+export type PlayerAudioSettingsRow = typeof playerAudioSettings.$inferSelect;
