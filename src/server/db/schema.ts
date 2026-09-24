@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   sqliteTable,
@@ -152,6 +153,85 @@ export const matchScores = sqliteTable(
   ],
 );
 
+/**
+ * Dompet koin pemain: satu baris per pemain berisi saldo saat ini.
+ *
+ * Saldo disimpan sebagai angka jadi (bukan dijumlah ulang dari riwayat tiap
+ * kali dibaca) supaya menu utama dan HUD cukup membaca satu baris. Kebenarannya
+ * dijaga dengan selalu mengubah saldo dan menulis `coin_transactions` di dalam
+ * transaksi database yang sama. CHECK memastikan saldo tidak pernah minus
+ * walau ada pembelian yang berlomba.
+ */
+export const coinWallets = sqliteTable(
+  "coin_wallets",
+  {
+    playerId: integer("player_id")
+      .primaryKey()
+      .references(() => players.id, { onDelete: "cascade" }),
+    balance: integer("balance").notNull().default(0),
+    /** Total koin yang pernah masuk, untuk statistik dan syarat buka hadiah. */
+    lifetimeEarned: integer("lifetime_earned").notNull().default(0),
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (table) => [check("coin_wallets_saldo_positif", sql`${table.balance} >= 0`)],
+);
+
+/**
+ * Jenis mutasi koin. `pertandingan` dan `bonus_*` adalah koin masuk dari hasil
+ * main; `beli_*` adalah koin keluar di toko; `koreksi` disediakan untuk
+ * penyesuaian manual yang tetap harus tercatat.
+ */
+export const COIN_TRANSACTION_KINDS = [
+  "pertandingan",
+  "bonus_kill",
+  "bonus_ronde",
+  "bonus_killstreak",
+  "beli_upgrade",
+  "beli_attachment",
+  "beli_skin",
+  "buka_hadiah",
+  "koreksi",
+] as const;
+
+/**
+ * Riwayat setiap koin masuk dan keluar. `amount` bertanda: positif untuk
+ * masuk, negatif untuk keluar, sehingga jumlah seluruh baris seorang pemain
+ * selalu sama dengan saldonya. `balanceAfter` menyimpan saldo setelah mutasi
+ * supaya riwayat bisa dibaca tanpa menjumlah ulang.
+ *
+ * `sourceType` + `sourceId` menunjuk asal-usulnya (mis. "match" + id
+ * pertandingan, "skin" + id skin). Indeks unik parsial atas pasangan
+ * (pemain, jenis, sumber) mencegah hadiah pertandingan yang sama tercatat dua
+ * kali bila permintaan sempat terkirim ulang.
+ */
+export const coinTransactions = sqliteTable(
+  "coin_transactions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: COIN_TRANSACTION_KINDS }).notNull(),
+    amount: integer("amount").notNull(),
+    balanceAfter: integer("balance_after").notNull(),
+    sourceType: text("source_type"),
+    sourceId: text("source_id"),
+    /** Keterangan singkat untuk dibaca pemain, mis. "Menang di Gudang Senja". */
+    note: text("note").notNull().default(""),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (table) => [
+    index("coin_transactions_pemain_waktu_idx").on(
+      table.playerId,
+      table.createdAt,
+    ),
+    uniqueIndex("coin_transactions_sumber_unik")
+      .on(table.playerId, table.kind, table.sourceType, table.sourceId)
+      .where(sql`${table.sourceId} IS NOT NULL`),
+    check("coin_transactions_bukan_nol", sql`${table.amount} <> 0`),
+  ],
+);
+
 export type PlayerRow = typeof players.$inferSelect;
 export type MapRow = typeof maps.$inferSelect;
 export type MatchRow = typeof matches.$inferSelect;
@@ -160,3 +240,8 @@ export type MatchRoundRow = typeof matchRounds.$inferSelect;
 export type NewMatchRoundRow = typeof matchRounds.$inferInsert;
 export type MatchScoreRow = typeof matchScores.$inferSelect;
 export type NewMatchScoreRow = typeof matchScores.$inferInsert;
+
+export type CoinWalletRow = typeof coinWallets.$inferSelect;
+export type CoinTransactionRow = typeof coinTransactions.$inferSelect;
+export type NewCoinTransactionRow = typeof coinTransactions.$inferInsert;
+export type CoinTransactionKind = (typeof COIN_TRANSACTION_KINDS)[number];
