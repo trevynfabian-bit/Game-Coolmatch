@@ -2,6 +2,7 @@
 
 import { SettingsShell } from "@/components/settings/settings-shell";
 import { VolumeSlider } from "@/components/settings/volume-slider";
+import { playExplosion, playGunshot, playHitConfirm } from "@/lib/audio/sfx";
 import { useSettingsStore } from "@/lib/store/settings-store";
 
 /**
@@ -40,6 +41,7 @@ export function AudioSettingsPage() {
           value={audio.master}
           disabled={audio.muted}
           onChange={(master) => setAudio({ master })}
+          onTest={() => playExplosion(0.8)}
         />
         <VolumeSlider
           label="Efek suara"
@@ -47,6 +49,7 @@ export function AudioSettingsPage() {
           value={audio.sfx}
           disabled={audio.muted}
           onChange={(sfx) => setAudio({ sfx })}
+          onTest={() => playGunshot("rifle")}
         />
         <VolumeSlider
           label="Musik"
@@ -61,6 +64,7 @@ export function AudioSettingsPage() {
           value={audio.ui}
           disabled={audio.muted}
           onChange={(ui) => setAudio({ ui })}
+          onTest={() => playHitConfirm("kill")}
         />
       </div>
 

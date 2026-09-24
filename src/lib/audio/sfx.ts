@@ -1,33 +1,12 @@
+import { channel } from "@/lib/audio/engine";
+
 /**
  * Efek suara prosedural dengan Web Audio API — tanpa berkas audio.
  *
- * Konteks audio dibuat malas pada panggilan pertama; browser hanya mengizinkan
- * suara sesudah gerakan pengguna, dan arena selalu diawali klik untuk mengunci
- * kursor, jadi pada saat efek pertama diputar konteks sudah boleh berbunyi.
+ * Setiap bunyi disambungkan ke bus kanalnya di mesin audio (lib/audio/engine),
+ * sehingga volume dari pengaturan berlaku otomatis. Sebelum audio dibuka oleh
+ * gestur pertama pemain, panggilan bunyi diabaikan tanpa galat.
  */
-
-let context: AudioContext | null = null;
-let noise: AudioBuffer | null = null;
-
-function audio(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!context) {
-    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return null;
-    context = new Ctor();
-  }
-  if (context.state === "suspended") void context.resume();
-  return context;
-}
-
-function noiseBuffer(ctx: AudioContext): AudioBuffer {
-  if (noise) return noise;
-  const length = ctx.sampleRate * 1.5;
-  noise = ctx.createBuffer(1, length, ctx.sampleRate);
-  const data = noise.getChannelData(0);
-  for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
-  return noise;
-}
 
 /**
  * Dentuman ledakan: derau yang disaring lolos-rendah dan meluruh, ditambah
@@ -35,17 +14,18 @@ function noiseBuffer(ctx: AudioContext): AudioBuffer {
  * untuk meredam ledakan yang jauh.
  */
 export function playExplosion(volume = 1): void {
-  const ctx = audio();
-  if (!ctx || volume <= 0.01) return;
+  const bus = channel("sfx");
+  if (!bus || volume <= 0.01) return;
+  const ctx = bus.context;
   const now = ctx.currentTime;
 
   const master = ctx.createGain();
   master.gain.setValueAtTime(Math.min(1, volume) * 0.9, now);
   master.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
-  master.connect(ctx.destination);
+  master.connect(bus.out);
 
   const source = ctx.createBufferSource();
-  source.buffer = noiseBuffer(ctx);
+  source.buffer = bus.noise;
   const filter = ctx.createBiquadFilter();
   filter.type = "lowpass";
   filter.frequency.setValueAtTime(1400, now);
@@ -68,11 +48,12 @@ export function playExplosion(volume = 1): void {
 
 /** Desing jet yang lewat di atas: derau lolos-pita yang frekuensinya menyapu turun. */
 export function playJetFlyby(volume = 0.6): void {
-  const ctx = audio();
-  if (!ctx) return;
+  const bus = channel("sfx");
+  if (!bus) return;
+  const ctx = bus.context;
   const now = ctx.currentTime;
   const source = ctx.createBufferSource();
-  source.buffer = noiseBuffer(ctx);
+  source.buffer = bus.noise;
   const filter = ctx.createBiquadFilter();
   filter.type = "bandpass";
   filter.Q.value = 2;
@@ -82,25 +63,26 @@ export function playJetFlyby(volume = 0.6): void {
   gain.gain.setValueAtTime(0.001, now);
   gain.gain.exponentialRampToValueAtTime(volume * 0.5, now + 0.5);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
-  source.connect(filter).connect(gain).connect(ctx.destination);
+  source.connect(filter).connect(gain).connect(bus.out);
   source.start(now);
   source.stop(now + 1.5);
 }
 
 /** Letupan senapan mesin pendek; dipakai helikopter dukungan. */
 export function playGunBurst(volume = 0.3): void {
-  const ctx = audio();
-  if (!ctx || volume <= 0.01) return;
+  const bus = channel("sfx");
+  if (!bus || volume <= 0.01) return;
+  const ctx = bus.context;
   const now = ctx.currentTime;
   const source = ctx.createBufferSource();
-  source.buffer = noiseBuffer(ctx);
+  source.buffer = bus.noise;
   const filter = ctx.createBiquadFilter();
   filter.type = "highpass";
   filter.frequency.value = 900;
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(volume, now);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-  source.connect(filter).connect(gain).connect(ctx.destination);
+  source.connect(filter).connect(gain).connect(bus.out);
   source.start(now, Math.random() * 0.5);
   source.stop(now + 0.09);
 }
@@ -116,18 +98,19 @@ const GUNSHOT_VOICE: Record<string, { cutoff: number; length: number; thump: num
 
 /** Letusan senjata pemain, dibedakan per jenis supaya tiap senjata terdengar khas. */
 export function playGunshot(type: string): void {
-  const ctx = audio();
-  if (!ctx) return;
+  const bus = channel("sfx");
+  if (!bus) return;
+  const ctx = bus.context;
   const voice = GUNSHOT_VOICE[type] ?? GUNSHOT_VOICE.rifle;
   const now = ctx.currentTime;
 
   const master = ctx.createGain();
   master.gain.setValueAtTime(voice.gain, now);
   master.gain.exponentialRampToValueAtTime(0.001, now + voice.length);
-  master.connect(ctx.destination);
+  master.connect(bus.out);
 
   const source = ctx.createBufferSource();
-  source.buffer = noiseBuffer(ctx);
+  source.buffer = bus.noise;
   const filter = ctx.createBiquadFilter();
   filter.type = "lowpass";
   filter.frequency.setValueAtTime(voice.cutoff, now);
@@ -150,8 +133,9 @@ export function playGunshot(type: string): void {
 
 /** "Tik" konfirmasi tembakan kena; lebih tinggi untuk kepala, dobel untuk kill. */
 export function playHitConfirm(kind: "badan" | "kepala" | "kill"): void {
-  const ctx = audio();
-  if (!ctx) return;
+  const bus = channel("ui");
+  if (!bus) return;
+  const ctx = bus.context;
   const now = ctx.currentTime;
   const tones = kind === "kill" ? [1320, 1760] : [kind === "kepala" ? 1560 : 1100];
   tones.forEach((frequency, index) => {
@@ -162,7 +146,7 @@ export function playHitConfirm(kind: "badan" | "kepala" | "kill"): void {
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.06, start);
     gain.gain.exponentialRampToValueAtTime(0.001, start + 0.07);
-    osc.connect(gain).connect(ctx.destination);
+    osc.connect(gain).connect(bus.out);
     osc.start(start);
     osc.stop(start + 0.08);
   });

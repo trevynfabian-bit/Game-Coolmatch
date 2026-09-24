@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AudioBootstrap } from "@/components/audio-bootstrap";
 import { RewardCelebration } from "@/components/notifications/reward-celebration";
 import { SessionBootstrap } from "@/components/session-bootstrap";
 import "./globals.css";
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full bg-slate-950 text-slate-100">
         <SessionBootstrap />
+        <AudioBootstrap />
         {children}
         <RewardCelebration />
       </body>
