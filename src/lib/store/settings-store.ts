@@ -106,7 +106,7 @@ export function sanitizeControls(value: unknown): ControlSettings {
   return { sensitivity, bindings: sanitizeBindings(raw.bindings) };
 }
 
-const STORAGE_KEY = "coolmatch:pengaturan";
+export const SETTINGS_STORAGE_KEY = "coolmatch:pengaturan";
 const STORAGE_VERSION = 3;
 
 function volume(value: unknown, fallback: number): number {
@@ -158,7 +158,7 @@ export const useSettingsStore = create<SettingsState>()(
       toggleMute: () => set((state) => ({ audio: { ...state.audio, muted: !state.audio.muted } })),
     }),
     {
-      name: STORAGE_KEY,
+      name: SETTINGS_STORAGE_KEY,
       version: STORAGE_VERSION,
       storage: createJSONStorage(() => localStorage),
       partialize: (state): StoredSettings => ({

@@ -3,12 +3,13 @@
 import { useEffect } from "react";
 import { applyAudioSettings, installUnlock } from "@/lib/audio/engine";
 import { MuteHotkey } from "@/components/settings/quick-audio-control";
+import { SettingsSync } from "@/components/settings/settings-sync";
 import { useSettingsStore } from "@/lib/store/settings-store";
 
 /**
  * Memasang mesin audio sekali di layout akar: menyimak gestur pertama untuk
  * membuka audio, menerapkan volume dari pengaturan setiap kali berubah, dan
- * memasang tombol M untuk bisukan.
+ * memasang tombol M untuk bisukan. Sekalian menyelaraskan pengaturan antartab.
  */
 export function AudioBootstrap() {
   useEffect(() => {
@@ -22,5 +23,10 @@ export function AudioBootstrap() {
       removeUnlock();
     };
   }, []);
-  return <MuteHotkey />;
+  return (
+    <>
+      <MuteHotkey />
+      <SettingsSync />
+    </>
+  );
 }

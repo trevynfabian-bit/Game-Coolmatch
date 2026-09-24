@@ -3,6 +3,7 @@
 import { ExitSession } from "@/components/arena/hud/exit-session";
 import { RoundRulesPanel } from "@/components/arena/hud/round-rules-panel";
 import { QuickAudioControl } from "@/components/settings/quick-audio-control";
+import { QuickGameSettings } from "@/components/settings/quick-game-settings";
 import { useControlHints } from "@/lib/game/use-keybindings";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
@@ -56,6 +57,7 @@ export function EngageOverlay({ mapName, trial = false }: { mapName: string; tri
         </dl>
 
         <QuickAudioControl />
+        <QuickGameSettings />
 
         {round.total > 0 ? <RoundRulesPanel round={round} /> : null}
       </div>

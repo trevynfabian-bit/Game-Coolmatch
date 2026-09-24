@@ -4,6 +4,8 @@ import { keepCursorFree } from "@/lib/game/keep-cursor-free";
 import Link from "next/link";
 import { AmmoPanel } from "@/components/arena/hud/ammo-panel";
 import { Crosshair } from "@/components/arena/hud/crosshair";
+import { QuickAudioControl } from "@/components/settings/quick-audio-control";
+import { QuickGameSettings } from "@/components/settings/quick-game-settings";
 import { useControlHints } from "@/lib/game/use-keybindings";
 import { RANGE_TARGETS } from "@/lib/practice/range-map";
 import { accuracyPercent, usePracticeStore } from "@/lib/store/practice-store";
@@ -130,6 +132,9 @@ function StartOverlay({ weapon }: { weapon: Weapon }) {
             Ganti senjata
           </Link>
         </div>
+
+        <QuickAudioControl />
+        <QuickGameSettings />
 
         <dl className="mx-auto mt-7 grid max-w-[18rem] grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-left">
           {hints.filter((hint) => hint.id !== "scoreboard" && hint.id !== "streaks").map((hint) => (
