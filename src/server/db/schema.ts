@@ -3,6 +3,7 @@ import {
   check,
   index,
   integer,
+  primaryKey,
   sqliteTable,
   text,
   uniqueIndex,
@@ -239,6 +240,101 @@ export const coinTransactions = sqliteTable(
   ],
 );
 
+/** Statistik senjata yang bisa ditingkatkan; sama dengan `UpgradeStat` di klien. */
+export const UPGRADE_STATS = ["damage", "accuracy", "reload"] as const;
+
+/** Slot attachment; sama dengan `AttachmentSlot` di klien. */
+export const ATTACHMENT_SLOTS = ["laras", "magasin", "pegangan", "bidikan"] as const;
+
+/**
+ * Katalog tingkat upgrade: satu baris per (senjata, statistik, tingkat).
+ *
+ * Sumber kebenarannya katalog di kode (`lib/economy/upgrade-catalog`); tabel
+ * ini salinannya yang diselaraskan server, supaya harga yang dibayar pemain
+ * bisa diaudit dan kunci asing kepemilikan sah.
+ */
+export const weaponUpgrades = sqliteTable(
+  "weapon_upgrades",
+  {
+    weaponId: text("weapon_id").notNull(),
+    stat: text("stat", { enum: UPGRADE_STATS }).notNull(),
+    level: integer("level").notNull(),
+    price: integer("price").notNull(),
+    /** Bonus kumulatif sampai tingkat ini, dalam persen. */
+    bonusPercent: integer("bonus_percent").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.weaponId, table.stat, table.level] }),
+    check("weapon_upgrades_harga_positif", sql`${table.price} > 0`),
+  ],
+);
+
+/** Katalog attachment, diselaraskan dari kode seperti `weapon_upgrades`. */
+export const attachments = sqliteTable(
+  "attachments",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    slot: text("slot", { enum: ATTACHMENT_SLOTS }).notNull(),
+    price: integer("price").notNull(),
+    /** Jenis senjata yang cocok, sebagai larik JSON. */
+    compatibleTypes: text("compatible_types", { mode: "json" }).$type<string[]>().notNull(),
+    /** Pengubah statistik dalam persen, sebagai objek JSON. */
+    modifiers: text("modifiers", { mode: "json" }).$type<Record<string, number>>().notNull(),
+  },
+  (table) => [check("attachments_harga_positif", sql`${table.price} > 0`)],
+);
+
+/**
+ * Tingkat upgrade yang sudah dibeli pemain per senjata dan statistik. Satu
+ * baris per pasangan; tingkatnya naik satu per satu saat pembelian.
+ */
+export const playerUpgrades = sqliteTable(
+  "player_upgrades",
+  {
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    weaponId: text("weapon_id").notNull(),
+    stat: text("stat", { enum: UPGRADE_STATS }).notNull(),
+    level: integer("level").notNull().default(0),
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (table) => [
+    primaryKey({ columns: [table.playerId, table.weaponId, table.stat] }),
+    check("player_upgrades_tingkat_sah", sql`${table.level} >= 0`),
+  ],
+);
+
+/**
+ * Attachment yang dimiliki pemain untuk satu senjata. Dibeli per senjata:
+ * peredam untuk Garuda AR tidak otomatis terpasang di Vektor.
+ *
+ * `slot` disalin dari katalog supaya indeks unik parsial bisa menjamin paling
+ * banyak SATU attachment terpasang per slot per senjata, langsung di database.
+ */
+export const playerAttachments = sqliteTable(
+  "player_attachments",
+  {
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    weaponId: text("weapon_id").notNull(),
+    attachmentId: text("attachment_id")
+      .notNull()
+      .references(() => attachments.id, { onDelete: "restrict" }),
+    slot: text("slot", { enum: ATTACHMENT_SLOTS }).notNull(),
+    isEquipped: integer("is_equipped", { mode: "boolean" }).notNull().default(false),
+    purchasedAt: integer("purchased_at").notNull().default(now),
+  },
+  (table) => [
+    primaryKey({ columns: [table.playerId, table.weaponId, table.attachmentId] }),
+    uniqueIndex("player_attachments_satu_per_slot")
+      .on(table.playerId, table.weaponId, table.slot)
+      .where(sql`${table.isEquipped} = 1`),
+  ],
+);
+
 export type PlayerRow = typeof players.$inferSelect;
 export type MapRow = typeof maps.$inferSelect;
 export type MatchRow = typeof matches.$inferSelect;
@@ -252,3 +348,8 @@ export type CoinWalletRow = typeof coinWallets.$inferSelect;
 export type CoinTransactionRow = typeof coinTransactions.$inferSelect;
 export type NewCoinTransactionRow = typeof coinTransactions.$inferInsert;
 export type CoinTransactionKind = (typeof COIN_TRANSACTION_KINDS)[number];
+
+export type WeaponUpgradeRow = typeof weaponUpgrades.$inferSelect;
+export type AttachmentRow = typeof attachments.$inferSelect;
+export type PlayerUpgradeRow = typeof playerUpgrades.$inferSelect;
+export type PlayerAttachmentRow = typeof playerAttachments.$inferSelect;

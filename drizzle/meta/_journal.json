@@ -22,6 +22,13 @@
       "when": 1790260165072,
       "tag": "0002_pertandingan_uji_coba",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790262159296,
+      "tag": "0003_upgrade_attachment",
+      "breakpoints": true
     }
   ]
 }
