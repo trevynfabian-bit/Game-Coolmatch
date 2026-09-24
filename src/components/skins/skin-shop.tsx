@@ -7,6 +7,7 @@ import { WalletBadge } from "@/components/economy/wallet-badge";
 import { ShopTabs } from "@/components/shop/shop-tabs";
 import { CountryCamoShowcase } from "@/components/skins/country-camo-showcase";
 import { FlagSwatch } from "@/components/skins/flag-swatch";
+import { SkinEquipControls } from "@/components/skins/skin-equip-controls";
 import { SkinPurchasePanel } from "@/components/skins/skin-purchase-panel";
 import { NoticeToast, useNotice } from "@/components/economy/notice-toast";
 import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
@@ -257,11 +258,15 @@ export function SkinShop() {
                 <p className="mt-1 text-xs leading-relaxed text-slate-400">{focused.description}</p>
 
                 {collection.ownedSkinIds.includes(focused.id) ? (
-                  <p className="mt-4 rounded-lg border border-sky-400/30 bg-sky-400/5 px-3 py-2 text-center text-xs text-sky-200">
-                    {collection.equipped[weapon.id] === focused.id
-                      ? `Terpasang di ${weapon.name}`
-                      : "Sudah ada di koleksimu"}
-                  </p>
+                  <SkinEquipControls
+                    skin={focused}
+                    weapon={weapon}
+                    equipped={collection.equipped[weapon.id] === focused.id}
+                    replacing={equippedSkin && equippedSkin.id !== focused.id ? equippedSkin.name : null}
+                    onResult={(result, success) =>
+                      show(result.ok ? { tone: "ok", text: success } : { tone: "error", text: result.message })
+                    }
+                  />
                 ) : (
                   <SkinPurchasePanel
                     key={`${focused.id}:${weapon.id}`}

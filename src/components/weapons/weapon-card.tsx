@@ -1,6 +1,8 @@
 "use client";
 
-import { WeaponSilhouette } from "@/components/weapons/weapon-silhouette";
+import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
+import { findSkin } from "@/lib/economy/skin-catalog";
+import { useSkinStore } from "@/lib/store/skin-store";
 import type { WeaponOwnership } from "@/lib/mock/player-weapons";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
 import type { Weapon } from "@/types/game";
@@ -41,6 +43,8 @@ export function WeaponCard({
 }) {
   const accent = WEAPON_SHAPES[weapon.type].accent;
   const locked = !ownership.isUnlocked;
+  // Skin yang terpasang ikut tampil di daftar, supaya hasil belanja terlihat.
+  const skin = findSkin(useSkinStore((state) => state.collection.equipped[weapon.id]));
 
   return (
     <button
@@ -71,7 +75,7 @@ export function WeaponCard({
         className={`w-20 shrink-0 sm:w-24 ${locked ? "opacity-35" : ""}`}
         style={{ color: selected && !locked ? accent : "#64748b" }}
       >
-        <WeaponSilhouette type={weapon.type} className="h-8 w-full" />
+        <SkinnedWeapon type={weapon.type} skin={locked ? null : skin} className="h-8 w-full" />
       </span>
 
       <span className="min-w-0 flex-1">

@@ -17,6 +17,10 @@ interface SkinState {
   hydrate: (collection: SkinCollection) => void;
   /** Membeli skin; bila `equipOn` diisi, skin langsung dipasang di senjata itu. */
   buySkin: (skinId: string, equipOn?: string) => Promise<ShopResult>;
+  /** Memasang skin milik pemain ke satu senjata, menggantikan skin sebelumnya. */
+  equipSkin: (weaponId: string, skinId: string) => Promise<ShopResult>;
+  /** Mengembalikan senjata ke cat pabrik. */
+  unequipSkin: (weaponId: string) => Promise<ShopResult>;
 }
 
 const MOCK_LATENCY_MS = 250;
@@ -58,6 +62,37 @@ export const useSkinStore = create<SkinState>((set, get) => ({
           equipped: equipOn ? { ...collection.equipped, [equipOn]: skinId } : collection.equipped,
         },
       });
+      return { ok: true };
+    } finally {
+      set({ pending: null });
+    }
+  },
+
+  equipSkin: async (weaponId, skinId) => {
+    if (get().pending) return { ok: false, message: "Tunggu proses sebelumnya selesai." };
+    set({ pending: `pasang:${weaponId}` });
+    try {
+      await wait();
+      const { collection } = get();
+      if (!findSkin(skinId) || !collection.ownedSkinIds.includes(skinId)) {
+        return { ok: false, message: "Beli dulu skin ini sebelum memasangnya." };
+      }
+      set({ collection: { ...collection, equipped: { ...collection.equipped, [weaponId]: skinId } } });
+      return { ok: true };
+    } finally {
+      set({ pending: null });
+    }
+  },
+
+  unequipSkin: async (weaponId) => {
+    if (get().pending) return { ok: false, message: "Tunggu proses sebelumnya selesai." };
+    set({ pending: `pasang:${weaponId}` });
+    try {
+      await wait();
+      const { collection } = get();
+      const equipped = { ...collection.equipped };
+      delete equipped[weaponId];
+      set({ collection: { ...collection, equipped } });
       return { ok: true };
     } finally {
       set({ pending: null });
