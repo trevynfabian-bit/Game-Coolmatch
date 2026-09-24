@@ -1,11 +1,40 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api/client";
+import type { HistoryMatch } from "@/types/history";
 import { CoinIcon } from "@/components/economy/coin-badge";
 import { HistoryState } from "@/components/history/history-state";
 import { formatMatchTime } from "@/components/history/match-history-page";
 import { kd } from "@/lib/history/standings";
 import { useHistoryStore } from "@/lib/store/history-store";
+
+interface RoundDetail {
+  roundNumber: number;
+  lines: { name: string; kills: number; headshots: number; deaths: number }[];
+  headshots: number;
+  totalKills: number;
+}
+
+/**
+ * Rincian per ronde dari /api/riwayat/[id]: kill tiap peserta yang tersinkron
+ * selama pertandingan, plus potret pertandingannya sendiri sebagai cadangan
+ * bila pertandingan ini tidak termasuk daftar riwayat yang termuat.
+ */
+function useRoundDetail(matchId: number) {
+  const [detail, setDetail] = useState<{ match: HistoryMatch; rounds: RoundDetail[] } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void apiFetch<{ match: HistoryMatch; rounds: RoundDetail[] }>(`/api/riwayat/${matchId}`).then((response) => {
+      if (!cancelled && response.ok) setDetail(response.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [matchId]);
+  return detail;
+}
 
 const REASON_LABEL = {
   batas_kill: "Batas kill tercapai",
@@ -30,8 +59,10 @@ export function MatchDetailPage({ matchId }: { matchId: number }) {
 
 function MatchDetail({ matchId }: { matchId: number }) {
   const matches = useHistoryStore((state) => state.matches);
+  const detail = useRoundDetail(matchId);
   const index = matches.findIndex((item) => item.id === matchId);
-  const match = index >= 0 ? matches[index] : undefined;
+  const match = index >= 0 ? matches[index] : detail?.match;
+  const roundLines = new Map(detail?.rounds.map((round) => [round.roundNumber, round]) ?? []);
   // Riwayat urut terbaru dulu: "lebih baru" ada di indeks sebelumnya.
   const newer = index > 0 ? matches[index - 1] : null;
   const older =
@@ -151,6 +182,17 @@ function MatchDetail({ matchId }: { matchId: number }) {
                   </span>
                   <span className="block text-[11px] text-slate-500">
                     {REASON_LABEL[round.endedReason]}
+                    {(() => {
+                      const info = roundLines.get(round.roundNumber);
+                      const top = info?.lines[0];
+                      if (!info || !top) return null;
+                      return (
+                        <>
+                          {" · "}
+                          {info.totalKills} kill, {info.headshots} kena kepala · teratas {top.name} ({top.kills})
+                        </>
+                      );
+                    })()}
                   </span>
                 </span>
                 <span className="flex w-40 items-center gap-2">

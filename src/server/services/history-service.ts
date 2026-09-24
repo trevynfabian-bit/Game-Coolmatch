@@ -1,6 +1,7 @@
-import { and, desc, eq, isNotNull, lt, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { matchScores, matches } from "@/server/db/schema";
+import { matchKillEvents, matchScores, matches } from "@/server/db/schema";
+import { ApiError } from "@/server/api/http";
 import { kd } from "@/lib/history/standings";
 import { progressMatchesOf } from "@/server/services/progress-isolation";
 import { getPlayerStats } from "@/server/services/player-stats-service";
@@ -85,4 +86,69 @@ export function listMatchHistory(
     matches: rows.map(toHistoryMatch),
     nextBefore: rows.length === size ? rows[rows.length - 1].id : null,
   };
+}
+
+export interface RoundKillLine {
+  name: string;
+  kills: number;
+  headshots: number;
+  deaths: number;
+}
+
+export interface RoundDetail {
+  roundNumber: number;
+  winnerName: string | null;
+  endedReason: HistoryMatch["rounds"][number]["endedReason"];
+  playerKills: number;
+  /** Rincian kill per peserta dari kejadian yang tersinkron; kosong bila tidak ada. */
+  lines: RoundKillLine[];
+  headshots: number;
+  totalKills: number;
+}
+
+/**
+ * Rincian sebuah pertandingan per ronde: putusan tiap ronde (pemenang dan
+ * sebab berakhir) digabung dengan kejadian kill yang tersinkron selama
+ * pertandingan — siapa membunuh berapa, kena kepala, dan tumbang berapa kali.
+ */
+export function getMatchRoundDetail(playerId: number, matchId: number): { match: HistoryMatch; rounds: RoundDetail[] } {
+  const row = db
+    .select()
+    .from(matches)
+    .where(and(eq(matches.id, matchId), eq(matches.playerId, playerId)))
+    .get();
+  if (!row) throw new ApiError(404, "pertandingan_tidak_ada", "Pertandingan tidak ditemukan.");
+  if (row.endedAt == null) {
+    throw new ApiError(409, "pertandingan_belum_selesai", "Rincian baru tersedia setelah pertandingan selesai.");
+  }
+  const match = toHistoryMatch(row);
+  const events = db
+    .select()
+    .from(matchKillEvents)
+    .where(eq(matchKillEvents.matchId, matchId))
+    .orderBy(asc(matchKillEvents.seq))
+    .all();
+
+  const rounds = match.rounds.map((round) => {
+    const inRound = events.filter((event) => event.roundNumber === round.roundNumber);
+    const table = new Map<string, RoundKillLine>();
+    const line = (name: string) => {
+      let found = table.get(name);
+      if (!found) table.set(name, (found = { name, kills: 0, headshots: 0, deaths: 0 }));
+      return found;
+    };
+    for (const event of inRound) {
+      const killer = line(event.killerName);
+      killer.kills += 1;
+      if (event.isHeadshot) killer.headshots += 1;
+      line(event.victimName).deaths += 1;
+    }
+    return {
+      ...round,
+      lines: [...table.values()].sort((a, b) => b.kills - a.kills || a.deaths - b.deaths || a.name.localeCompare(b.name)),
+      headshots: inRound.filter((event) => event.isHeadshot).length,
+      totalKills: inRound.length,
+    };
+  });
+  return { match, rounds };
 }
