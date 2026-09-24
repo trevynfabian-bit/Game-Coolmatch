@@ -108,6 +108,17 @@ export const mapSpawnPoints = sqliteTable(
   ],
 );
 
+/** Peta yang terakhir dipilih pemain di layar Pilih Peta; satu baris per pemain. */
+export const playerMapChoices = sqliteTable("player_map_choices", {
+  playerId: integer("player_id")
+    .primaryKey()
+    .references(() => players.id, { onDelete: "cascade" }),
+  mapId: text("map_id")
+    .notNull()
+    .references(() => maps.id, { onDelete: "cascade" }),
+  updatedAt: integer("updated_at").notNull().default(now),
+});
+
 /** Tingkat kesulitan musuh otomatis; sama dengan tipe `Difficulty` di klien. */
 export const DIFFICULTIES = ["santai", "normal", "susah"] as const;
 
@@ -780,3 +791,4 @@ export type PlayerLoadoutRow = typeof playerLoadouts.$inferSelect;
 export type PlayerAudioSettingsRow = typeof playerAudioSettings.$inferSelect;
 export type MapBlockRow = typeof mapBlocks.$inferSelect;
 export type MapSpawnPointRow = typeof mapSpawnPoints.$inferSelect;
+export type PlayerMapChoiceRow = typeof playerMapChoices.$inferSelect;

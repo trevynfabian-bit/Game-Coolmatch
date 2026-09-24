@@ -9,6 +9,7 @@ import { useSkinStore } from "@/lib/store/skin-store";
 import { useWalletStore } from "@/lib/store/wallet-store";
 import { useWeaponStore } from "@/lib/store/weapon-store";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
+import { startMapChoiceSync } from "@/lib/store/map-choice-sync";
 import { retryPendingResults } from "@/lib/store/server-match-store";
 
 /**
@@ -34,7 +35,11 @@ export function SessionBootstrap() {
     void retryPendingResults();
     const onOnline = () => void retryPendingResults();
     window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
+    const stopMapSync = startMapChoiceSync();
+    return () => {
+      window.removeEventListener("online", onOnline);
+      stopMapSync();
+    };
   }, []);
   return null;
 }

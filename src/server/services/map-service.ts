@@ -1,6 +1,14 @@
 import { asc, eq, inArray, notInArray, and } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { mapBlocks, mapSpawnPoints, maps, type MapBlockRow, type MapSpawnPointRow } from "@/server/db/schema";
+import {
+  mapBlocks,
+  mapSpawnPoints,
+  maps,
+  playerMapChoices,
+  type MapBlockRow,
+  type MapSpawnPointRow,
+} from "@/server/db/schema";
+import { ApiError } from "@/server/api/http";
 import { MOCK_MAPS } from "@/lib/mock/maps";
 import type { ArenaMapInfo } from "@/types/game";
 
@@ -117,4 +125,25 @@ export function getMap(mapId: string): ArenaMapInfo | null {
   const blocks = db.select().from(mapBlocks).where(eq(mapBlocks.mapId, mapId)).orderBy(asc(mapBlocks.sortOrder)).all();
   const spawns = db.select().from(mapSpawnPoints).where(eq(mapSpawnPoints.mapId, mapId)).orderBy(asc(mapSpawnPoints.slot)).all();
   return assemble(row, blocks, spawns);
+}
+
+/** Peta pilihan pemain; `updatedAt` null berarti belum pernah memilih (peta bawaan). */
+export function getMapChoice(playerId: number): { mapId: string; updatedAt: number | null } {
+  syncMapCatalog();
+  const row = db.select().from(playerMapChoices).where(eq(playerMapChoices.playerId, playerId)).get();
+  return row ? { mapId: row.mapId, updatedAt: row.updatedAt } : { mapId: MOCK_MAPS[0].id, updatedAt: null };
+}
+
+/** Menyimpan peta pilihan pemain; 404 bila peta tidak dikenal. */
+export function saveMapChoice(playerId: number, mapId: string): { mapId: string; updatedAt: number } {
+  syncMapCatalog();
+  if (!db.select({ id: maps.id }).from(maps).where(eq(maps.id, mapId)).get()) {
+    throw new ApiError(404, "peta_tidak_ada", "Peta tidak dikenal.");
+  }
+  const updatedAt = Date.now();
+  db.insert(playerMapChoices)
+    .values({ playerId, mapId, updatedAt })
+    .onConflictDoUpdate({ target: playerMapChoices.playerId, set: { mapId, updatedAt } })
+    .run();
+  return { mapId, updatedAt };
 }
