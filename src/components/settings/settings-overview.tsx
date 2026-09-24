@@ -30,8 +30,8 @@ export function SettingsOverview() {
     { href: "/pengaturan/kontrol", title: "Kontrol", summary: `Sensitivitas ${controls.sensitivity.toFixed(2)}×` },
     { href: "/pengaturan/profil", title: "Profil", summary: "Nama yang tampil di arena dan klasemen" },
     {
-      href: "/lawan",
-      title: "Pertandingan",
+      href: "/pengaturan/lawan",
+      title: "Lawan",
       summary: `${findMap(mapId).name} · ${botCount} lawan ${difficultyProfile(difficulty).label.toLowerCase()}`,
     },
   ];

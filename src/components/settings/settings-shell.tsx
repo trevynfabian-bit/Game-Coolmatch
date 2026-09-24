@@ -6,6 +6,7 @@ export const SETTINGS_TABS = [
   { href: "/pengaturan/audio", label: "Audio" },
   { href: "/pengaturan/grafis", label: "Grafis" },
   { href: "/pengaturan/kontrol", label: "Kontrol" },
+  { href: "/pengaturan/lawan", label: "Lawan" },
   { href: "/pengaturan/profil", label: "Profil" },
 ] as const;
 
