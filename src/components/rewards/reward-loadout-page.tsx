@@ -4,7 +4,10 @@ import Link from "next/link";
 import { KillstreakIcon } from "@/components/arena/hud/killstreak-tracker";
 import { CoinIcon, formatCoins } from "@/components/economy/coin-badge";
 import { WalletBadge } from "@/components/economy/wallet-badge";
-import { KILLSTREAKS, LOADOUT_SLOTS, findKillstreak } from "@/lib/game/killstreak";
+import { useState } from "react";
+import { SlotPicker } from "@/components/rewards/slot-picker";
+import { KILLSTREAKS, type KillstreakId } from "@/lib/game/killstreak";
+import { assignSlot, sameLoadout } from "@/lib/game/loadout-draft";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 
 /**
@@ -13,8 +16,21 @@ import { useKillstreakStore } from "@/lib/store/killstreak-store";
  * terbukanya.
  */
 export function RewardLoadoutPage() {
-  const loadout = useKillstreakStore((state) => state.loadout);
+  const saved = useKillstreakStore((state) => state.loadout);
   const rewardStatus = useKillstreakStore((state) => state.rewardStatus);
+  /**
+   * Susunan yang sedang diatur di halaman ini. Diinisialisasi dari loadout
+   * tersimpan, dan disetel ulang bila loadout tersimpan berubah (mis. baru
+   * selesai dimuat dari server) selama belum ada perubahan di halaman.
+   */
+  const [draft, setDraft] = useState<(KillstreakId | null)[]>(saved);
+  const [base, setBase] = useState(saved);
+  if (base !== saved) {
+    setBase(saved);
+    if (sameLoadout(draft, base)) setDraft(saved);
+  }
+  const dirty = !sameLoadout(draft, saved);
+  const loadout = draft;
 
   return (
     <div className="mx-auto w-full max-w-4xl px-5 py-10 sm:px-8">
@@ -35,38 +51,23 @@ export function RewardLoadoutPage() {
           Slot terpasang
         </h2>
         <ol className="grid gap-3 sm:grid-cols-3">
-          {Array.from({ length: LOADOUT_SLOTS }, (_, index) => {
-            const id = loadout[index] ?? null;
-            const reward = id ? findKillstreak(id) : null;
-            return (
-              <li
-                key={index}
-                className="rounded-xl border bg-slate-900/60 p-4"
-                style={{ borderColor: reward ? `${reward.color}66` : "rgba(255,255,255,0.1)" }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="rounded bg-white/10 px-2 py-0.5 font-mono text-xs text-white">Tombol {6 + index}</span>
-                  {reward ? (
-                    <span className="font-mono text-[11px] text-slate-400">{reward.kills} kill</span>
-                  ) : null}
-                </div>
-                {reward ? (
-                  <div className="mt-4 flex items-center gap-3">
-                    <span style={{ color: reward.color }}>
-                      <KillstreakIcon id={reward.id} className="h-8 w-8" />
-                    </span>
-                    <span>
-                      <span className="block text-sm font-semibold text-white">{reward.name}</span>
-                      <span className="block text-[11px] text-slate-500">{reward.durationSeconds} detik</span>
-                    </span>
-                  </div>
-                ) : (
-                  <p className="mt-4 text-sm text-slate-500">Slot kosong</p>
-                )}
-              </li>
-            );
-          })}
+          {draft.map((id, index) => (
+            <li key={index}>
+              <SlotPicker
+                index={index}
+                value={id}
+                slots={draft}
+                rewardStatus={rewardStatus}
+                onChange={(next) => setDraft((current) => assignSlot(current, index, next))}
+              />
+            </li>
+          ))}
         </ol>
+        {dirty ? (
+          <p className="mt-3 text-xs text-amber-300" role="status">
+            Ada perubahan yang belum disimpan.
+          </p>
+        ) : null}
       </section>
 
       <section aria-labelledby="judul-katalog-hadiah">
