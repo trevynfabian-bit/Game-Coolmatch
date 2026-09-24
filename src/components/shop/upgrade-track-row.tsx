@@ -19,12 +19,15 @@ export function UpgradeTrackRow({
   balance,
   accent,
   onResult,
+  onPreview,
 }: {
   track: UpgradeTrack;
   state: WeaponUpgradeState;
   balance: number;
   accent: string;
   onResult: (result: ShopResult, success: string) => void;
+  /** Dipanggil saat baris disorot, dengan keadaan bila tingkat berikutnya dibeli. */
+  onPreview?: (candidate: WeaponUpgradeState | null, label: string | null) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const pending = useShopStore((s) => s.pending);
@@ -38,6 +41,14 @@ export function UpgradeTrackRow({
   const busy = pending !== null;
   const processing = pending === `upgrade:${state.weaponId}:${track.stat}`;
 
+  function showPreview() {
+    if (!onPreview || !next) return;
+    onPreview(
+      { ...state, levels: { ...state.levels, [track.stat]: next.level } },
+      `${track.label} tingkat ${next.level}`,
+    );
+  }
+
   async function buy() {
     if (!next) return;
     if (!confirming) {
@@ -50,7 +61,12 @@ export function UpgradeTrackRow({
   }
 
   return (
-    <li className="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3">
+    <li
+      className="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3"
+      onMouseEnter={showPreview}
+      onFocusCapture={showPreview}
+      onMouseLeave={() => onPreview?.(null, null)}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-100">{track.label}</p>

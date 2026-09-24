@@ -22,6 +22,7 @@ export function AttachmentRow({
   balance,
   replacing,
   onResult,
+  onPreview,
 }: {
   attachment: Attachment;
   state: WeaponUpgradeState;
@@ -29,6 +30,8 @@ export function AttachmentRow({
   /** Nama attachment lain yang sedang terpasang di slot yang sama. */
   replacing: string | null;
   onResult: (result: ShopResult, success: string) => void;
+  /** Dipanggil saat baris disorot, dengan keadaan bila attachment ini terpasang. */
+  onPreview?: (candidate: WeaponUpgradeState | null, label: string | null) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const pending = useShopStore((s) => s.pending);
@@ -40,6 +43,25 @@ export function AttachmentRow({
   const equipped = state.equipped[attachment.slot] === attachment.id;
   const affordable = balance >= attachment.price;
   const busy = pending !== null;
+
+  function showPreview() {
+    if (!onPreview) return;
+    if (equipped) {
+      // Pratinjau untuk barang terpasang adalah efek MELEPASNYA.
+      const without = { ...state.equipped };
+      delete without[attachment.slot];
+      onPreview({ ...state, equipped: without }, `Lepas ${attachment.name}`);
+      return;
+    }
+    onPreview(
+      {
+        ...state,
+        ownedAttachmentIds: owned ? state.ownedAttachmentIds : [...state.ownedAttachmentIds, attachment.id],
+        equipped: { ...state.equipped, [attachment.slot]: attachment.id },
+      },
+      `Pasang ${attachment.name}`,
+    );
+  }
 
   async function buy() {
     if (!confirming) {
@@ -53,6 +75,9 @@ export function AttachmentRow({
 
   return (
     <li
+      onMouseEnter={showPreview}
+      onFocusCapture={showPreview}
+      onMouseLeave={() => onPreview?.(null, null)}
       className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2.5 ${
         equipped ? "border-emerald-400/40 bg-emerald-500/5" : "border-white/10 bg-slate-900/50"
       }`}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AttachmentRow } from "@/components/shop/attachment-row";
+import { StatComparison } from "@/components/shop/stat-comparison";
 import { UpgradeTrackRow } from "@/components/shop/upgrade-track-row";
 import { CoinBadge, CoinIcon, formatCoins } from "@/components/economy/coin-badge";
 import { WeaponSilhouette } from "@/components/weapons/weapon-silhouette";
@@ -15,6 +16,7 @@ import {
 } from "@/lib/economy/upgrade-catalog";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { upgradeStateOf, useShopStore, type ShopResult } from "@/lib/store/shop-store";
+import type { WeaponUpgradeState } from "@/types/economy";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
 
 /**
@@ -32,6 +34,12 @@ export function UpgradeShop() {
   const tracks = useMemo(() => upgradeTracksFor(weapon.id), [weapon.id]);
   const attachments = useMemo(() => attachmentsFor(weapon.type), [weapon.type]);
   const accent = WEAPON_SHAPES[weapon.type].accent;
+
+  const [preview, setPreview] = useState<{ weaponId: string; state: WeaponUpgradeState; label: string } | null>(null);
+  const handlePreview = (candidate: WeaponUpgradeState | null, label: string | null) =>
+    setPreview(candidate && label ? { weaponId: candidate.weaponId, state: candidate, label } : null);
+  // Pratinjau hanya berlaku untuk senjata yang sedang dibuka.
+  const activePreview = preview && preview.weaponId === weapon.id ? preview : null;
 
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   useEffect(() => {
@@ -80,7 +88,7 @@ export function UpgradeShop() {
       </p>
 
       <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
-        <nav aria-label="Senjata">
+        <nav aria-label="Senjata" className="lg:self-start lg:sticky lg:top-6">
           <ul className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
             {MOCK_WEAPONS.map((item) => {
               const active = item.id === weapon.id;
@@ -113,9 +121,27 @@ export function UpgradeShop() {
               );
             })}
           </ul>
+          <div className="mt-4 hidden lg:block">
+            <StatComparison
+              weapon={weapon}
+              current={state}
+              candidate={activePreview?.state ?? null}
+              candidateLabel={activePreview?.label ?? null}
+              accent={accent}
+            />
+          </div>
         </nav>
 
         <div className="space-y-8">
+          <div className="lg:hidden">
+            <StatComparison
+              weapon={weapon}
+              current={state}
+              candidate={activePreview?.state ?? null}
+              candidateLabel={activePreview?.label ?? null}
+              accent={accent}
+            />
+          </div>
           <section aria-labelledby="judul-statistik">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 id="judul-statistik" className="text-[11px] tracking-[0.2em] text-slate-400 uppercase">
@@ -144,6 +170,7 @@ export function UpgradeShop() {
                   balance={wallet.balance}
                   accent={accent}
                   onResult={report}
+                  onPreview={handlePreview}
                 />
               ))}
             </ul>
@@ -175,6 +202,7 @@ export function UpgradeShop() {
                               : null
                           }
                           onResult={report}
+                          onPreview={handlePreview}
                         />
                       ))}
                     </ul>
