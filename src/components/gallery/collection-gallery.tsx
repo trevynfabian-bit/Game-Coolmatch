@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { WalletBadge } from "@/components/economy/wallet-badge";
+import { GalleryItemCard } from "@/components/gallery/gallery-item-card";
 import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
 import { RARITY_META, SKINS, findSkin } from "@/lib/economy/skin-catalog";
 import { filterSkins } from "@/lib/economy/skin-filter";
@@ -95,37 +96,38 @@ export function CollectionGallery() {
       {tab === "senjata" ? (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="tabpanel">
           {weapons.map(({ weapon, unlocked, skin, upgradeLevels, attachments }) => (
-            <li
-              key={weapon.id}
-              className={`rounded-xl border border-white/10 bg-slate-900/60 p-4 ${unlocked ? "" : "opacity-50"}`}
-            >
-              <span className="block rounded-lg bg-slate-950/60 px-3 py-4" style={{ color: WEAPON_SHAPES[weapon.type].accent }}>
-                <SkinnedWeapon type={weapon.type} skin={unlocked ? skin : null} className="h-14 w-full" />
-              </span>
-              <p className="mt-3 flex items-center justify-between gap-2">
-                <span className="truncate text-sm font-semibold text-white">{weapon.name}</span>
-                <span className="text-[10px] text-slate-500">{WEAPON_TYPE_LABEL[weapon.type]}</span>
-              </p>
-              {unlocked ? (
-                <dl className="mt-2 grid grid-cols-3 gap-2 text-center text-[10px]">
-                  <div className="rounded-md bg-white/5 py-1">
-                    <dt className="text-slate-500">Skin</dt>
-                    <dd className="truncate px-1 text-slate-200" style={{ color: skin ? RARITY_META[skin.rarity].color : undefined }}>
-                      {skin?.name ?? "Pabrik"}
-                    </dd>
-                  </div>
-                  <div className="rounded-md bg-white/5 py-1">
-                    <dt className="text-slate-500">Upgrade</dt>
-                    <dd className="font-mono text-slate-200">{upgradeLevels}/9</dd>
-                  </div>
-                  <div className="rounded-md bg-white/5 py-1">
-                    <dt className="text-slate-500">Attachment</dt>
-                    <dd className="font-mono text-slate-200">{attachments.length}</dd>
-                  </div>
-                </dl>
-              ) : (
-                <p className="mt-2 text-[11px] text-amber-300/80">{weaponOwnership(weapon.id).requirement}</p>
-              )}
+            <li key={weapon.id}>
+              <GalleryItemCard
+                status={unlocked ? "dimiliki" : "terkunci"}
+                preview={
+                  <span className="block" style={{ color: WEAPON_SHAPES[weapon.type].accent }}>
+                    <SkinnedWeapon type={weapon.type} skin={unlocked ? skin : null} className="h-14 w-full" />
+                  </span>
+                }
+                title={weapon.name}
+                tag={WEAPON_TYPE_LABEL[weapon.type]}
+                caption={unlocked ? undefined : <span className="text-amber-300/80">{weaponOwnership(weapon.id).requirement}</span>}
+                details={
+                  unlocked ? (
+                    <dl className="grid grid-cols-3 gap-2 text-center text-[10px]">
+                      <div className="rounded-md bg-white/5 py-1">
+                        <dt className="text-slate-500">Skin</dt>
+                        <dd className="truncate px-1 text-slate-200" style={{ color: skin ? RARITY_META[skin.rarity].color : undefined }}>
+                          {skin?.name ?? "Pabrik"}
+                        </dd>
+                      </div>
+                      <div className="rounded-md bg-white/5 py-1">
+                        <dt className="text-slate-500">Upgrade</dt>
+                        <dd className="font-mono text-slate-200">{upgradeLevels}/9</dd>
+                      </div>
+                      <div className="rounded-md bg-white/5 py-1">
+                        <dt className="text-slate-500">Attachment</dt>
+                        <dd className="font-mono text-slate-200">{attachments.length}</dd>
+                      </div>
+                    </dl>
+                  ) : undefined
+                }
+              />
             </li>
           ))}
         </ul>
@@ -139,17 +141,16 @@ export function CollectionGallery() {
             {ownedSkins.map((skin) => {
               const on = weapons.filter((item) => item.skin?.id === skin.id).map((item) => item.weapon.name);
               return (
-                <li key={skin.id} className="rounded-xl border border-white/10 bg-slate-900/60 p-3">
-                  <span className="block rounded-lg bg-slate-950/60 px-2 py-3">
-                    <SkinnedWeapon type="rifle" skin={skin} className="h-10 w-full" />
-                  </span>
-                  <p className="mt-2 flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-semibold text-slate-100">{skin.name}</span>
-                    <span className="text-[9px] font-semibold tracking-wider uppercase" style={{ color: RARITY_META[skin.rarity].color }}>
-                      {RARITY_META[skin.rarity].label}
-                    </span>
-                  </p>
-                  <p className="truncate text-[11px] text-slate-500">{on.length > 0 ? on.join(", ") : "Belum dipasang"}</p>
+                <li key={skin.id}>
+                  <GalleryItemCard
+                    status={on.length > 0 ? "terpasang" : "dimiliki"}
+                    accent={skin.rarity === "gold" ? RARITY_META.gold.color : undefined}
+                    preview={<SkinnedWeapon type="rifle" skin={skin} className="h-10 w-full" />}
+                    title={skin.name}
+                    tag={RARITY_META[skin.rarity].label}
+                    tagColor={RARITY_META[skin.rarity].color}
+                    caption={on.length > 0 ? on.join(", ") : skin.country?.name ?? "Belum dipasang"}
+                  />
                 </li>
               );
             })}
@@ -167,16 +168,16 @@ export function CollectionGallery() {
               .map(({ weapon, attachments }) => (
                 <section key={weapon.id}>
                   <h2 className="mb-2 text-[11px] tracking-[0.2em] text-slate-400 uppercase">{weapon.name}</h2>
-                  <ul className="grid gap-2 sm:grid-cols-2">
+                  <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {attachments.map(({ attachment, equipped }) => (
-                      <li key={attachment.id} className="flex items-center justify-between rounded-lg border border-white/10 bg-slate-900/50 px-3 py-2">
-                        <span>
-                          <span className="block text-sm text-slate-100">{attachment.name}</span>
-                          <span className="block text-[11px] text-slate-500">{ATTACHMENT_SLOT_LABEL[attachment.slot]}</span>
-                        </span>
-                        <span className={`text-[10px] font-semibold tracking-wider uppercase ${equipped ? "text-emerald-300" : "text-slate-500"}`}>
-                          {equipped ? "Terpasang" : "Disimpan"}
-                        </span>
+                      <li key={attachment.id}>
+                        <GalleryItemCard
+                          status={equipped ? "terpasang" : "dimiliki"}
+                          preview={<AttachmentGlyph slot={attachment.slot} />}
+                          title={attachment.name}
+                          tag={ATTACHMENT_SLOT_LABEL[attachment.slot]}
+                          caption={attachment.description}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -195,6 +196,26 @@ export function CollectionGallery() {
         </Link>
       </div>
     </div>
+  );
+}
+
+/** Gambar sederhana per slot attachment. */
+function AttachmentGlyph({ slot }: { slot: string }) {
+  return (
+    <svg viewBox="0 0 60 24" className="mx-auto h-10 w-full text-slate-400" fill="currentColor" aria-hidden>
+      {slot === "laras" ? (
+        <rect x="6" y="9" width="48" height="6" rx="3" />
+      ) : slot === "magasin" ? (
+        <path d="M24 3h12l-2 18H26z" />
+      ) : slot === "pegangan" ? (
+        <path d="M26 3h8v6l-2 12h-4L26 9z" />
+      ) : (
+        <>
+          <rect x="14" y="6" width="32" height="8" rx="4" />
+          <rect x="26" y="14" width="8" height="5" />
+        </>
+      )}
+    </svg>
   );
 }
 
