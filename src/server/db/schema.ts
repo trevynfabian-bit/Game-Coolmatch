@@ -86,6 +86,9 @@ export const matches = sqliteTable(
     /** Kill beruntun terpanjang pemain dalam satu nyawa di pertandingan ini. */
     bestStreak: integer("best_streak").notNull().default(0),
 
+    /** Senjata yang dibawa pemain masuk arena (atau yang dicoba di uji coba). */
+    weaponId: text("weapon_id"),
+
     /**
      * Potret loadout hadiah killstreak saat pertandingan dimulai (tombol 6, 7,
      * 8). Mengganti loadout di tengah pertandingan tidak mengubah hadiah yang

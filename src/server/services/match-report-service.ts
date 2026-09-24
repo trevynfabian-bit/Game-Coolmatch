@@ -88,7 +88,7 @@ export function toHistoryMatch(match: MatchRow): HistoryMatch {
     bestStreak: match.bestStreak,
     coinsEarned: coins?.total ?? 0,
     isTrial: match.isTrial,
-    weaponId: null,
+    weaponId: match.weaponId,
     startedAt: match.startedAt,
     endedAt: match.endedAt ?? match.startedAt,
     participants,

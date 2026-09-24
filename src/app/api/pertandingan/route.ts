@@ -18,6 +18,7 @@ import { currentPlayer } from "@/server/services/player-session";
  * senjata — sesi itu tercatat tapi tidak pernah menghasilkan koin. Aturan
  * ronde yang dikosongkan diisi server; pertandingan biasa wajib memakai aturan
  * standar (400 aturan_tidak_sah) dan jumlah lawan dibatasi kapasitas peta.
+ * `weaponId` (opsional) mencatat senjata yang dibawa pemain untuk riwayat.
  * Balasan 201: { match: { id, ..., killstreakLoadout } }. Id ini yang dipakai
  * untuk menutup pertandingan lewat /api/pertandingan/[id]/selesai, dan
  * `killstreakLoadout` adalah hadiah yang sah dipakai di pertandingan ini.
@@ -37,6 +38,7 @@ export const POST = handle(async (request: Request) => {
     scoreLimit: intField(body.scoreLimit, "scoreLimit", { min: 1, max: 100, fallback: rules.scoreLimit }),
     roundSeconds: intField(body.roundSeconds, "roundSeconds", { min: 10, max: 1800, fallback: rules.roundSeconds }),
     isTrial,
+    weaponId: body.weaponId == null ? null : stringField(body.weaponId, "weaponId"),
   });
 
   return Response.json({ match }, { status: 201 });

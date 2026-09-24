@@ -71,6 +71,7 @@ export async function startServerMatch(
       scoreLimit: snapshot.round.scoreLimit,
       roundSeconds: snapshot.round.durationSeconds,
       isTrial,
+      weaponId: snapshot.fighters.find((fighter) => fighter.isLocal)?.weaponId ?? null,
     },
   });
   if (useServerMatchStore.getState().generation !== generation) return;
@@ -176,10 +177,12 @@ export async function finishServerMatch() {
   // Sisa kejadian kill dikirim dulu; setelah ditutup server menolaknya.
   await flushKillEvents();
 
+  const body = finishBody(false);
   const response = await apiFetch<MatchFinishResult>(`/api/pertandingan/${matchId}/selesai`, {
     method: "POST",
-    body: finishBody(false),
+    body,
   });
+  if (!response.ok && isTransient(response.status)) savePendingResult(matchId, body);
   if (useServerMatchStore.getState().generation !== generation) return;
   if (!response.ok) {
     useServerMatchStore.setState({ status: "offline", error: response.message });
@@ -189,6 +192,93 @@ export async function finishServerMatch() {
   useWalletStore.getState().applyServerResult({ wallet: response.data.coins.wallet });
   void useWalletStore.getState().load();
   await announceMatchRewards(response.data);
+}
+
+const PENDING_KEY = "coolmatch:hasil-tertunda";
+/** Hasil tertunda yang lebih tua dari ini dibuang; pemain sudah lama pergi. */
+const PENDING_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+interface PendingResult {
+  matchId: number;
+  body: ReturnType<typeof finishBody>;
+  savedAt: number;
+}
+
+/** Galat sementara (jaringan putus, server sibuk) layak dicoba lagi; 4xx tidak. */
+function isTransient(status: number): boolean {
+  return status === 0 || status >= 500;
+}
+
+function readPending(): PendingResult[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PENDING_KEY) ?? "[]");
+    return Array.isArray(raw)
+      ? raw.filter(
+          (item): item is PendingResult =>
+            item && typeof item.matchId === "number" && item.body && Date.now() - item.savedAt < PENDING_MAX_AGE_MS,
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePending(items: PendingResult[]) {
+  try {
+    if (items.length === 0) localStorage.removeItem(PENDING_KEY);
+    else localStorage.setItem(PENDING_KEY, JSON.stringify(items));
+  } catch {
+    // Penyimpanan ditolak: hasil ini hanya bisa dicoba lagi selama tab terbuka.
+  }
+}
+
+/**
+ * Menyimpan hasil pertandingan yang gagal terkirim supaya tidak hilang. Dicoba
+ * lagi saat sesi berikutnya dibuka atau koneksi kembali; server menutup
+ * pertandingan secara idempoten, jadi kiriman ulang tidak membayar dua kali.
+ */
+function savePendingResult(matchId: number, body: ReturnType<typeof finishBody>) {
+  const items = readPending().filter((item) => item.matchId !== matchId);
+  writePending([...items, { matchId, body, savedAt: Date.now() }]);
+}
+
+let retrying = false;
+
+/** Mengirim ulang hasil pertandingan yang tertunda. Mengembalikan jumlah yang berhasil. */
+export async function retryPendingResults(): Promise<number> {
+  if (retrying || typeof window === "undefined") return 0;
+  const items = readPending();
+  if (items.length === 0) {
+    writePending([]);
+    return 0;
+  }
+  retrying = true;
+  let saved = 0;
+  const remaining: PendingResult[] = [];
+  for (const item of items) {
+    const response = await apiFetch<MatchFinishResult>(`/api/pertandingan/${item.matchId}/selesai`, {
+      method: "POST",
+      body: item.body,
+    });
+    if (response.ok) {
+      saved += 1;
+      // Layar akhir pertandingan ini masih terbuka: tampilkan angka resminya.
+      const state = useServerMatchStore.getState();
+      if (state.status === "offline" && state.matchId === item.matchId) {
+        useServerMatchStore.setState({ status: "finished", result: response.data, error: null });
+      }
+    }
+    else if (isTransient(response.status)) remaining.push(item);
+    // Galat permanen (mis. pertandingan tidak ada lagi) dibuang.
+  }
+  writePending(remaining);
+  retrying = false;
+  if (saved > 0) {
+    void useWalletStore.getState().load();
+    void useKillstreakStore.getState().loadLoadout();
+    void useNotificationStore.getState().load();
+  }
+  return saved;
 }
 
 /**

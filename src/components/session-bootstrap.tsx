@@ -7,6 +7,7 @@ import { useFavoriteStore } from "@/lib/store/favorite-store";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useSkinStore } from "@/lib/store/skin-store";
 import { useWalletStore } from "@/lib/store/wallet-store";
+import { retryPendingResults } from "@/lib/store/server-match-store";
 
 /**
  * Memuat data pemain yang tersimpan di server begitu sesi dibuka: saldo koin,
@@ -22,6 +23,12 @@ export function SessionBootstrap() {
     void useKillstreakStore.getState().loadLoadout();
     void useFavoriteStore.getState().load();
     void useNotificationStore.getState().load();
+    // Hasil pertandingan yang dulu gagal terkirim dicoba lagi sekarang, dan
+    // setiap kali koneksi kembali.
+    void retryPendingResults();
+    const onOnline = () => void retryPendingResults();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
   }, []);
   return null;
 }

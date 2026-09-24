@@ -1,0 +1,1 @@
+ALTER TABLE `matches` ADD `weapon_id` text;

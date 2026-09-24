@@ -78,6 +78,13 @@
       "when": 1790273799787,
       "tag": "0010_kejadian_kill",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1790273988331,
+      "tag": "0011_senjata_pertandingan",
+      "breakpoints": true
     }
   ]
 }

@@ -11,6 +11,7 @@ import {
 import { MAX_BOTS, MIN_BOTS } from "@/lib/game/difficulty";
 import { findMatchWinner } from "@/lib/game/round";
 import { MOCK_MAPS } from "@/lib/mock/maps";
+import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import { maxBotsForMap } from "@/lib/mock/bots";
 import { MATCH_RULES, sameRules } from "@/lib/game/match-rules";
 import { ApiError } from "@/server/api/http";
@@ -41,6 +42,8 @@ export interface StartMatchInput {
   roundSeconds: number;
   /** Latihan atau uji coba senjata: tercatat, tapi tanpa koin. */
   isTrial?: boolean;
+  /** Senjata yang dibawa pemain; harus ada di katalog. */
+  weaponId?: string | null;
 }
 
 /**
@@ -77,6 +80,9 @@ export function startMatch(playerId: number, input: StartMatchInput): MatchRow {
       "Aturan ronde pertandingan harus mengikuti aturan standar dari /api/pertandingan/konfigurasi.",
     );
   }
+  if (input.weaponId != null && !MOCK_WEAPONS.some((weapon) => weapon.id === input.weaponId)) {
+    throw new ApiError(404, "senjata_tidak_ada", "Senjata tidak dikenal.");
+  }
   ensureMap(input.mapId);
   return db
     .insert(matches)
@@ -84,6 +90,7 @@ export function startMatch(playerId: number, input: StartMatchInput): MatchRow {
       playerId,
       ...input,
       isTrial: input.isTrial === true,
+      weaponId: input.weaponId ?? null,
       killstreakLoadout: getLoadout(playerId),
       startedAt: Date.now(),
     })
