@@ -749,6 +749,50 @@ export const practiceSessions = sqliteTable(
   ],
 );
 
+/**
+ * Sesi uji coba senjata: satu baris per pertandingan uji coba (`matches` dengan
+ * is_trial), berisi catatan khusus senjata yang dicoba — termasuk senjata yang
+ * masih terkunci. Seperti latihan sasaran, sesi ini tidak pernah memberi koin
+ * atau menambah statistik/progres.
+ */
+export const trialSessions = sqliteTable(
+  "trial_sessions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    weaponId: text("weapon_id")
+      .notNull()
+      .references(() => weapons.id, { onDelete: "restrict" }),
+    /** Senjata masih terkunci bagi pemain saat dicoba. */
+    weaponWasLocked: integer("weapon_was_locked", { mode: "boolean" }).notNull().default(false),
+    difficulty: text("difficulty", { enum: DIFFICULTIES }).notNull(),
+    botCount: integer("bot_count").notNull(),
+    shots: integer("shots").notNull().default(0),
+    hits: integer("hits").notNull().default(0),
+    headshots: integer("headshots").notNull().default(0),
+    damage: integer("damage").notNull().default(0),
+    kills: integer("kills").notNull().default(0),
+    deaths: integer("deaths").notNull().default(0),
+    startedAt: integer("started_at").notNull().default(now),
+    /** Kosong selama uji coba masih berjalan. */
+    endedAt: integer("ended_at"),
+  },
+  (table) => [
+    uniqueIndex("trial_sessions_pertandingan_uq").on(table.matchId),
+    index("trial_sessions_pemain_idx").on(table.playerId, table.startedAt),
+    index("trial_sessions_senjata_idx").on(table.playerId, table.weaponId),
+    check(
+      "trial_sessions_angka_sah",
+      sql`${table.shots} >= 0 AND ${table.hits} BETWEEN 0 AND ${table.shots} AND ${table.headshots} BETWEEN 0 AND ${table.hits} AND ${table.damage} >= 0 AND ${table.kills} >= 0 AND ${table.deaths} >= 0`,
+    ),
+  ],
+);
+
 /** Jenis notifikasi hadiah; sama dengan `RewardNotificationKind` di klien. */
 export const REWARD_NOTIFICATION_KINDS = ["koin", "skin", "upgrade", "hadiah", "senjata"] as const;
 
@@ -821,3 +865,4 @@ export type MapBlockRow = typeof mapBlocks.$inferSelect;
 export type MapSpawnPointRow = typeof mapSpawnPoints.$inferSelect;
 export type PlayerMapChoiceRow = typeof playerMapChoices.$inferSelect;
 export type PracticeSessionRow = typeof practiceSessions.$inferSelect;
+export type TrialSessionRow = typeof trialSessions.$inferSelect;

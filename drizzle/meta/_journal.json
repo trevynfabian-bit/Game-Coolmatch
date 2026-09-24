@@ -127,6 +127,13 @@
       "when": 1790274799814,
       "tag": "0017_latihan_sasaran",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1790274991444,
+      "tag": "0018_sesi_uji_coba",
+      "breakpoints": true
     }
   ]
 }
