@@ -138,3 +138,23 @@ export function handle<Args extends unknown[]>(
     }
   };
 }
+
+/**
+ * Untuk endpoint BACA: bila database gagal, kirim data cadangan yang aman
+ * dengan penanda `degraded: true` alih-alih galat, supaya menu dan HUD tetap
+ * tampil. Galat validasi (ApiError) tetap dikirim apa adanya.
+ */
+export function handleRead<Args extends unknown[]>(
+  fn: (...args: Args) => Promise<Response>,
+  fallback: () => Record<string, unknown>,
+): (...args: Args) => Promise<Response> {
+  return async (...args: Args) => {
+    try {
+      return await fn(...args);
+    } catch (error) {
+      if (error instanceof ApiError) return toErrorResponse(error);
+      console.error("[api] pembacaan gagal, memakai cadangan:", error);
+      return Response.json({ ...fallback(), degraded: true });
+    }
+  };
+}
