@@ -231,6 +231,12 @@ export function OpponentSetup() {
           >
             Ganti senjata dulu
           </Link>
+          <Link
+            href="/hadiah"
+            className="flex-1 rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-medium text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+          >
+            Atur hadiah
+          </Link>
         </div>
       </div>
     </div>
