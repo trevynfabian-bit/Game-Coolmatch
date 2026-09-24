@@ -10,6 +10,7 @@ import { weaponOwnership } from "@/lib/mock/player-weapons";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import { upgradeStateOf, useShopStore } from "@/lib/store/shop-store";
 import { useSkinStore } from "@/lib/store/skin-store";
+import { unseenItemIds, useNotificationStore } from "@/lib/store/notification-store";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
 import { weaponStatBars } from "@/lib/weapons/weapon-stats";
 
@@ -21,6 +22,8 @@ import { weaponStatBars } from "@/lib/weapons/weapon-stats";
 export function WeaponCollectionPage() {
   const upgrades = useShopStore((state) => state.upgrades);
   const equipped = useSkinStore((state) => state.collection.equipped);
+  const notifications = useNotificationStore((state) => state.items);
+  const newWeapons = useMemo(() => unseenItemIds(notifications, "senjata"), [notifications]);
 
   const items = useMemo(
     () =>
@@ -59,6 +62,7 @@ export function WeaponCollectionPage() {
             <li key={weapon.id}>
               <GalleryItemCard
                 status={locked ? "terkunci" : "dimiliki"}
+                isNew={!locked && newWeapons.has(weapon.id)}
                 preview={
                   <span className="block" style={{ color: WEAPON_SHAPES[weapon.type].accent }}>
                     <SkinnedWeapon type={weapon.type} skin={locked ? null : skin} className="h-16 w-full" />
