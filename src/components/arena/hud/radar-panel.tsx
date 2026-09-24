@@ -2,45 +2,93 @@
 
 import { useEffect, useState } from "react";
 import { RadarMini } from "@/components/arena/hud/radar-mini";
+import { getBot } from "@/lib/game/bot-runtime";
 import { playerRuntime } from "@/lib/game/player-runtime";
 import type { RadarBlip } from "@/lib/game/radar";
+import { useKillstreakStore } from "@/lib/store/killstreak-store";
+import { useMatchStore } from "@/lib/store/match-store";
 import type { ArenaMapInfo } from "@/types/game";
-
-/** Blip musuh tiruan untuk fase frontend, di sekitar titik-titik spawn peta. */
-const MOCK_BLIPS: RadarBlip[] = [
-  { id: "mock-1", x: -15, z: -16, color: "#f97316" },
-  { id: "mock-2", x: 15, z: -16, color: "#ef4444", isFiring: true },
-  { id: "mock-3", x: 18, z: 7, color: "#a855f7" },
-  { id: "mock-4", x: 0, z: 19, color: "#22c55e" },
-];
 
 /** Radar diperbarui sepuluh kali per detik — cukup halus tanpa membebani React. */
 const REFRESH_MS = 100;
 
+interface RadarFrame {
+  player: { x: number; z: number; heading: number };
+  blips: RadarBlip[];
+  /** Sisa detik UAV, dibulatkan ke atas; null bila UAV tidak aktif. */
+  uavSeconds: number | null;
+}
+
 /**
- * Panel radar mini di pojok kanan-atas HUD. Membaca posisi dan arah pemain
- * dari runtime beberapa kali per detik. Untuk fase frontend blip musuhnya
- * tiruan; integrasi UAV mengisinya dengan posisi musuh sungguhan.
+ * Posisi musuh yang HIDUP saat ini, dibaca dari runtime bot. Warna blip
+ * mengikuti warna penanda musuh di arena dan papan skor.
+ */
+function liveEnemyBlips(): RadarBlip[] {
+  const blips: RadarBlip[] = [];
+  for (const fighter of useMatchStore.getState().fighters) {
+    if (fighter.isLocal || !fighter.isAlive) continue;
+    const bot = getBot(fighter.id);
+    if (!bot) continue;
+    blips.push({ id: fighter.id, x: bot.x, z: bot.z, color: fighter.color, isFiring: bot.engaged });
+  }
+  return blips;
+}
+
+/**
+ * Panel radar mini di pojok kanan-atas HUD.
+ *
+ * Tanpa UAV, radar hanya menampilkan denah peta dan arah pandang pemain.
+ * Selama UAV aktif, posisi semua musuh yang hidup muncul dan diperbarui
+ * terus, sapuan radar berputar, dan hitung mundur sisa waktunya tampil di
+ * bawah radar.
  */
 export function RadarPanel({ map }: { map: ArenaMapInfo }) {
-  const [player, setPlayer] = useState({ x: 0, z: 0, heading: 0 });
+  const uavEndsAt = useKillstreakStore((state) => state.active.uav);
+  const [frame, setFrame] = useState<RadarFrame>({
+    player: { x: 0, z: 0, heading: 0 },
+    blips: [],
+    uavSeconds: null,
+  });
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    const tick = () => {
       const [x, , z] = playerRuntime.position;
-      setPlayer((prev) =>
-        prev.x === x && prev.z === z && prev.heading === playerRuntime.heading
-          ? prev
-          : { x, z, heading: playerRuntime.heading },
-      );
-    }, REFRESH_MS);
+      const now = performance.now();
+      const uavOn = uavEndsAt !== undefined && uavEndsAt > now;
+      setFrame({
+        player: { x, z, heading: playerRuntime.heading },
+        blips: uavOn ? liveEnemyBlips() : [],
+        uavSeconds: uavOn ? Math.ceil((uavEndsAt - now) / 1000) : null,
+      });
+    };
+    tick();
+    const timer = setInterval(tick, REFRESH_MS);
     return () => clearInterval(timer);
-  }, []);
+  }, [uavEndsAt]);
+
+  const uavOn = frame.uavSeconds !== null;
 
   return (
     <div className="pointer-events-none absolute top-4 right-5 hidden lg:block">
-      <RadarMini player={player} blips={MOCK_BLIPS} blocks={map.blocks} sweeping className="h-40 w-40 drop-shadow-lg" />
-      <p className="mt-1 text-center text-[9px] tracking-[0.25em] text-emerald-300/80 uppercase">Radar</p>
+      <RadarMini
+        player={frame.player}
+        blips={frame.blips}
+        blocks={map.blocks}
+        sweeping={uavOn}
+        className="h-40 w-40 drop-shadow-lg"
+      />
+      {uavOn ? (
+        <p
+          className="mt-1 flex items-center justify-center gap-1.5 text-[10px] font-semibold tracking-[0.2em] text-sky-300 uppercase"
+          role="status"
+          aria-label={`UAV aktif, ${frame.uavSeconds} detik lagi`}
+        >
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
+          UAV <span className="font-mono tabular-nums">{frame.uavSeconds}s</span>
+        </p>
+      ) : (
+        <p className="mt-1 text-center text-[9px] tracking-[0.25em] text-slate-500 uppercase">Radar</p>
+      )}
     </div>
   );
 }
