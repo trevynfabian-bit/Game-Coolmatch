@@ -1,7 +1,9 @@
 "use client";
 
 import { CoinIcon, formatCoins } from "@/components/economy/coin-badge";
+import { useState } from "react";
 import { achievementProgress, type KillstreakReward, type PlayerAchievementStats } from "@/lib/game/killstreak";
+import { useKillstreakStore } from "@/lib/store/killstreak-store";
 
 /**
  * Syarat membuka hadiah terkunci: harga koin, dan (bila ada) jalan pencapaian
@@ -12,13 +14,30 @@ export function UnlockRequirements({
   price,
   stats,
   balance,
+  onResult,
 }: {
   reward: KillstreakReward;
   price: number;
   stats: PlayerAchievementStats;
   balance: number;
+  onResult: (result: { ok: true } | { ok: false; message: string }) => void;
 }) {
   const progress = achievementProgress(reward, stats);
+  const buyReward = useKillstreakStore((state) => state.buyReward);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function buy() {
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    setBusy(true);
+    const result = await buyReward(reward.id);
+    setBusy(false);
+    setConfirming(false);
+    onResult(result);
+  }
 
   return (
     <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2.5">
@@ -26,10 +45,20 @@ export function UnlockRequirements({
       <ul className="mt-1.5 space-y-2 text-xs">
         <li className="flex items-center justify-between gap-3">
           <span className="text-slate-300">Beli dengan koin</span>
-          <span className={`inline-flex items-center gap-1 font-mono tabular-nums ${balance >= price ? "text-amber-200" : "text-rose-300/80"}`}>
+          <button
+            type="button"
+            onClick={buy}
+            onBlur={() => setConfirming(false)}
+            disabled={busy || balance < price}
+            title={balance < price ? `Koin kurang ${price - balance}` : undefined}
+            className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-mono text-xs tabular-nums disabled:cursor-not-allowed disabled:opacity-50 ${
+              confirming ? "bg-amber-400 text-slate-950" : "border border-amber-400/30 text-amber-200 hover:border-amber-400/60"
+            }`}
+          >
+            {busy ? "Membuka…" : confirming ? "Yakin, buka" : "Buka"}
             <CoinIcon className="h-3.5 w-3.5" />
             {formatCoins(price)}
-          </span>
+          </button>
         </li>
         {progress ? (
           <li>

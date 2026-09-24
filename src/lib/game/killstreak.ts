@@ -214,3 +214,24 @@ export const HELICOPTER_GUN = {
   hitChance: 0.55,
   damage: 11,
 } as const;
+
+export type UnlockStatus =
+  | { unlocked: true; via: "gratis" | "koin" | "pencapaian" }
+  | { unlocked: false; price: number; achievement: ReturnType<typeof achievementProgress> };
+
+/**
+ * Status buka satu hadiah untuk pemain: gratis, sudah dibeli dengan koin,
+ * terbuka lewat pencapaian, atau masih terkunci beserta harga dan kemajuan
+ * syaratnya. Fungsi murni yang dipakai server; klien menampilkan hasilnya.
+ */
+export function computeUnlockStatus(
+  reward: KillstreakReward,
+  stats: PlayerAchievementStats,
+  purchased: boolean,
+): UnlockStatus {
+  if (reward.unlockPrice === 0) return { unlocked: true, via: "gratis" };
+  if (purchased) return { unlocked: true, via: "koin" };
+  const achievement = achievementProgress(reward, stats);
+  if (achievement?.met) return { unlocked: true, via: "pencapaian" };
+  return { unlocked: false, price: reward.unlockPrice, achievement };
+}

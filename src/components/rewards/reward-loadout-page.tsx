@@ -168,6 +168,13 @@ export function RewardLoadoutPage() {
                       price={status?.unlockPrice ?? reward.unlockPrice}
                       stats={stats}
                       balance={balance}
+                      onResult={(result) =>
+                        show(
+                          result.ok
+                            ? { tone: "ok", text: `${reward.name} terbuka! Pasang di salah satu slot.` }
+                            : { tone: "error", text: result.message },
+                        )
+                      }
                     />
                   )}
                 </div>

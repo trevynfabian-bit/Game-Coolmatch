@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { apiFetch } from "@/lib/api/client";
+import { useWalletStore } from "@/lib/store/wallet-store";
+import type { CoinTransaction, Wallet } from "@/types/economy";
 import {
   DEFAULT_LOADOUT,
   KILLSTREAKS,
@@ -74,6 +76,8 @@ interface KillstreakState {
   loadLoadout: () => Promise<void>;
   /** Mengganti loadout di klien (mis. sesudah disimpan dari halaman loadout). */
   setLoadout: (loadout: (KillstreakId | null)[]) => void;
+  /** Membuka hadiah dengan koin lewat server. */
+  buyReward: (id: KillstreakId) => Promise<{ ok: true } | { ok: false; message: string }>;
   /** Menyimpan loadout ke server; loadout di klien hanya berubah bila server menerima. */
   saveLoadout: (slots: (KillstreakId | null)[]) => Promise<{ ok: true } | { ok: false; message: string }>;
 }
@@ -125,6 +129,21 @@ export const useKillstreakStore = create<KillstreakState>((set, get) => ({
   },
 
   setLoadout: (loadout) => set({ loadout }),
+
+  buyReward: async (id) => {
+    const result = await apiFetch<{
+      rewards: RewardStatus[];
+      wallet: Wallet;
+      transaction: CoinTransaction | null;
+    }>("/api/killstreak/buka", { method: "POST", body: { rewardId: id } });
+    if (!result.ok) {
+      if (result.code === "saldo_kurang") void useWalletStore.getState().load();
+      return { ok: false, message: result.message };
+    }
+    set({ rewardStatus: result.data.rewards.map(({ id: rid, unlockPrice, unlocked }) => ({ id: rid, unlockPrice, unlocked })) });
+    useWalletStore.getState().applyServerResult(result.data);
+    return { ok: true };
+  },
 
   saveLoadout: async (slots) => {
     const result = await apiFetch<{ loadout: (KillstreakId | null)[] }>("/api/killstreak/loadout", {
