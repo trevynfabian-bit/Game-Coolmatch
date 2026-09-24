@@ -24,6 +24,7 @@ export function OpponentSettingsPage() {
   const mapId = useMatchSetupStore((state) => state.mapId);
   const setDifficulty = useMatchSetupStore((state) => state.setDifficulty);
   const setBotCount = useMatchSetupStore((state) => state.setBotCount);
+  const resetOpponents = useMatchSetupStore((state) => state.resetOpponents);
   const map = findMap(mapId);
   const maxBots = maxBotsForMap(map);
 
@@ -108,7 +109,11 @@ export function OpponentSettingsPage() {
         />
       </div>
 
-      <Link href="/lawan" className="mt-4 block text-xs text-emerald-300 hover:text-emerald-200">
+      <button type="button" onClick={resetOpponents} className="mt-4 block text-xs text-slate-400 hover:text-slate-200">
+        Kembalikan ke bawaan
+      </button>
+
+      <Link href="/lawan" className="mt-3 block text-xs text-emerald-300 hover:text-emerald-200">
         Lihat daftar lawan lengkap →
       </Link>
     </SettingsShell>

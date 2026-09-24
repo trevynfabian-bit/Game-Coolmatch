@@ -156,7 +156,7 @@ export function sanitizeAudio(value: unknown): AudioSettings {
   };
 }
 
-interface StoredSettings {
+export interface StoredSettings {
   audio: AudioSettings;
   graphics: GraphicsSettings;
   controls: ControlSettings;
@@ -172,6 +172,10 @@ interface SettingsState extends StoredSettings {
   resetControls: () => void;
   /** Mengembalikan tata tombol saja, sensitivitas dibiarkan. */
   resetBindings: () => void;
+  /** Audio, grafis, dan kontrol sekaligus kembali ke bawaan. */
+  resetAll: () => void;
+  /** Memulihkan potret pengaturan (dipakai tombol urungkan). */
+  restore: (snapshot: StoredSettings) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -184,6 +188,18 @@ export const useSettingsStore = create<SettingsState>()(
       controls: { ...DEFAULT_CONTROLS },
       setControls: (patch) => set((state) => ({ controls: sanitizeControls({ ...state.controls, ...patch }) })),
       resetControls: () => set({ controls: { ...DEFAULT_CONTROLS, bindings: { ...DEFAULT_BINDINGS } } }),
+      resetAll: () =>
+        set({
+          audio: { ...DEFAULT_AUDIO },
+          graphics: { ...DEFAULT_GRAPHICS },
+          controls: { ...DEFAULT_CONTROLS, bindings: { ...DEFAULT_BINDINGS } },
+        }),
+      restore: (snapshot) =>
+        set({
+          audio: sanitizeAudio(snapshot.audio),
+          graphics: sanitizeGraphics(snapshot.graphics),
+          controls: sanitizeControls(snapshot.controls),
+        }),
       resetBindings: () => set((state) => ({ controls: { ...state.controls, bindings: { ...DEFAULT_BINDINGS } } })),
       setAudio: (patch) => set((state) => ({ audio: sanitizeAudio({ ...state.audio, ...patch }) })),
       resetAudio: () => set({ audio: { ...DEFAULT_AUDIO } }),

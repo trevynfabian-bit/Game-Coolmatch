@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ResetAllSettings } from "@/components/settings/reset-all-settings";
 import { SettingsShell } from "@/components/settings/settings-shell";
 import { difficultyProfile } from "@/lib/game/difficulty";
 import { findMap } from "@/lib/mock/maps";
@@ -63,6 +64,8 @@ export function SettingsOverview() {
           </li>
         ))}
       </ul>
+
+      <ResetAllSettings />
     </SettingsShell>
   );
 }

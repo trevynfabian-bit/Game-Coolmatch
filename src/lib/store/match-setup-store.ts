@@ -61,6 +61,8 @@ interface MatchSetupState extends StoredSetup {
   setBotCount: (count: number) => void;
   /** Mengganti peta; jumlah musuh dijepit ulang ke kapasitas peta baru. */
   setMap: (mapId: string) => void;
+  /** Tingkat dan jumlah lawan kembali ke bawaan; peta pilihan dibiarkan. */
+  resetOpponents: () => void;
 }
 
 /**
@@ -93,6 +95,12 @@ export const useMatchSetupStore = create<MatchSetupState>()(
           const botCount = Math.min(clampBotCount(count), maxBotsForMap(findMap(state.mapId)));
           return state.botCount === botCount ? state : { botCount };
         }),
+
+      resetOpponents: () =>
+        set((state) => ({
+          difficulty: DEFAULT_MATCH_SETUP.difficulty,
+          botCount: Math.min(DEFAULT_MATCH_SETUP.botCount, maxBotsForMap(findMap(state.mapId))),
+        })),
 
       setMap: (mapId) =>
         set((state) => {
