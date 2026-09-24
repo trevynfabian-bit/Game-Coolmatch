@@ -3,6 +3,7 @@
 import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
 import { findSkin } from "@/lib/economy/skin-catalog";
 import { useSkinStore } from "@/lib/store/skin-store";
+import { markItemSeen, useNotificationStore } from "@/lib/store/notification-store";
 import type { WeaponOwnership } from "@/lib/mock/player-weapons";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
 import type { Weapon } from "@/types/game";
@@ -26,7 +27,8 @@ function LockIcon({ className }: { className?: string }) {
  * Satu baris pada daftar senjata.
  *
  * Senjata yang sudah terbuka bisa dipilih dan kartunya menyorot terang saat
- * terpilih. Senjata terkunci tetap ditampilkan — justru itu yang membuat
+ * terpilih. Senjata yang baru terbuka diberi penanda "Baru" yang hilang begitu
+ * kartunya dipilih. Senjata terkunci tetap ditampilkan — justru itu yang membuat
  * pemain tahu ada sesuatu untuk dikejar — tetapi tombolnya dimatikan dan
  * diganti syarat membuka beserta kemajuannya.
  */
@@ -45,11 +47,18 @@ export function WeaponCard({
   const locked = !ownership.isUnlocked;
   // Skin yang terpasang ikut tampil di daftar, supaya hasil belanja terlihat.
   const skin = findSkin(useSkinStore((state) => state.collection.equipped[weapon.id]));
+  // Senjata yang baru terbuka dan belum dilihat diberi penanda "Baru".
+  const isNew = useNotificationStore((state) =>
+    state.items.some((item) => item.kind === "senjata" && item.itemId === weapon.id && item.seenAt === null),
+  );
 
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={() => {
+        if (isNew) markItemSeen("senjata", weapon.id);
+        onSelect();
+      }}
       disabled={locked}
       aria-pressed={locked ? undefined : selected}
       aria-label={
@@ -87,6 +96,11 @@ export function WeaponCard({
           >
             {weapon.name}
           </span>
+          {isNew && !locked ? (
+            <span className="shrink-0 rounded bg-emerald-400 px-1.5 py-0.5 text-[9px] font-bold tracking-[0.12em] text-slate-950 uppercase">
+              Baru
+            </span>
+          ) : null}
           {locked ? (
             <LockIcon className="h-3 w-3 shrink-0 text-slate-500" />
           ) : selected ? (
