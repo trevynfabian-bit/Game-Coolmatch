@@ -15,6 +15,7 @@ import { computeUnlockStatus, type AchievementStat } from "@/lib/game/killstreak
 import { spendCoins } from "@/server/services/coin-service";
 import { recordNotification } from "@/server/services/notification-service";
 import { getAchievementStats } from "@/server/services/player-stats-service";
+import { assertEarnsRewards } from "@/server/services/progress-isolation";
 
 /**
  * Layanan killstreak: katalog hadiah, hadiah yang terbuka, dan loadout
@@ -258,6 +259,7 @@ export function recordKillstreakEvent(
   if (match.endedAt != null) {
     throw new KillstreakError(409, "pertandingan_selesai", "Pertandingan ini sudah selesai.");
   }
+  assertEarnsRewards(match, "kejadian killstreak");
   const history = db
     .select()
     .from(matchKillstreakEvents)

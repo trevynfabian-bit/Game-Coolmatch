@@ -11,6 +11,7 @@ import { MAX_BOTS, MIN_BOTS } from "@/lib/game/difficulty";
 import { findMatchWinner } from "@/lib/game/round";
 import { MOCK_MAPS } from "@/lib/mock/maps";
 import { syncMapCatalog } from "@/server/services/map-service";
+import { countsTowardProgress } from "@/server/services/progress-isolation";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import { maxBotsForMap } from "@/lib/mock/bots";
 import { MATCH_RULES, sameRules } from "@/lib/game/match-rules";
@@ -226,7 +227,7 @@ export function finishMatch(
   // Statistik pemain baru saja bertambah: hadiah killstreak yang syarat
   // pencapaiannya kini terpenuhi dicatat terbuka (beserta notifikasinya)
   // sekarang, bukan menunggu pemain membuka menu hadiah.
-  if (!closed.isTrial) getRewardsFor(playerId);
+  if (countsTowardProgress(closed)) getRewardsFor(playerId);
 
   return {
     matchId,

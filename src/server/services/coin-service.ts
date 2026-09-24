@@ -17,6 +17,7 @@ import {
 } from "@/lib/economy/coin-rules";
 import { findMap } from "@/lib/mock/maps";
 import { recordNotification } from "@/server/services/notification-service";
+import { earnsRewards } from "@/server/services/progress-isolation";
 
 /**
  * Layanan dompet koin: satu-satunya jalan untuk mengubah saldo pemain.
@@ -274,7 +275,7 @@ export function awardMatchCoins(
 
     // Latihan dan uji coba senjata tidak pernah menghasilkan koin, apa pun
     // perolehannya — kalau tidak, lorong sasaran bisa dipakai memanen koin.
-    if (match.isTrial) {
+    if (!earnsRewards(match)) {
       const wallet = ensureWallet(tx, playerId);
       return {
         matchId,
@@ -421,7 +422,7 @@ export function getMatchCoinSummary(playerId: number, matchId: number): MatchCoi
     .get();
   if (!match) throw new CoinError("pertandingan_tidak_ada", "Pertandingan tidak ditemukan.");
 
-  const lines = match.isTrial ? [] : recordedMatchLines(db, playerId, matchId);
+  const lines = earnsRewards(match) ? recordedMatchLines(db, playerId, matchId) : [];
   const total = lines.reduce((sum, line) => sum + line.amount, 0);
   const status: MatchCoinStatus = match.isTrial
     ? "uji_coba"

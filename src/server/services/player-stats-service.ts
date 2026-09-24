@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { matchScores, matches } from "@/server/db/schema";
 import type { PlayerAchievementStats } from "@/lib/game/killstreak";
+import { progressMatchesOf } from "@/server/services/progress-isolation";
 
 /**
  * Statistik kemajuan pemain dari riwayat pertandingan yang sudah selesai.
@@ -9,7 +10,7 @@ import type { PlayerAchievementStats } from "@/lib/game/killstreak";
  * uji coba tidak mengubah progres.
  */
 export function getAchievementStats(playerId: number): PlayerAchievementStats {
-  const real = and(eq(matches.playerId, playerId), eq(matches.isTrial, false), sql`${matches.endedAt} IS NOT NULL`);
+  const real = progressMatchesOf(playerId);
 
   const kills = db
     .select({ total: sql<number>`coalesce(sum(${matchScores.kills}), 0)` })
