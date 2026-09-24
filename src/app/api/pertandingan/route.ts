@@ -15,8 +15,9 @@ import { currentPlayer } from "@/server/services/player-session";
  * Badan: { mapId, difficulty, botCount, totalRounds, scoreLimit, roundSeconds,
  * isTrial? }. `isTrial: true` untuk latihan dan uji coba senjata — sesi itu
  * tercatat tapi tidak pernah menghasilkan koin.
- * Balasan 201: { match: { id, ... } }. Id ini yang dipakai untuk menutup
- * pertandingan lewat /api/pertandingan/[id]/selesai.
+ * Balasan 201: { match: { id, ..., killstreakLoadout } }. Id ini yang dipakai
+ * untuk menutup pertandingan lewat /api/pertandingan/[id]/selesai, dan
+ * `killstreakLoadout` adalah hadiah yang sah dipakai di pertandingan ini.
  */
 export const POST = handle(async (request: Request) => {
   const body = await readJsonObject(request);

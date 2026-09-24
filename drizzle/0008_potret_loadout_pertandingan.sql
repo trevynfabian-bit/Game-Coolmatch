@@ -1,0 +1,1 @@
+ALTER TABLE `matches` ADD `killstreak_loadout` text DEFAULT '[]' NOT NULL;

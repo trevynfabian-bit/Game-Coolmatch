@@ -86,6 +86,16 @@ export const matches = sqliteTable(
     /** Kill beruntun terpanjang pemain dalam satu nyawa di pertandingan ini. */
     bestStreak: integer("best_streak").notNull().default(0),
 
+    /**
+     * Potret loadout hadiah killstreak saat pertandingan dimulai (tombol 6, 7,
+     * 8). Mengganti loadout di tengah pertandingan tidak mengubah hadiah yang
+     * sah untuk pertandingan yang sedang berjalan.
+     */
+    killstreakLoadout: text("killstreak_loadout", { mode: "json" })
+      .$type<(string | null)[]>()
+      .notNull()
+      .default(sql`'[]'`),
+
     /** Kosong selama pertandingan masih berjalan. */
     result: text("result", { enum: MATCH_RESULTS }),
     winnerName: text("winner_name"),

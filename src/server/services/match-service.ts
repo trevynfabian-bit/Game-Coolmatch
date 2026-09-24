@@ -13,6 +13,7 @@ import { findMatchWinner } from "@/lib/game/round";
 import { MOCK_MAPS } from "@/lib/mock/maps";
 import { ApiError } from "@/server/api/http";
 import { awardMatchCoins, type MatchCoinAward } from "@/server/services/coin-service";
+import { getLoadout } from "@/server/services/killstreak-service";
 
 /**
  * Layanan pertandingan: membuat baris pertandingan saat arena dibuka dan
@@ -52,6 +53,11 @@ function ensureMap(mapId: string) {
     .run();
 }
 
+/**
+ * Membuat pertandingan. Loadout hadiah killstreak pemain dipotret saat ini
+ * juga, jadi hadiah yang sah di pertandingan ini adalah yang tersimpan ketika
+ * pertandingan dimulai.
+ */
 export function startMatch(playerId: number, input: StartMatchInput): MatchRow {
   if (input.botCount < MIN_BOTS || input.botCount > MAX_BOTS) {
     throw new ApiError(400, "isian_tidak_sah", `Jumlah lawan harus ${MIN_BOTS}..${MAX_BOTS}.`);
@@ -59,7 +65,13 @@ export function startMatch(playerId: number, input: StartMatchInput): MatchRow {
   ensureMap(input.mapId);
   return db
     .insert(matches)
-    .values({ playerId, ...input, isTrial: input.isTrial === true, startedAt: Date.now() })
+    .values({
+      playerId,
+      ...input,
+      isTrial: input.isTrial === true,
+      killstreakLoadout: getLoadout(playerId),
+      startedAt: Date.now(),
+    })
     .returning()
     .get();
 }

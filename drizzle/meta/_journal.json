@@ -57,6 +57,13 @@
       "when": 1790267331215,
       "tag": "0007_syarat_buka_hadiah",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790267696601,
+      "tag": "0008_potret_loadout_pertandingan",
+      "breakpoints": true
     }
   ]
 }

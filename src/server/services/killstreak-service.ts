@@ -250,7 +250,8 @@ export function recordKillstreakEvent(
   const at = Date.now();
   const verdict = validateKillstreakEvent(
     { ...input, at },
-    { loadout: getLoadout(playerId), botCount: match.botCount, history },
+    // Validasi memakai potret loadout pertandingan, bukan loadout terkini.
+    { loadout: match.killstreakLoadout as (KillstreakId | null)[], botCount: match.botCount, history },
   );
   if (!verdict.ok) {
     // Laporan yang cacat (angka salah) 400; yang bertentangan dengan keadaan 409.

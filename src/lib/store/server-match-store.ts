@@ -52,7 +52,7 @@ export async function startServerMatch(snapshot: MatchSnapshot, { isTrial = fals
   const generation = useServerMatchStore.getState().generation + 1;
   useServerMatchStore.setState({ matchId: null, status: "starting", generation, result: null, error: null });
 
-  const response = await apiFetch<{ match: { id: number } }>("/api/pertandingan", {
+  const response = await apiFetch<{ match: { id: number; killstreakLoadout: (KillstreakId | null)[] } }>("/api/pertandingan", {
     method: "POST",
     body: {
       mapId: snapshot.map.id,
@@ -65,11 +65,14 @@ export async function startServerMatch(snapshot: MatchSnapshot, { isTrial = fals
     },
   });
   if (useServerMatchStore.getState().generation !== generation) return;
-  useServerMatchStore.setState(
-    response.ok
-      ? { matchId: response.data.match.id, status: "live" }
-      : { status: "offline", error: response.message },
-  );
+  if (!response.ok) {
+    useServerMatchStore.setState({ status: "offline", error: response.message });
+    return;
+  }
+  useServerMatchStore.setState({ matchId: response.data.match.id, status: "live" });
+  // Hadiah di arena mengikuti potret loadout yang dicatat server untuk
+  // pertandingan ini, jadi tombol 6-8 selalu cocok dengan yang divalidasi.
+  if (!isTrial) useKillstreakStore.getState().setLoadout(response.data.match.killstreakLoadout);
 }
 
 /** Melaporkan kejadian killstreak; gagal diam-diam karena tidak boleh mengganggu permainan. */
