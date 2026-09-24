@@ -30,8 +30,58 @@ export const DEFAULT_AUDIO: AudioSettings = {
   muted: false,
 };
 
+export type GraphicsQuality = "rendah" | "sedang" | "tinggi";
+
+export interface GraphicsSettings {
+  quality: GraphicsQuality;
+  /** Skala resolusi 0.5..1 terhadap kerapatan piksel layar. */
+  resolutionScale: number;
+  /** Sudut pandang kamera dalam derajat. */
+  fov: number;
+  showFps: boolean;
+}
+
+export const DEFAULT_GRAPHICS: GraphicsSettings = {
+  quality: "sedang",
+  resolutionScale: 1,
+  fov: 75,
+  showFps: true,
+};
+
+/** Arti tiap preset kualitas bagi kanvas 3D. */
+export const QUALITY_PRESETS: Record<GraphicsQuality, { label: string; shadows: boolean; maxDpr: number; antialias: boolean; blurb: string }> = {
+  rendah: { label: "Rendah", shadows: false, maxDpr: 1, antialias: false, blurb: "Tanpa bayangan, piksel standar. Untuk laptop lama." },
+  sedang: { label: "Sedang", shadows: true, maxDpr: 1.5, antialias: true, blurb: "Bayangan menyala, tepi halus. Seimbang." },
+  tinggi: { label: "Tinggi", shadows: true, maxDpr: 2, antialias: true, blurb: "Kerapatan piksel penuh di layar tajam." },
+};
+
+export const FOV_RANGE = { min: 65, max: 100 } as const;
+
+export function sanitizeGraphics(value: unknown): GraphicsSettings {
+  const raw = (value && typeof value === "object" ? value : {}) as Partial<GraphicsSettings>;
+  const quality = raw.quality && raw.quality in QUALITY_PRESETS ? raw.quality : DEFAULT_GRAPHICS.quality;
+  const scale = typeof raw.resolutionScale === "number" && Number.isFinite(raw.resolutionScale)
+    ? Math.min(1, Math.max(0.5, raw.resolutionScale))
+    : DEFAULT_GRAPHICS.resolutionScale;
+  const fov = typeof raw.fov === "number" && Number.isFinite(raw.fov)
+    ? Math.min(FOV_RANGE.max, Math.max(FOV_RANGE.min, Math.round(raw.fov)))
+    : DEFAULT_GRAPHICS.fov;
+  return {
+    quality,
+    resolutionScale: scale,
+    fov,
+    showFps: typeof raw.showFps === "boolean" ? raw.showFps : DEFAULT_GRAPHICS.showFps,
+  };
+}
+
+/** Rentang kerapatan piksel kanvas dari pengaturan grafis. */
+export function canvasDpr(graphics: GraphicsSettings): [number, number] {
+  const max = QUALITY_PRESETS[graphics.quality].maxDpr * graphics.resolutionScale;
+  return [Math.min(1, max), Math.max(0.5, max)];
+}
+
 const STORAGE_KEY = "coolmatch:pengaturan";
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2;
 
 function volume(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : fallback;
@@ -50,18 +100,24 @@ export function sanitizeAudio(value: unknown): AudioSettings {
 
 interface StoredSettings {
   audio: AudioSettings;
+  graphics: GraphicsSettings;
 }
 
 interface SettingsState extends StoredSettings {
   setAudio: (patch: Partial<AudioSettings>) => void;
   resetAudio: () => void;
   toggleMute: () => void;
+  setGraphics: (patch: Partial<GraphicsSettings>) => void;
+  resetGraphics: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       audio: { ...DEFAULT_AUDIO },
+      graphics: { ...DEFAULT_GRAPHICS },
+      setGraphics: (patch) => set((state) => ({ graphics: sanitizeGraphics({ ...state.graphics, ...patch }) })),
+      resetGraphics: () => set({ graphics: { ...DEFAULT_GRAPHICS } }),
       setAudio: (patch) => set((state) => ({ audio: sanitizeAudio({ ...state.audio, ...patch }) })),
       resetAudio: () => set({ audio: { ...DEFAULT_AUDIO } }),
       toggleMute: () => set((state) => ({ audio: { ...state.audio, muted: !state.audio.muted } })),
@@ -70,10 +126,12 @@ export const useSettingsStore = create<SettingsState>()(
       name: STORAGE_KEY,
       version: STORAGE_VERSION,
       storage: createJSONStorage(() => localStorage),
-      partialize: (state): StoredSettings => ({ audio: state.audio }),
+      partialize: (state): StoredSettings => ({ audio: state.audio, graphics: state.graphics }),
+      // Versi 1 hanya menyimpan audio; grafis mulai dari bawaan.
+      migrate: (persisted) => persisted as StoredSettings,
       merge: (persisted, current): SettingsState => {
         const saved = (persisted ?? {}) as Partial<StoredSettings>;
-        return { ...current, audio: sanitizeAudio(saved.audio) };
+        return { ...current, audio: sanitizeAudio(saved.audio), graphics: sanitizeGraphics(saved.graphics) };
       },
     },
   ),

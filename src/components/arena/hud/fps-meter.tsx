@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fpsRuntime } from "@/lib/game/fps-runtime";
+import { useSettingsStore } from "@/lib/store/settings-store";
 
 const SAMPLE_MS = 500;
 
@@ -11,6 +12,7 @@ const SAMPLE_MS = 500;
  * merah di bawahnya.
  */
 export function FpsMeter() {
+  const visible = useSettingsStore((state) => state.graphics.showFps);
   const [sample, setSample] = useState<{ fps: number; worst: number } | null>(null);
 
   useEffect(() => {
@@ -29,7 +31,7 @@ export function FpsMeter() {
     return () => clearInterval(timer);
   }, []);
 
-  if (!sample) return null;
+  if (!sample || !visible) return null;
   const color = sample.fps >= 55 ? "text-emerald-300" : sample.fps >= 30 ? "text-amber-300" : "text-rose-400";
 
   return (

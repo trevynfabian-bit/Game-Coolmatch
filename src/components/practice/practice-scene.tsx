@@ -17,6 +17,8 @@ import {
   TARGET_INDEX_BY_BLOCK,
 } from "@/lib/practice/range-map";
 import { usePracticeStore } from "@/lib/store/practice-store";
+import { QUALITY_PRESETS, canvasDpr, useSettingsStore } from "@/lib/store/settings-store";
+import { CameraFov } from "@/components/arena/camera-fov";
 import type { MatchSnapshot, Weapon } from "@/types/game";
 
 /** Lama pelat sasaran berkedip setelah kena, dalam detik. */
@@ -180,18 +182,22 @@ export function PracticeScene({
     [recordShot],
   );
 
+  const graphics = useSettingsStore((state) => state.graphics);
+  const preset = QUALITY_PRESETS[graphics.quality];
+
   return (
     <Canvas
-      shadows
-      dpr={[1, 1.75]}
+      shadows={preset.shadows}
+      dpr={canvasDpr(graphics)}
       camera={{
         fov: 75,
         near: 0.1,
         far: 220,
         position: [RANGE_SPAWN[0], RANGE_SPAWN[1] + EYE_HEIGHT, RANGE_SPAWN[2]],
       }}
-      gl={{ antialias: true }}
+      gl={{ antialias: preset.antialias }}
     >
+      <CameraFov />
       <color attach="background" args={[RANGE_MAP.skyColor]} />
       <fog attach="fog" args={[RANGE_MAP.fogColor, 45, 130]} />
 

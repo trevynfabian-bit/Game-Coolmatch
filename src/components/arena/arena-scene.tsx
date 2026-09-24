@@ -18,6 +18,8 @@ import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
 import { EYE_HEIGHT } from "@/lib/game/controls";
 import { getLocalFighter } from "@/lib/mock/match";
 import { useShopStore } from "@/lib/store/shop-store";
+import { QUALITY_PRESETS, canvasDpr, useSettingsStore } from "@/lib/store/settings-store";
+import { CameraFov } from "@/components/arena/camera-fov";
 import { playerWeapon } from "@/lib/weapons/player-weapon";
 import { useMatchStore } from "@/lib/store/match-store";
 import type { MatchSnapshot } from "@/types/game";
@@ -68,10 +70,13 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
       spawnFighter.weaponId,
   );
 
+  const graphics = useSettingsStore((state) => state.graphics);
+  const preset = QUALITY_PRESETS[graphics.quality];
+
   return (
     <Canvas
-      shadows
-      dpr={[1, 1.75]}
+      shadows={preset.shadows}
+      dpr={canvasDpr(graphics)}
       camera={{
         fov: 75,
         near: 0.1,
@@ -82,8 +87,9 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
           spawnFighter.position[2],
         ],
       }}
-      gl={{ antialias: true }}
+      gl={{ antialias: preset.antialias }}
     >
+      <CameraFov />
       <color attach="background" args={[match.map.skyColor]} />
       <fog attach="fog" args={[match.map.fogColor, 34, 110]} />
 
