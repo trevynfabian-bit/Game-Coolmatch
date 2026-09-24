@@ -1,4 +1,4 @@
-import { channel } from "@/lib/audio/engine";
+import { acquireVoice, channel } from "@/lib/audio/engine";
 import { duckMusic } from "@/lib/audio/music";
 
 /**
@@ -17,6 +17,7 @@ import { duckMusic } from "@/lib/audio/music";
 export function playExplosion(volume = 1): void {
   const bus = channel("sfx");
   if (!bus || volume <= 0.01) return;
+  if (!acquireVoice("ledakan", 4, 60, 1300)) return;
   // Musik meredup sejenak supaya dentuman terasa menguasai ruang.
   duckMusic(0.35, 1.1);
   const ctx = bus.context;
@@ -75,6 +76,7 @@ export function playJetFlyby(volume = 0.6): void {
 export function playGunBurst(volume = 0.3): void {
   const bus = channel("sfx");
   if (!bus || volume <= 0.01) return;
+  if (!acquireVoice("helikopter", 3, 40, 90)) return;
   const ctx = bus.context;
   const now = ctx.currentTime;
   const source = ctx.createBufferSource();
@@ -103,6 +105,7 @@ const GUNSHOT_VOICE: Record<string, { cutoff: number; length: number; thump: num
 export function playGunshot(type: string): void {
   const bus = channel("sfx");
   if (!bus) return;
+  if (!acquireVoice("tembakan", 6, 0, 450)) return;
   duckMusic(type === "sniper" || type === "shotgun" ? 0.55 : 0.75, 0.25);
   const ctx = bus.context;
   const voice = GUNSHOT_VOICE[type] ?? GUNSHOT_VOICE.rifle;
@@ -200,6 +203,7 @@ export function playDryFire(): void {
 export function playFootstep(sprinting: boolean): void {
   const bus = channel("sfx");
   if (!bus) return;
+  if (!acquireVoice("langkah", 2, 60, 100)) return;
   const ctx = bus.context;
   const now = ctx.currentTime;
   const source = ctx.createBufferSource();
@@ -242,6 +246,7 @@ export function playLanding(impactSpeed: number): void {
 export function playImpact(onFighter: boolean, distance: number): void {
   const bus = channel("sfx");
   if (!bus) return;
+  if (!acquireVoice("dampak", 5, 20, 140)) return;
   const volume = Math.max(0, 1 - distance / 60);
   if (volume <= 0.02) return;
   const ctx = bus.context;
@@ -267,6 +272,7 @@ export function playImpact(onFighter: boolean, distance: number): void {
 export function playRemoteGunshot(type: string, distance: number): void {
   const bus = channel("sfx");
   if (!bus) return;
+  if (!acquireVoice("tembakan_musuh", 4, 35, 200)) return;
   const volume = Math.max(0, 1 - distance / 70);
   if (volume <= 0.03) return;
   const ctx = bus.context;
@@ -290,6 +296,7 @@ export function playRemoteGunshot(type: string, distance: number): void {
 export function playHurt(severity: number): void {
   const bus = channel("sfx");
   if (!bus) return;
+  if (!acquireVoice("terluka", 2, 80, 200)) return;
   const ctx = bus.context;
   const now = ctx.currentTime;
   const osc = ctx.createOscillator();

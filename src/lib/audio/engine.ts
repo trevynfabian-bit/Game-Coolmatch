@@ -32,7 +32,15 @@ function createEngine(): Engine | null {
   if (!Ctor) return null;
   const context = new Ctor();
   const master = context.createGain();
-  master.connect(context.destination);
+  // Limiter di ujung rantai: saat banyak tembakan dan ledakan bertumpuk,
+  // puncaknya ditekan alih-alih pecah (clipping).
+  const limiter = context.createDynamicsCompressor();
+  limiter.threshold.value = -10;
+  limiter.knee.value = 6;
+  limiter.ratio.value = 12;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.15;
+  master.connect(limiter).connect(context.destination);
   const bus = () => {
     const gain = context.createGain();
     gain.connect(master);
@@ -95,4 +103,29 @@ export function installUnlock(onUnlock?: () => void): () => void {
   const cleanup = () => events.forEach((name) => window.removeEventListener(name, unlock, true));
   events.forEach((name) => window.addEventListener(name, unlock, true));
   return cleanup;
+}
+
+/**
+ * Pembatas suara per jenis. Pertempuran ramai bisa memicu puluhan bunyi dalam
+ * sedetik; tanpa batas, CPU audio terbebani dan hasilnya cuma dengung. Setiap
+ * jenis bunyi punya batas suara bersamaan dan jarak minimum antar-pemicu;
+ * pemicu yang melanggar diabaikan (bunyi lain yang sejenis sudah mewakilinya).
+ */
+interface VoicePool {
+  active: number;
+  lastAt: number;
+}
+const pools = new Map<string, VoicePool>();
+
+export function acquireVoice(kind: string, maxVoices: number, minGapMs: number, lengthMs: number): boolean {
+  const now = performance.now();
+  const pool = pools.get(kind) ?? { active: 0, lastAt: -Infinity };
+  pools.set(kind, pool);
+  if (pool.active >= maxVoices || now - pool.lastAt < minGapMs) return false;
+  pool.active += 1;
+  pool.lastAt = now;
+  setTimeout(() => {
+    pool.active = Math.max(0, pool.active - 1);
+  }, lengthMs);
+  return true;
 }
