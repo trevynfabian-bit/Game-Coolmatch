@@ -38,14 +38,19 @@ export const GET = handleRead(
 );
 
 /**
- * POST /api/killstreak/loadout — menyimpan loadout.
+ * POST /api/killstreak/loadout — menyimpan loadout (tombol 6, 7, 8).
  *
- * Badan: { slots: [id | null, id | null, id | null] }. Hadiah ganda → 400
- * `hadiah_ganda`; hadiah belum terbuka → 409 `hadiah_terkunci`.
- * Balasan 200: { loadout }.
+ * Badan: { slots: [id | null, id | null, id | null] }. Validasi server:
+ * tepat tiga slot (400 `loadout_tidak_sah`), id dikenal (400
+ * `hadiah_tidak_dikenal`), tanpa hadiah ganda (400 `hadiah_ganda`), dan semua
+ * hadiah sudah terbuka (409 `hadiah_terkunci`). Tidak ada yang tersimpan bila
+ * salah satu gagal.
+ *
+ * Balasan 200: { loadout, rewards, savedAt } — loadout sebagaimana tersimpan.
  */
 export const POST = handle(async (request: Request) => {
   const body = await readJsonObject(request);
   const player = await currentPlayer();
-  return Response.json({ loadout: saveLoadout(player.id, body.slots) });
+  const loadout = saveLoadout(player.id, body.slots);
+  return Response.json({ loadout, rewards: getRewardsFor(player.id), savedAt: Date.now() });
 });
