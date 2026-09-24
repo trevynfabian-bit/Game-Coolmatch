@@ -1,5 +1,6 @@
 "use client";
 
+import { keepCursorFree } from "@/lib/game/keep-cursor-free";
 import { KillstreakIcon } from "@/components/arena/hud/killstreak-tracker";
 import { callKillstreak, findKillstreak } from "@/lib/game/killstreak";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
@@ -28,7 +29,7 @@ export function KillstreakReadyPrompt() {
           type="button"
           onClick={(event) => {
             // Jangan merambat ke kanvas yang akan mengunci kursor.
-            event.stopPropagation();
+            keepCursorFree(event);
             callKillstreak(reward.id, useKillstreakStore.getState());
           }}
           className={`killstreak-ready flex items-center gap-2 rounded-lg border bg-slate-950/80 px-3 py-1.5 text-left backdrop-blur-sm ${

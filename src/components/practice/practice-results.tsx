@@ -1,5 +1,6 @@
 "use client";
 
+import { keepCursorFree } from "@/lib/game/keep-cursor-free";
 import { RANGE_TARGETS } from "@/lib/practice/range-map";
 import { accuracyPercent, usePracticeStore } from "@/lib/store/practice-store";
 
@@ -66,7 +67,7 @@ export function PracticeResults() {
       <button
         type="button"
         onClick={(event) => {
-          event.stopPropagation();
+          keepCursorFree(event);
           reset();
         }}
         className="mt-3 text-xs text-slate-400 hover:text-slate-200"

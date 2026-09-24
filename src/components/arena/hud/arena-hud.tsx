@@ -129,7 +129,7 @@ export function ArenaHud({ match, trial = false }: { match: MatchSnapshot; trial
 
       <AirstrikeTargeting map={match.map} />
 
-      <EngageOverlay mapName={match.map.name} />
+      <EngageOverlay mapName={match.map.name} trial={trial} />
     </>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { keepCursorFree } from "@/lib/game/keep-cursor-free";
 import Link from "next/link";
 import { AmmoPanel } from "@/components/arena/hud/ammo-panel";
 import { Crosshair } from "@/components/arena/hud/crosshair";
@@ -93,8 +94,7 @@ function StartOverlay({ weapon }: { weapon: Weapon }) {
   const hasEngaged = usePlayerStore((state) => state.hasEngaged);
   if (isLocked) return null;
 
-  const stopClick = (event: { stopPropagation: () => void }) =>
-    event.stopPropagation();
+  const stopClick = keepCursorFree;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center overflow-y-auto bg-slate-950/75 px-6 py-8 backdrop-blur-[2px]">

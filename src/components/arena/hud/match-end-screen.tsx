@@ -1,5 +1,6 @@
 "use client";
 
+import { keepCursorFree } from "@/lib/game/keep-cursor-free";
 import Link from "next/link";
 import { useMemo } from "react";
 import { CoinSummary } from "@/components/arena/hud/coin-summary";
@@ -155,7 +156,7 @@ export function MatchEndScreen({
           <button
             type="button"
             onClick={(event) => {
-              event.stopPropagation();
+              keepCursorFree(event);
               restartMatch(map, snapshot);
             }}
             className="rounded-lg bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
@@ -170,14 +171,14 @@ export function MatchEndScreen({
           */}
           <Link
             href={trial ? "/uji" : "/lawan"}
-            onClick={(event) => event.stopPropagation()}
+            onClick={keepCursorFree}
             className="rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
           >
             {trial ? "Coba senjata lain" : "Ganti lawan"}
           </Link>
           <Link
             href="/"
-            onClick={(event) => event.stopPropagation()}
+            onClick={keepCursorFree}
             className="rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
           >
             Kembali ke menu

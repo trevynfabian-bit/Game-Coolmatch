@@ -1,5 +1,6 @@
 "use client";
 
+import { ExitSession } from "@/components/arena/hud/exit-session";
 import { RoundRulesPanel } from "@/components/arena/hud/round-rules-panel";
 import { QuickAudioControl } from "@/components/settings/quick-audio-control";
 import { CONTROL_HINTS } from "@/lib/game/controls";
@@ -13,7 +14,7 @@ import { usePlayerStore } from "@/lib/store/player-store";
  * Tombolnya sekadar sasaran klik yang jelas — drei PointerLockControls sendiri
  * menyimak klik di level document.
  */
-export function EngageOverlay({ mapName }: { mapName: string }) {
+export function EngageOverlay({ mapName, trial = false }: { mapName: string; trial?: boolean }) {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const hasEngaged = usePlayerStore((state) => state.hasEngaged);
   const round = useMatchStore((state) => state.round);
@@ -37,6 +38,8 @@ export function EngageOverlay({ mapName }: { mapName: string }) {
         >
           {hasEngaged ? "Klik untuk lanjut" : "Klik untuk main"}
         </button>
+
+        {hasEngaged ? <ExitSession trial={trial} /> : null}
 
         <dl className="mx-auto mt-7 grid max-w-[18rem] grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-left">
           {CONTROL_HINTS.map((hint) => (

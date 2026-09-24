@@ -1,5 +1,6 @@
 "use client";
 
+import { keepCursorFree } from "@/lib/game/keep-cursor-free";
 import { useEffect, useState } from "react";
 import { MapPlan } from "@/components/maps/map-plan";
 import { getBot } from "@/lib/game/bot-runtime";
@@ -109,7 +110,7 @@ export function AirstrikeTargeting({ map }: { map: ArenaMapInfo }) {
   return (
     <div
       className="absolute inset-0 z-30 grid place-items-center bg-slate-950/80 px-4 backdrop-blur-sm"
-      onClick={(event) => event.stopPropagation()}
+      onClick={keepCursorFree}
       role="dialog"
       aria-modal="true"
       aria-labelledby="judul-serangan-udara"

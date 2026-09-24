@@ -1,5 +1,6 @@
 "use client";
 
+import { keepCursorFree } from "@/lib/game/keep-cursor-free";
 import { useEffect } from "react";
 import { useSettingsStore } from "@/lib/store/settings-store";
 
@@ -17,7 +18,7 @@ export function QuickAudioControl() {
       <button
         type="button"
         onClick={(event) => {
-          event.stopPropagation();
+          keepCursorFree(event);
           toggleMute();
         }}
         aria-pressed={audio.muted}
@@ -33,7 +34,7 @@ export function QuickAudioControl() {
         step={5}
         value={Math.round(audio.master * 100)}
         disabled={audio.muted}
-        onClick={(event) => event.stopPropagation()}
+        onClick={keepCursorFree}
         onChange={(event) => setAudio({ master: Number(event.target.value) / 100 })}
         aria-label="Volume utama"
         className="h-2 flex-1 accent-emerald-400"
