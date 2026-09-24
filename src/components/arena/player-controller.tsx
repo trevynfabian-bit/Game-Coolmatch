@@ -17,6 +17,7 @@ import { playerRuntime } from "@/lib/game/player-runtime";
 import { playFootstep, playLanding } from "@/lib/audio/sfx";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
+import { useSettingsStore } from "@/lib/store/settings-store";
 import type { ArenaMapInfo, Vec3 } from "@/types/game";
 
 /** Batas delta time supaya jeda tab tidak melempar pemain menembus dinding. */
@@ -48,6 +49,7 @@ export function PlayerController({
   const setMotion = usePlayerStore((state) => state.setMotion);
   const setHintsVisible = usePlayerStore((state) => state.setHintsVisible);
   const toggleHints = usePlayerStore((state) => state.toggleHints);
+  const sensitivity = useSettingsStore((state) => state.controls.sensitivity);
 
   const colliders = useMemo(() => buildColliders(map), [map]);
 
@@ -298,6 +300,7 @@ export function PlayerController({
   return (
     <PointerLockControls
       makeDefault
+      pointerSpeed={sensitivity}
       onLock={() => setLocked(true)}
       onUnlock={() => setLocked(false)}
     />

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 /**
- * Preferensi pemain: audio (dan nanti grafis, sensitivitas, tata tombol).
+ * Preferensi pemain: audio, grafis, dan kontrol (sensitivitas, tata tombol).
  *
  * Disimpan otomatis di localStorage supaya langsung berlaku saat game dibuka
  * lagi; lapisan backend menyelaraskannya ke server supaya ikut pindah
@@ -80,8 +80,30 @@ export function canvasDpr(graphics: GraphicsSettings): [number, number] {
   return [Math.min(1, max), Math.max(0.5, max)];
 }
 
+export interface ControlSettings {
+  /** Pengali kecepatan pandangan mouse; 1 = bawaan three.js. */
+  sensitivity: number;
+}
+
+export const DEFAULT_CONTROLS: ControlSettings = {
+  sensitivity: 1,
+};
+
+export const SENSITIVITY_RANGE = { min: 0.2, max: 3, step: 0.05 } as const;
+
+/** Radian per piksel gerak mouse pada sensitivitas 1 (sama dengan PointerLockControls). */
+export const BASE_RADIANS_PER_PIXEL = 0.002;
+
+export function sanitizeControls(value: unknown): ControlSettings {
+  const raw = (value && typeof value === "object" ? value : {}) as Partial<ControlSettings>;
+  const sensitivity = typeof raw.sensitivity === "number" && Number.isFinite(raw.sensitivity)
+    ? Math.min(SENSITIVITY_RANGE.max, Math.max(SENSITIVITY_RANGE.min, Math.round(raw.sensitivity * 100) / 100))
+    : DEFAULT_CONTROLS.sensitivity;
+  return { sensitivity };
+}
+
 const STORAGE_KEY = "coolmatch:pengaturan";
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 
 function volume(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : fallback;
@@ -101,6 +123,7 @@ export function sanitizeAudio(value: unknown): AudioSettings {
 interface StoredSettings {
   audio: AudioSettings;
   graphics: GraphicsSettings;
+  controls: ControlSettings;
 }
 
 interface SettingsState extends StoredSettings {
@@ -109,6 +132,8 @@ interface SettingsState extends StoredSettings {
   toggleMute: () => void;
   setGraphics: (patch: Partial<GraphicsSettings>) => void;
   resetGraphics: () => void;
+  setControls: (patch: Partial<ControlSettings>) => void;
+  resetControls: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -118,6 +143,9 @@ export const useSettingsStore = create<SettingsState>()(
       graphics: { ...DEFAULT_GRAPHICS },
       setGraphics: (patch) => set((state) => ({ graphics: sanitizeGraphics({ ...state.graphics, ...patch }) })),
       resetGraphics: () => set({ graphics: { ...DEFAULT_GRAPHICS } }),
+      controls: { ...DEFAULT_CONTROLS },
+      setControls: (patch) => set((state) => ({ controls: sanitizeControls({ ...state.controls, ...patch }) })),
+      resetControls: () => set({ controls: { ...DEFAULT_CONTROLS } }),
       setAudio: (patch) => set((state) => ({ audio: sanitizeAudio({ ...state.audio, ...patch }) })),
       resetAudio: () => set({ audio: { ...DEFAULT_AUDIO } }),
       toggleMute: () => set((state) => ({ audio: { ...state.audio, muted: !state.audio.muted } })),
@@ -126,12 +154,21 @@ export const useSettingsStore = create<SettingsState>()(
       name: STORAGE_KEY,
       version: STORAGE_VERSION,
       storage: createJSONStorage(() => localStorage),
-      partialize: (state): StoredSettings => ({ audio: state.audio, graphics: state.graphics }),
-      // Versi 1 hanya menyimpan audio; grafis mulai dari bawaan.
+      partialize: (state): StoredSettings => ({
+        audio: state.audio,
+        graphics: state.graphics,
+        controls: state.controls,
+      }),
+      // Versi lama belum punya grafis/kontrol; bagian yang hilang mulai dari bawaan.
       migrate: (persisted) => persisted as StoredSettings,
       merge: (persisted, current): SettingsState => {
         const saved = (persisted ?? {}) as Partial<StoredSettings>;
-        return { ...current, audio: sanitizeAudio(saved.audio), graphics: sanitizeGraphics(saved.graphics) };
+        return {
+          ...current,
+          audio: sanitizeAudio(saved.audio),
+          graphics: sanitizeGraphics(saved.graphics),
+          controls: sanitizeControls(saved.controls),
+        };
       },
     },
   ),

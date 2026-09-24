@@ -68,7 +68,7 @@ export function AudioSettingsPage() {
         />
       </div>
 
-      <button type="button" onClick={resetAudio} className="mt-4 text-xs text-slate-400 hover:text-slate-200">
+      <button type="button" onClick={resetAudio} className="mt-4 block text-xs text-slate-400 hover:text-slate-200">
         Kembalikan ke bawaan
       </button>
     </SettingsShell>

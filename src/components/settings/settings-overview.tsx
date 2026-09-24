@@ -5,7 +5,7 @@ import { SettingsShell } from "@/components/settings/settings-shell";
 import { difficultyProfile } from "@/lib/game/difficulty";
 import { findMap } from "@/lib/mock/maps";
 import { useMatchSetupStore } from "@/lib/store/match-setup-store";
-import { useSettingsStore } from "@/lib/store/settings-store";
+import { QUALITY_PRESETS, useSettingsStore } from "@/lib/store/settings-store";
 
 /**
  * Ringkasan pengaturan: satu pandangan atas semua preferensi yang ikut
@@ -14,6 +14,8 @@ import { useSettingsStore } from "@/lib/store/settings-store";
  */
 export function SettingsOverview() {
   const audio = useSettingsStore((state) => state.audio);
+  const graphics = useSettingsStore((state) => state.graphics);
+  const controls = useSettingsStore((state) => state.controls);
   const difficulty = useMatchSetupStore((state) => state.difficulty);
   const botCount = useMatchSetupStore((state) => state.botCount);
   const mapId = useMatchSetupStore((state) => state.mapId);
@@ -24,8 +26,8 @@ export function SettingsOverview() {
       title: "Audio",
       summary: audio.muted ? "Dibisukan" : `Utama ${Math.round(audio.master * 100)}% · musik ${Math.round(audio.music * 100)}%`,
     },
-    { href: "/pengaturan/grafis", title: "Grafis", summary: "Kualitas, skala resolusi, pengukur FPS" },
-    { href: "/pengaturan/kontrol", title: "Kontrol", summary: "Sensitivitas bidik dan tata tombol" },
+    { href: "/pengaturan/grafis", title: "Grafis", summary: `${QUALITY_PRESETS[graphics.quality].label} · FOV ${graphics.fov}°` },
+    { href: "/pengaturan/kontrol", title: "Kontrol", summary: `Sensitivitas ${controls.sensitivity.toFixed(2)}×` },
     { href: "/pengaturan/profil", title: "Profil", summary: "Nama yang tampil di arena dan klasemen" },
     {
       href: "/lawan",
