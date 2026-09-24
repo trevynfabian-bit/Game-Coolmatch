@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { DEFAULT_BINDINGS, sanitizeBindings, type KeyBindings } from "@/lib/game/keybindings";
@@ -180,3 +181,21 @@ export const useSettingsStore = create<SettingsState>()(
     },
   ),
 );
+
+function subscribeHydration(onChange: () => void): () => void {
+  return useSettingsStore.persist.onFinishHydration(onChange);
+}
+
+/**
+ * True setelah pengaturan tersimpan selesai dibaca dari localStorage. Arena
+ * menunggu ini sebelum menyusun kanvas supaya kualitas, sudut pandang,
+ * sensitivitas, dan tata tombol sudah yang tersimpan sejak frame pertama.
+ * Di server selalu false.
+ */
+export function useSettingsHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeHydration,
+    () => useSettingsStore.persist.hasHydrated(),
+    () => false,
+  );
+}

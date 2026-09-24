@@ -7,6 +7,7 @@ import { ArenaHud } from "@/components/arena/hud/arena-hud";
 import { ServerMatchSync } from "@/components/arena/server-match-sync";
 import { CombatAudio } from "@/components/arena/combat-audio";
 import { useKeyboardMap } from "@/lib/game/use-keybindings";
+import { useSettingsHydrated } from "@/lib/store/settings-store";
 import { armPlayerFrom } from "@/lib/game/arm-player";
 import { resetBotRuntime } from "@/lib/game/bot-runtime";
 import { resetSessionStats } from "@/lib/game/session-stats";
@@ -124,7 +125,11 @@ export function ArenaExperience({ match, trial = false }: { match?: MatchSnapsho
     };
   });
 
-  const hydrated = useSyncExternalStore(subscribeNever, onClient, onServer);
+  const clientReady = useSyncExternalStore(subscribeNever, onClient, onServer);
+  // Pengaturan tersimpan (kualitas, FOV, sensitivitas, tata tombol) harus
+  // sudah terbaca sebelum kanvas dibuat: antialias hanya bisa dipilih sekali.
+  const settingsReady = useSettingsHydrated();
+  const hydrated = clientReady && settingsReady;
 
   /**
    * Pertandingan disusun dari pengaturan tadi. Prop `match` tetap dibuka supaya

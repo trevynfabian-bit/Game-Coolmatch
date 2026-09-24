@@ -4,6 +4,7 @@ import { keepCursorFree } from "@/lib/game/keep-cursor-free";
 import Link from "next/link";
 import { AmmoPanel } from "@/components/arena/hud/ammo-panel";
 import { Crosshair } from "@/components/arena/hud/crosshair";
+import { SettingsAppliedNotice } from "@/components/arena/hud/settings-applied-notice";
 import { QuickAudioControl } from "@/components/settings/quick-audio-control";
 import { QuickGameSettings } from "@/components/settings/quick-game-settings";
 import { useControlHints } from "@/lib/game/use-keybindings";
@@ -165,6 +166,7 @@ export function PracticeHud({ weapon }: { weapon: Weapon }) {
         <ScorePanel weapon={weapon} />
         {isLocked ? <Crosshair /> : null}
         <AmmoPanel weapon={weapon} />
+        <SettingsAppliedNotice />
         <p className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full border border-sky-400/40 bg-sky-950/70 px-3 py-1 text-[10px] font-bold tracking-[0.25em] text-sky-200 uppercase">
           Mode latihan · tidak mengubah progres
         </p>

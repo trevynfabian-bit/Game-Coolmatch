@@ -9,6 +9,7 @@ import { DamageVignette } from "@/components/arena/hud/damage-vignette";
 import { Crosshair } from "@/components/arena/hud/crosshair";
 import { EngageOverlay } from "@/components/arena/hud/engage-overlay";
 import { FpsMeter } from "@/components/arena/hud/fps-meter";
+import { SettingsAppliedNotice } from "@/components/arena/hud/settings-applied-notice";
 import { KillFeed } from "@/components/arena/hud/kill-feed";
 import { KillstreakReadyPrompt } from "@/components/arena/hud/killstreak-ready-prompt";
 import { KillstreakTracker } from "@/components/arena/hud/killstreak-tracker";
@@ -101,6 +102,7 @@ export function ArenaHud({ match, trial = false }: { match: MatchSnapshot; trial
         <WeaponSlots />
         <MatchInfoStrip match={match} />
         <FpsMeter />
+        <SettingsAppliedNotice />
       </div>
 
       {/* Di luar lapisan pointer-events-none supaya tombolnya bisa diklik saat kursor lepas. */}
