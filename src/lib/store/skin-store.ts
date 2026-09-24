@@ -15,6 +15,7 @@ interface SkinState {
   /** Kunci aksi yang sedang diproses. */
   pending: string | null;
   load: () => Promise<void>;
+  hydrate: (collection: SkinCollection) => void;
   /** Membeli skin; bila `equipOn` diisi, skin langsung dipasang di senjata itu. */
   buySkin: (skinId: string, equipOn?: string) => Promise<ShopResult>;
   /** Memasang skin milik pemain ke satu senjata, menggantikan skin sebelumnya. */
@@ -59,6 +60,8 @@ export const useSkinStore = create<SkinState>((set, get) => {
       const result = await apiFetch<{ collection: SkinCollection }>("/api/skin");
       if (result.ok) set({ collection: result.data.collection, loaded: true });
     },
+
+    hydrate: (collection) => set({ collection, loaded: true }),
 
     buySkin: (skinId, equipOn) =>
       run(`beli:${skinId}`, async () => {

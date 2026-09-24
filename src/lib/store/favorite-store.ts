@@ -19,6 +19,7 @@ interface FavoriteState {
   /** Pesan galat terakhir dari server, untuk ditampilkan sebentar. */
   error: string | null;
   load: () => Promise<void>;
+  hydrate: (favorites: string[]) => void;
   toggle: (kind: FavoriteKind, id: string) => Promise<void>;
 }
 
@@ -30,6 +31,8 @@ export const useFavoriteStore = create<FavoriteState>((set, get) => ({
     const result = await apiFetch<{ favorites: string[] }>("/api/favorit");
     if (result.ok) set({ favorites: result.data.favorites });
   },
+
+  hydrate: (favorites) => set({ favorites }),
 
   toggle: async (kind, id) => {
     const key = favoriteKey(kind, id);

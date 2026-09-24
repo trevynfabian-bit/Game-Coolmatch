@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "@/lib/api/client";
 import { WalletBadge } from "@/components/economy/wallet-badge";
 import { FavoriteButton } from "@/components/gallery/favorite-button";
 import { GalleryItemCard } from "@/components/gallery/gallery-item-card";
@@ -23,6 +24,7 @@ import {
 } from "@/lib/store/favorite-store";
 import { useSkinStore } from "@/lib/store/skin-store";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
+import type { SkinCollection, WeaponUpgradeState } from "@/types/economy";
 
 type Tab = "senjata" | "skin" | "attachment";
 
@@ -45,6 +47,23 @@ export function CollectionGallery() {
     skinId: string | null;
   } | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+
+  // Galeri memuat koleksi segar dalam satu permintaan saat dibuka, supaya
+  // pembelian dari tab lain pun langsung terlihat.
+  useEffect(() => {
+    let cancelled = false;
+    void apiFetch<{ upgrades: WeaponUpgradeState[]; skins: SkinCollection; favorites: string[] }>("/api/koleksi").then(
+      (result) => {
+        if (cancelled || !result.ok) return;
+        useShopStore.getState().hydrate(result.data.upgrades);
+        useSkinStore.getState().hydrate(result.data.skins);
+        useFavoriteStore.getState().hydrate(result.data.favorites);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const favorites = useFavoriteStore((state) => state.favorites);
   const collection = useSkinStore((state) => state.collection);
   const upgrades = useShopStore((state) => state.upgrades);

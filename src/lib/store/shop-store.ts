@@ -28,6 +28,8 @@ interface ShopState {
   /** Kunci aksi yang sedang diproses, supaya tombolnya bisa dimatikan. */
   pending: string | null;
   load: () => Promise<void>;
+  /** Mengganti isi kepemilikan dari data server yang sudah diambil pihak lain. */
+  hydrate: (upgrades: WeaponUpgradeState[]) => void;
   /** Membeli tingkat BERIKUTNYA satu statistik; tingkat tidak bisa dilompati. */
   buyUpgrade: (weaponId: string, stat: UpgradeStat) => Promise<ShopResult>;
   buyAttachment: (weaponId: string, attachmentId: string) => Promise<ShopResult>;
@@ -93,6 +95,8 @@ export const useShopStore = create<ShopState>((set, get) => {
       const result = await apiFetch<{ upgrades: WeaponUpgradeState[] }>("/api/toko");
       if (result.ok) set({ upgrades: indexUpgrades(result.data.upgrades), loaded: true });
     },
+
+    hydrate: (upgrades) => set({ upgrades: indexUpgrades(upgrades), loaded: true }),
 
     buyUpgrade: (weaponId, stat) =>
       run(`upgrade:${weaponId}:${stat}`, () =>
