@@ -14,7 +14,7 @@ import {
   ATTACHMENT_SLOT_LABEL,
   findAttachment,
 } from "@/lib/economy/upgrade-catalog";
-import { weaponOwnership } from "@/lib/mock/player-weapons";
+import { useWeaponOwnership } from "@/lib/store/weapon-store";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { upgradeStateOf, useShopStore } from "@/lib/store/shop-store";
 import {
@@ -41,6 +41,7 @@ const TABS: { id: Tab; label: string }[] = [
  * upgrade-nya; skin dan attachment dikelompokkan supaya mudah dipindai.
  */
 export function CollectionGallery() {
+  const weaponOwnership = useWeaponOwnership();
   const [tab, setTab] = useState<Tab>("senjata");
   /** Item yang sedang di-inspect: senjata dan skin yang dipakainya. */
   const [inspecting, setInspecting] = useState<{
@@ -90,7 +91,7 @@ export function CollectionGallery() {
           })),
         };
       }),
-    [collection.equipped, upgrades],
+    [collection.equipped, upgrades, weaponOwnership],
   );
   const allOwnedSkins = useMemo(
     () =>

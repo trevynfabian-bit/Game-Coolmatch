@@ -2,7 +2,7 @@ import { create } from "zustand";
 import {
   firstUnlockedWeaponId,
   isWeaponUnlocked,
-} from "@/lib/mock/player-weapons";
+} from "@/lib/store/weapon-store";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 
 /** Pilihan bawaan: senapan serbu, bila memang sudah terbuka. */

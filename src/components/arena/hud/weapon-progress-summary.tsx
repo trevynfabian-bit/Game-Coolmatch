@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { MOCK_PLAYER_PROGRESS, WEAPON_UNLOCK_RULES } from "@/lib/mock/player-weapons";
+import { WEAPON_UNLOCK_RULES } from "@/lib/game/weapon-unlock";
+import { useWeaponStore } from "@/lib/store/weapon-store";
 import { findWeapon } from "@/lib/mock/weapons";
 
 /**
@@ -9,12 +10,12 @@ import { findWeapon } from "@/lib/mock/weapons";
  * masih terkunci, kemajuan sebelum pertandingan ini, tambahannya (kill atau
  * kemenangan barusan), dan apakah syaratnya kini terpenuhi.
  *
- * Kemajuan awalnya masih tiruan (MOCK_PLAYER_PROGRESS); lapisan backend
- * menggantinya dengan statistik pemain dari server.
+ * Kemajuan awal adalah statistik pemain dari server yang termuat sebelum
+ * pertandingan ini; toko senjata dimuat ulang sesudah hasilnya tersimpan.
  */
 export function WeaponProgressSummary({ kills, won }: { kills: number; won: boolean }) {
   // Dipotret sekali saat layar akhir muncul.
-  const [before] = useState(() => ({ ...MOCK_PLAYER_PROGRESS }));
+  const [before] = useState(() => ({ ...useWeaponStore.getState().progress }));
   const gained = { totalKills: kills, wins: won ? 1 : 0 };
 
   const rows = WEAPON_UNLOCK_RULES.filter((rule) => before[rule.stat] < rule.target).map((rule) => {

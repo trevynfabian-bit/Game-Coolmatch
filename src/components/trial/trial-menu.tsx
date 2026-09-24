@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
 import { DIFFICULTY_ORDER, difficultyProfile } from "@/lib/game/difficulty";
-import { weaponOwnership } from "@/lib/mock/player-weapons";
+import { useWeaponOwnership } from "@/lib/store/weapon-store";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { WeaponPreview } from "@/components/weapons/weapon-preview";
 import { weaponBlurb, weaponStatBars } from "@/lib/weapons/weapon-stats";
@@ -20,6 +20,7 @@ import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
  * Hasilnya tidak dihitung ke statistik, pembukaan senjata, maupun koin.
  */
 export function TrialMenu() {
+  const weaponOwnership = useWeaponOwnership();
   const {
     weaponId,
     botCount,

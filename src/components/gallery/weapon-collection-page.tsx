@@ -7,7 +7,7 @@ import { GalleryItemCard } from "@/components/gallery/gallery-item-card";
 import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
 import { RARITY_META, findSkin } from "@/lib/economy/skin-catalog";
 import { applyUpgrades } from "@/lib/economy/weapon-modifiers";
-import { weaponOwnership } from "@/lib/mock/player-weapons";
+import { useWeaponOwnership } from "@/lib/store/weapon-store";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { upgradeStateOf, useShopStore } from "@/lib/store/shop-store";
 import { useSkinStore } from "@/lib/store/skin-store";
@@ -21,6 +21,7 @@ import { weaponStatBars } from "@/lib/weapons/weapon-stats";
  * syarat membukanya.
  */
 export function WeaponCollectionPage() {
+  const weaponOwnership = useWeaponOwnership();
   const upgrades = useShopStore((state) => state.upgrades);
   const equipped = useSkinStore((state) => state.collection.equipped);
   const notifications = useNotificationStore((state) => state.items);
@@ -47,7 +48,7 @@ export function WeaponCollectionPage() {
           skin: findSkin(equipped[weapon.id]) ?? null,
         };
       }),
-    [upgrades, equipped],
+    [upgrades, equipped, weaponOwnership],
   );
   const owned = items.filter((item) => item.ownership.isUnlocked).length;
 

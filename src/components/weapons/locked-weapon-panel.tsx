@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { WeaponOwnership } from "@/lib/mock/player-weapons";
+import type { WeaponOwnership } from "@/lib/game/weapon-unlock";
 import { useTrialStore } from "@/lib/store/trial-store";
 import type { Weapon } from "@/types/game";
 

@@ -4,7 +4,7 @@ import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
 import { findSkin } from "@/lib/economy/skin-catalog";
 import { useSkinStore } from "@/lib/store/skin-store";
 import { markItemSeen, useNotificationStore } from "@/lib/store/notification-store";
-import type { WeaponOwnership } from "@/lib/mock/player-weapons";
+import type { WeaponOwnership } from "@/lib/game/weapon-unlock";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
 import type { Weapon } from "@/types/game";
 

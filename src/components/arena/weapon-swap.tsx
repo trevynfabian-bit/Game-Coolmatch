@@ -9,7 +9,7 @@ import {
   WEAPON_SWAP_SECONDS,
   type MoveAction,
 } from "@/lib/game/controls";
-import { isWeaponUnlocked } from "@/lib/mock/player-weapons";
+import { isWeaponUnlocked } from "@/lib/store/weapon-store";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import { playerWeapon } from "@/lib/weapons/player-weapon";
 import { useCombatStore } from "@/lib/store/combat-store";

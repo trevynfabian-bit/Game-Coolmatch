@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { LockedWeaponPanel } from "@/components/weapons/locked-weapon-panel";
 import { WeaponCard } from "@/components/weapons/weapon-card";
 import { WeaponPreview } from "@/components/weapons/weapon-preview";
-import { weaponOwnership } from "@/lib/mock/player-weapons";
+import { useWeaponOwnership } from "@/lib/store/weapon-store";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
@@ -46,6 +46,7 @@ function StatRow({
  * pengambilan tabel `weapons`.
  */
 export function WeaponPicker() {
+  const weaponOwnership = useWeaponOwnership();
   const selectedWeaponId = useLoadoutStore((state) => state.selectedWeaponId);
   const selectWeapon = useLoadoutStore((state) => state.selectWeapon);
   /** Senjata terkunci yang sedang dilihat rinciannya; null = lihat pilihan aktif. */
@@ -63,7 +64,7 @@ export function WeaponPicker() {
   const unlockedCount = useMemo(
     () => MOCK_WEAPONS.filter((weapon) => weaponOwnership(weapon.id).isUnlocked)
       .length,
-    [],
+    [weaponOwnership],
   );
 
   return (

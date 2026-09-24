@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { keepCursorFree } from "@/lib/game/keep-cursor-free";
 import { sessionStats } from "@/lib/game/session-stats";
-import { weaponOwnership } from "@/lib/mock/player-weapons";
+import { useWeaponOwnership } from "@/lib/store/weapon-store";
 import { findWeapon } from "@/lib/mock/weapons";
 import type { Fighter } from "@/types/game";
 
@@ -15,6 +15,7 @@ import type { Fighter } from "@/types/game";
  * ditampilkan supaya pemain tahu apa yang harus dikejar.
  */
 export function TrialSummary({ local, weaponId }: { local: Fighter | undefined; weaponId: string }) {
+  const weaponOwnership = useWeaponOwnership();
   // Dipotret sekali saat layar akhir muncul; angkanya tidak berubah lagi.
   const [stats] = useState(() => ({ ...sessionStats }));
   const weapon = findWeapon(weaponId);

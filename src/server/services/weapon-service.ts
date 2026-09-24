@@ -2,7 +2,13 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { weapons, type WeaponRow } from "@/server/db/schema";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
-import { WEAPON_UNLOCK_RULES } from "@/lib/mock/player-weapons";
+import {
+  WEAPON_UNLOCK_RULES,
+  computeOwnership,
+  type WeaponOwnership,
+  type WeaponProgress,
+} from "@/lib/game/weapon-unlock";
+import { getAchievementStats } from "@/server/services/player-stats-service";
 import type { Weapon } from "@/types/game";
 
 /**
@@ -76,4 +82,23 @@ export function findCatalogWeapon(weaponId: string): CatalogWeapon | null {
   syncWeaponCatalog();
   const row = db.select().from(weapons).where(eq(weapons.id, weaponId)).get();
   return row ? toCatalogWeapon(row) : null;
+}
+
+export interface PlayerWeapon extends CatalogWeapon {
+  ownership: WeaponOwnership;
+}
+
+/** Kemajuan membuka senjata dari statistik pertandingan pemain yang sungguhan. */
+export function getWeaponProgress(playerId: number): WeaponProgress {
+  const stats = getAchievementStats(playerId);
+  return { wins: stats.wins, totalKills: stats.totalKills };
+}
+
+/** Katalog senjata lengkap dengan kepemilikan pemain. */
+export function listPlayerWeapons(playerId: number): { weapons: PlayerWeapon[]; progress: WeaponProgress } {
+  const progress = getWeaponProgress(playerId);
+  return {
+    progress,
+    weapons: listWeaponCatalog().map((weapon) => ({ ...weapon, ownership: computeOwnership(weapon.id, progress) })),
+  };
 }

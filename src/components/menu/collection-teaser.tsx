@@ -4,7 +4,7 @@ import Link from "next/link";
 import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
 import { SKINS, findSkin } from "@/lib/economy/skin-catalog";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
-import { weaponOwnership } from "@/lib/mock/player-weapons";
+import { useWeaponOwnership } from "@/lib/store/weapon-store";
 import { useFavoriteStore } from "@/lib/store/favorite-store";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useSkinStore } from "@/lib/store/skin-store";
@@ -14,6 +14,7 @@ import { useSkinStore } from "@/lib/store/skin-store";
  * dengan skin terpasangnya, jumlah skin dan favorit, dan jalan pintas ke galeri.
  */
 export function CollectionTeaser() {
+  const weaponOwnership = useWeaponOwnership();
   const weaponId = useLoadoutStore((state) => state.selectedWeaponId);
   const collection = useSkinStore((state) => state.collection);
   const favorites = useFavoriteStore((state) => state.favorites);

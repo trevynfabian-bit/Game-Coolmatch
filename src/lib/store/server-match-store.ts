@@ -5,6 +5,7 @@ import { useNotificationStore } from "@/lib/store/notification-store";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { useWalletStore } from "@/lib/store/wallet-store";
+import { useWeaponStore } from "@/lib/store/weapon-store";
 import type { CoinLine } from "@/lib/economy/coin-rules";
 import type { KillFeedEntry, MatchSnapshot } from "@/types/game";
 
@@ -277,6 +278,7 @@ export async function retryPendingResults(): Promise<number> {
     void useWalletStore.getState().load();
     void useKillstreakStore.getState().loadLoadout();
     void useNotificationStore.getState().load();
+    void useWeaponStore.getState().load();
   }
   return saved;
 }
@@ -291,6 +293,7 @@ async function announceMatchRewards(result: MatchFinishResult) {
   if (result.coins.excluded) return;
   await useKillstreakStore.getState().loadLoadout();
   await useNotificationStore.getState().load();
+  await useWeaponStore.getState().load();
 }
 
 /**

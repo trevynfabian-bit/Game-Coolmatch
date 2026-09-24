@@ -7,6 +7,7 @@ import { useFavoriteStore } from "@/lib/store/favorite-store";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useSkinStore } from "@/lib/store/skin-store";
 import { useWalletStore } from "@/lib/store/wallet-store";
+import { useWeaponStore } from "@/lib/store/weapon-store";
 import { retryPendingResults } from "@/lib/store/server-match-store";
 
 /**
@@ -23,6 +24,7 @@ export function SessionBootstrap() {
     void useKillstreakStore.getState().loadLoadout();
     void useFavoriteStore.getState().load();
     void useNotificationStore.getState().load();
+    void useWeaponStore.getState().load();
     // Hasil pertandingan yang dulu gagal terkirim dicoba lagi sekarang, dan
     // setiap kali koneksi kembali.
     void retryPendingResults();

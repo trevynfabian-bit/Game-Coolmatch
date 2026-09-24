@@ -1,5 +1,6 @@
 import { SKINS } from "@/lib/economy/skin-catalog";
-import { weaponOwnership } from "@/lib/mock/player-weapons";
+import { computeOwnership } from "@/lib/game/weapon-unlock";
+import { getWeaponProgress } from "@/server/services/weapon-service";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import { listFavorites } from "@/server/services/favorite-service";
 import { getPlayerUpgrades } from "@/server/services/shop-service";
@@ -42,9 +43,10 @@ export function getPlayerCollection(playerId: number): PlayerCollection {
   const favorites = listFavorites(playerId);
   const fav = new Set(favorites);
   const byWeapon = new Map(upgrades.map((item) => [item.weaponId, item]));
+  const progress = getWeaponProgress(playerId);
 
   const weapons = MOCK_WEAPONS.map((weapon) => {
-    const ownership = weaponOwnership(weapon.id);
+    const ownership = computeOwnership(weapon.id, progress);
     return {
       weaponId: weapon.id,
       unlocked: ownership.isUnlocked,
