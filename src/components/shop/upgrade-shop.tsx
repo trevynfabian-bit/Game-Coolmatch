@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AttachmentRow } from "@/components/shop/attachment-row";
+import { ShopTabs } from "@/components/shop/shop-tabs";
 import { StatComparison } from "@/components/shop/stat-comparison";
 import { UpgradeTrackRow } from "@/components/shop/upgrade-track-row";
 import { CoinBadge, CoinIcon, formatCoins } from "@/components/economy/coin-badge";
@@ -63,7 +64,7 @@ export function UpgradeShop() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-10 sm:px-8">
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase">Toko</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">Upgrade Senjata</h1>
@@ -74,6 +75,8 @@ export function UpgradeShop() {
         </div>
         <CoinBadge balance={wallet.balance} />
       </header>
+
+      <ShopTabs active="/toko" />
 
       <p
         role="status"

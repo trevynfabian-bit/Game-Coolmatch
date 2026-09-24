@@ -93,3 +93,29 @@ export interface CoinTransaction {
   note: string;
   createdAt: number;
 }
+
+/** Tingkat kelangkaan skin, dari yang paling mudah didapat sampai paling mewah. */
+export type SkinRarity = "umum" | "langka" | "epik" | "gold";
+
+/** Pola cat skin; semuanya digambar prosedural tanpa berkas gambar. */
+export type SkinPattern = "polos" | "loreng" | "digital" | "garis" | "bendera" | "logam";
+
+export interface Skin {
+  id: string;
+  name: string;
+  rarity: SkinRarity;
+  pattern: SkinPattern;
+  /** Palet warna pola, dari warna dasar ke aksen. */
+  colors: string[];
+  /** Untuk camo bertema negara. */
+  country: { code: string; name: string } | null;
+  description: string;
+  price: number;
+}
+
+/** Skin yang dimiliki pemain dan skin yang terpasang per senjata. */
+export interface SkinCollection {
+  ownedSkinIds: string[];
+  /** weaponId → skinId. Senjata tanpa entri memakai cat pabrik. */
+  equipped: Record<string, string>;
+}

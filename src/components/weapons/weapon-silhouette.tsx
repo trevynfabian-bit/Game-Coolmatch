@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { WEAPON_SHAPES } from "@/lib/weapons/weapon-shape";
 import type { WeaponType } from "@/types/game";
 
@@ -15,9 +16,18 @@ const SCALE = 62;
 export function WeaponSilhouette({
   type,
   className,
+  paint = "currentColor",
+  children,
 }: {
   type: WeaponType;
   className?: string;
+  /**
+   * Isi bentuk senjata. Bawaannya warna teks; toko skin mengoper `url(#pola)`
+   * supaya siluet tampil dengan cat skin.
+   */
+  paint?: string;
+  /** Isi tambahan di awal SVG, dipakai untuk `<defs>` pola skin. */
+  children?: ReactNode;
 }) {
   const shape = WEAPON_SHAPES[type];
 
@@ -42,13 +52,14 @@ export function WeaponSilhouette({
       fill="none"
       aria-hidden
     >
+      {children}
       <rect
         x={barrelX}
         y={midY - barrelH / 2}
         width={barrelW}
         height={barrelH}
         rx={barrelH / 2}
-        fill="currentColor"
+        fill={paint}
         opacity="0.75"
       />
 
@@ -58,7 +69,7 @@ export function WeaponSilhouette({
         width={bodyW}
         height={bodyH}
         rx="2"
-        fill="currentColor"
+        fill={paint}
       />
 
       {magH > 0 ? (
@@ -68,7 +79,7 @@ export function WeaponSilhouette({
           width={bodyW * 0.2}
           height={magH}
           rx="1.5"
-          fill="currentColor"
+          fill={paint}
           opacity="0.85"
         />
       ) : null}
@@ -79,7 +90,7 @@ export function WeaponSilhouette({
         width={bodyW * 0.16}
         height={magH > 0 ? magH * 0.8 : 11}
         rx="1.5"
-        fill="currentColor"
+        fill={paint}
         opacity="0.7"
         transform={`rotate(12 ${bodyX + bodyW * 0.68} ${midY})`}
       />
@@ -91,7 +102,7 @@ export function WeaponSilhouette({
           width="14"
           height={bodyH * 0.85}
           rx="2"
-          fill="currentColor"
+          fill={paint}
           opacity="0.6"
         />
       ) : null}
@@ -104,7 +115,7 @@ export function WeaponSilhouette({
             width={bodyW * 0.5}
             height="5"
             rx="2.5"
-            fill="currentColor"
+            fill={paint}
             opacity="0.8"
           />
           <rect
@@ -112,7 +123,7 @@ export function WeaponSilhouette({
             y={midY - bodyH / 2 - 2}
             width="3"
             height="3"
-            fill="currentColor"
+            fill={paint}
             opacity="0.8"
           />
         </>
