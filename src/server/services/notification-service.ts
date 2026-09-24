@@ -2,6 +2,7 @@ import { and, count, desc, eq, inArray, isNull, lt } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import {
   REWARD_NOTIFICATION_KINDS,
+  playerWeapons,
   rewardNotifications,
   type RewardNotificationRow,
 } from "@/server/db/schema";
@@ -117,9 +118,25 @@ export function markSeen(playerId: number, target: MarkSeenTarget, at = Date.now
   } else if ("kind" in target) {
     conditions.push(eq(rewardNotifications.kind, target.kind), eq(rewardNotifications.itemId, target.itemId));
   }
-  return db
-    .update(rewardNotifications)
-    .set({ seenAt: at })
-    .where(and(...conditions))
-    .run().changes;
+  return db.transaction((tx) => {
+    // Notifikasi senjata yang ditandai dilihat ikut menghapus penanda "Baru"
+    // senjata itu di koleksi, supaya keduanya tidak pernah berselisih.
+    const weaponIds = tx
+      .select({ itemId: rewardNotifications.itemId })
+      .from(rewardNotifications)
+      .where(and(...conditions, eq(rewardNotifications.kind, "senjata")))
+      .all()
+      .map((row) => row.itemId)
+      .filter((id): id is string => id != null);
+    const changed = tx.update(rewardNotifications).set({ seenAt: at }).where(and(...conditions)).run().changes;
+    if (weaponIds.length > 0) {
+      tx.update(playerWeapons)
+        .set({ announcedAt: at })
+        .where(
+          and(eq(playerWeapons.playerId, playerId), inArray(playerWeapons.weaponId, weaponIds), isNull(playerWeapons.announcedAt)),
+        )
+        .run();
+    }
+    return changed;
+  });
 }

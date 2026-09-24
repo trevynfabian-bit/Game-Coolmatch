@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { playerWeapons, type PlayerWeaponRow } from "@/server/db/schema";
+import { playerWeapons, rewardNotifications, type PlayerWeaponRow } from "@/server/db/schema";
 import { computeOwnership, type WeaponOwnership, type WeaponProgress } from "@/lib/game/weapon-unlock";
 import { recordNotification } from "@/server/services/notification-service";
 import { getWeaponProgress, listWeaponCatalog, type CatalogWeapon } from "@/server/services/weapon-service";
@@ -91,4 +91,26 @@ export function evaluateWeaponUnlocks(playerId: number): UnlockEvaluation {
     };
   });
   return { progress, weapons, newlyUnlocked };
+}
+
+/**
+ * Menandai senjata baru sudah dilihat (satu senjata, atau semua bila
+ * `weaponId` null): penanda "Baru" di koleksi hilang dan notifikasi senjatanya
+ * ikut ditandai dilihat. Idempoten; mengembalikan jumlah senjata yang berubah.
+ */
+export function markWeaponsSeen(playerId: number, weaponId: string | null, at = Date.now()): number {
+  return db.transaction((tx) => {
+    const conditions = [eq(playerWeapons.playerId, playerId), isNull(playerWeapons.announcedAt)];
+    if (weaponId) conditions.push(eq(playerWeapons.weaponId, weaponId));
+    const changed = tx.update(playerWeapons).set({ announcedAt: at }).where(and(...conditions)).run().changes;
+
+    const noteConditions = [
+      eq(rewardNotifications.playerId, playerId),
+      eq(rewardNotifications.kind, "senjata"),
+      isNull(rewardNotifications.seenAt),
+    ];
+    if (weaponId) noteConditions.push(eq(rewardNotifications.itemId, weaponId));
+    tx.update(rewardNotifications).set({ seenAt: at }).where(and(...noteConditions)).run();
+    return changed;
+  });
 }

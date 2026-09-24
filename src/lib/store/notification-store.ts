@@ -24,10 +24,15 @@ type SeenTarget = { all: true } | { ids: number[] } | { kind: RewardNotification
 let loadGeneration = 0;
 
 async function sendSeen(target: SeenTarget) {
-  const response = await apiFetch<{ updated: number; unseenCount: number }>("/api/notifikasi/dilihat", {
-    method: "POST",
-    body: target,
-  });
+  // Senjata baru dikonfirmasi lewat endpoint senjata, yang sekaligus
+  // menghapus penanda "Baru" di koleksi dan menandai notifikasinya.
+  const response =
+    "kind" in target && target.kind === "senjata"
+      ? await apiFetch<{ updated: number }>("/api/senjata/dilihat", { method: "POST", body: { weaponId: target.itemId } })
+      : await apiFetch<{ updated: number; unseenCount: number }>("/api/notifikasi/dilihat", {
+          method: "POST",
+          body: target,
+        });
   if (!response.ok) void useNotificationStore.getState().load();
 }
 
