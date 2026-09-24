@@ -150,3 +150,16 @@ export function helicopterPosition(
     z: outside.z + (patrol.z - outside.z) * eased,
   };
 }
+
+/** Aturan senapan mesin helikopter. */
+export const HELICOPTER_GUN = {
+  /** Jarak mendatar terjauh sasaran yang dikejar. */
+  range: 34,
+  /** Peluru per rentetan, dan jeda antar peluru serta antar rentetan (detik). */
+  burst: 7,
+  shotInterval: 0.09,
+  burstCooldown: 1.1,
+  /** Peluang satu peluru kena, dan kerusakannya. */
+  hitChance: 0.55,
+  damage: 11,
+} as const;

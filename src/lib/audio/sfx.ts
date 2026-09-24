@@ -86,3 +86,21 @@ export function playJetFlyby(volume = 0.6): void {
   source.start(now);
   source.stop(now + 1.5);
 }
+
+/** Letupan senapan mesin pendek; dipakai helikopter dukungan. */
+export function playGunBurst(volume = 0.3): void {
+  const ctx = audio();
+  if (!ctx || volume <= 0.01) return;
+  const now = ctx.currentTime;
+  const source = ctx.createBufferSource();
+  source.buffer = noiseBuffer(ctx);
+  const filter = ctx.createBiquadFilter();
+  filter.type = "highpass";
+  filter.frequency.value = 900;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(volume, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+  source.connect(filter).connect(gain).connect(ctx.destination);
+  source.start(now, Math.random() * 0.5);
+  source.stop(now + 0.09);
+}
