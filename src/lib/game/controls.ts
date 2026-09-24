@@ -15,7 +15,10 @@ export type MoveAction =
   | "slot2"
   | "slot3"
   | "slot4"
-  | "slot5";
+  | "slot5"
+  | "streak1"
+  | "streak2"
+  | "streak3";
 
 /**
  * Pemetaan tombol bawaan. Menyertakan huruf kecil dan besar supaya tetap jalan
@@ -36,7 +39,14 @@ export const KEYBOARD_MAP: KeyboardControlsEntry<MoveAction>[] = [
   { name: "slot3", keys: ["Digit3", "Numpad3"] },
   { name: "slot4", keys: ["Digit4", "Numpad4"] },
   { name: "slot5", keys: ["Digit5", "Numpad5"] },
+  // Hadiah killstreak, urut sesuai loadout: 6, 7, 8.
+  { name: "streak1", keys: ["Digit6", "Numpad6"] },
+  { name: "streak2", keys: ["Digit7", "Numpad7"] },
+  { name: "streak3", keys: ["Digit8", "Numpad8"] },
 ];
+
+/** Nama aksi hadiah killstreak, urut sesuai posisinya di loadout. */
+export const STREAK_ACTIONS = ["streak1", "streak2", "streak3"] as const satisfies readonly MoveAction[];
 
 /** Nama aksi slot senjata, urut dari slot pertama. */
 export const SLOT_ACTIONS = [
@@ -56,6 +66,7 @@ export const CONTROL_HINTS: { keys: string; label: string }[] = [
   { keys: "Klik", label: "Tembak" },
   { keys: "R", label: "Isi ulang" },
   { keys: "1-5", label: "Tukar senjata" },
+  { keys: "6-8", label: "Panggil hadiah killstreak" },
   { keys: "Tab", label: "Papan skor" },
   { keys: "H", label: "Petunjuk kontrol" },
   { keys: "Esc", label: "Lepas kursor" },

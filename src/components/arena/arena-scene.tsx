@@ -7,6 +7,7 @@ import { FighterMarker } from "@/components/arena/fighter-marker";
 import { PlayerController } from "@/components/arena/player-controller";
 import { RespawnTicker } from "@/components/arena/respawn-ticker";
 import { RoundTicker } from "@/components/arena/round-ticker";
+import { KillstreakInput } from "@/components/arena/killstreak-input";
 import { WeaponSwap } from "@/components/arena/weapon-swap";
 import { WeaponSystem } from "@/components/arena/weapon-system";
 import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
@@ -88,6 +89,7 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
       <RoundTicker map={match.map} />
       <WeaponSystem match={match} weapon={weapon} />
       <WeaponSwap />
+      <KillstreakInput />
       <BotDriver map={match.map} difficulty={match.difficulty} />
       <ArenaMap map={match.map} />
 

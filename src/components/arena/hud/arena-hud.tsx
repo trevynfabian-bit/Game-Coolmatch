@@ -8,6 +8,7 @@ import { DamageVignette } from "@/components/arena/hud/damage-vignette";
 import { Crosshair } from "@/components/arena/hud/crosshair";
 import { EngageOverlay } from "@/components/arena/hud/engage-overlay";
 import { KillFeed } from "@/components/arena/hud/kill-feed";
+import { KillstreakReadyPrompt } from "@/components/arena/hud/killstreak-ready-prompt";
 import { KillstreakTracker } from "@/components/arena/hud/killstreak-tracker";
 import { LiveScore } from "@/components/arena/hud/live-score";
 import { MatchEndScreen } from "@/components/arena/hud/match-end-screen";
@@ -90,6 +91,11 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
         <KillstreakTracker />
         <WeaponSlots />
         <MatchInfoStrip match={match} />
+      </div>
+
+      {/* Di luar lapisan pointer-events-none supaya tombolnya bisa diklik saat kursor lepas. */}
+      <div className="absolute inset-0 z-10 pointer-events-none select-none">
+        <KillstreakReadyPrompt />
       </div>
 
       <ScoreboardOverlay

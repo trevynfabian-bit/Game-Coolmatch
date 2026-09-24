@@ -18,6 +18,8 @@ export interface KillstreakReward {
   key: { code: string; label: string };
   /** Warna penanda di HUD. */
   color: string;
+  /** Lama hadiah bekerja setelah dipanggil, dalam detik. */
+  durationSeconds: number;
 }
 
 export const KILLSTREAKS: KillstreakReward[] = [
@@ -28,6 +30,7 @@ export const KILLSTREAKS: KillstreakReward[] = [
     blurb: "Posisi semua musuh muncul di radar mini selama beberapa detik.",
     key: { code: "Digit6", label: "6" },
     color: "#38bdf8",
+    durationSeconds: 20,
   },
   {
     id: "serangan_udara",
@@ -36,6 +39,7 @@ export const KILLSTREAKS: KillstreakReward[] = [
     blurb: "Tandai satu titik; rentetan ledakan menghantam area itu.",
     key: { code: "Digit7", label: "7" },
     color: "#f97316",
+    durationSeconds: 5,
   },
   {
     id: "helikopter",
@@ -44,6 +48,7 @@ export const KILLSTREAKS: KillstreakReward[] = [
     blurb: "Helikopter berputar di atas arena dan menembaki musuh.",
     key: { code: "Digit8", label: "8" },
     color: "#a3e635",
+    durationSeconds: 30,
   },
 ];
 
