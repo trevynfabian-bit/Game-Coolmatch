@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { WalletBadge } from "@/components/economy/wallet-badge";
 import { CollectionTeaser } from "@/components/menu/collection-teaser";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
 
 /**
@@ -11,7 +12,8 @@ import { DEFAULT_MAP } from "@/lib/mock/maps";
 export default function Home() {
   return (
     <main className="grid min-h-dvh place-items-center px-6">
-      <div className="fixed top-5 right-5">
+      <div className="fixed top-5 right-5 flex items-center gap-2">
+        <NotificationBell />
         <WalletBadge />
       </div>
       <div className="w-full max-w-md text-center">

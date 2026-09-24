@@ -48,7 +48,9 @@ function Hero({ item }: { item: RewardNotification }) {
  *
  * Mengikuti pola perayaan senjata baru: hadiah pertama yang belum dilihat
  * tampil besar dengan konfeti, dan penanda "belum dilihat" baru hilang
- * setelah pemain menekan tombol dialog. Tidak pernah muncul di arena atau
+ * setelah pemain menekan tombol dialog — penanda "Baru" di galeri dan kotak
+ * notifikasi ikut hilang karena semuanya membaca store yang sama. Bila ada
+ * beberapa hadiah, tombol utama beralih ke hadiah berikutnya. Tidak pernah muncul di arena atau
  * tempat latihan supaya tidak mengganggu permainan.
  */
 export function RewardCelebration() {
@@ -56,13 +58,17 @@ export function RewardCelebration() {
   const items = useNotificationStore((state) => state.items);
   const markSeen = useNotificationStore((state) => state.markSeen);
 
-  const current = useMemo(
+  const queue = useMemo(
     () =>
       [...items]
         .filter((item) => item.seenAt === null && CELEBRATED.has(item.kind))
-        .sort((a, b) => a.createdAt - b.createdAt)[0] ?? null,
+        .sort((a, b) => a.createdAt - b.createdAt),
     [items],
   );
+  const current = queue[0] ?? null;
+  const remaining = queue.length - 1;
+  /** Menutup semua perayaan sekaligus: semua penanda "belum dilihat"-nya hilang. */
+  const dismissAll = () => queue.forEach((item) => markSeen(item.id));
   const quiet = QUIET_PATHS.some((path) => pathname?.startsWith(path));
 
   useEffect(() => {
@@ -110,6 +116,11 @@ export function RewardCelebration() {
         <p className="text-[10px] tracking-[0.3em] uppercase" style={{ color: accent }}>
           {eyebrow}
         </p>
+        {remaining > 0 ? (
+          <p className="mt-1 text-[11px] text-slate-500">
+            Hadiah 1 dari {queue.length}
+          </p>
+        ) : null}
         <div className="my-6 rounded-xl px-4 py-6" style={{ background: `radial-gradient(circle, ${accent}22, transparent 70%)` }}>
           <Hero item={current} />
         </div>
@@ -126,7 +137,7 @@ export function RewardCelebration() {
             className="rounded-lg px-5 py-3 text-sm font-semibold text-slate-950"
             style={{ backgroundColor: accent }}
           >
-            Keren!
+            {remaining > 0 ? `Keren! Lihat berikutnya (${remaining})` : "Keren!"}
           </button>
           <Link
             href={next.href}
@@ -135,6 +146,11 @@ export function RewardCelebration() {
           >
             {next.label}
           </Link>
+          {remaining > 0 ? (
+            <button type="button" onClick={dismissAll} className="text-xs text-slate-500 hover:text-slate-300">
+              Tandai semua sudah dilihat
+            </button>
+          ) : null}
         </div>
       </div>
     </div>
