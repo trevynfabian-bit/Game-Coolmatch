@@ -7,6 +7,7 @@ import { pickSpawnPoint } from "@/lib/game/spawn";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
+import { startServerMatch } from "@/lib/store/server-match-store";
 import type { ArenaMapInfo, Fighter, MatchSnapshot, Vec3 } from "@/types/game";
 
 /**
@@ -48,4 +49,7 @@ export function restartMatch(map: ArenaMapInfo, snapshot: MatchSnapshot) {
   armPlayerFrom(snapshot);
 
   usePlayerStore.getState().setScoreboardOpen(false);
+
+  // "Main lagi" adalah pertandingan baru di server juga.
+  void startServerMatch(snapshot);
 }

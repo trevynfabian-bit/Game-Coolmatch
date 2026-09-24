@@ -46,22 +46,29 @@ interface KillstreakState {
   recordRewardKill: (id: KillstreakId) => void;
   /** Mengosongkan semuanya untuk pertandingan baru. */
   resetForMatch: () => void;
+  /**
+   * Mencatat satu kill pemain: kill beruntun naik, dan hadiah loadout yang
+   * ambangnya baru tercapai menjadi siap. Mengembalikan hadiah yang baru terbuka.
+   */
+  registerKill: () => KillstreakId[];
+  /** Pemain tumbang: kill beruntun kembali nol. Hadiah yang sudah siap tetap tersimpan. */
+  registerDeath: () => void;
   /** Memuat loadout tersimpan pemain dari server. */
   loadLoadout: () => Promise<void>;
   /** Mengganti loadout di klien (mis. sesudah disimpan dari halaman loadout). */
   setLoadout: (loadout: (KillstreakId | null)[]) => void;
 }
 
-/** Data tiruan untuk fase frontend: ketiga hadiah sudah siap dipanggil. */
-const MOCK_STATE: Pick<KillstreakState, "streak" | "bestStreak" | "ready" | "active"> = {
-  streak: 7,
-  bestStreak: 7,
-  ready: ["uav", "serangan_udara", "helikopter"],
+/** Keadaan awal tiap pertandingan: belum ada kill beruntun maupun hadiah. */
+const FRESH_STATE: Pick<KillstreakState, "streak" | "bestStreak" | "ready" | "active"> = {
+  streak: 0,
+  bestStreak: 0,
+  ready: [],
   active: {},
 };
 
 export const useKillstreakStore = create<KillstreakState>((set, get) => ({
-  ...MOCK_STATE,
+  ...FRESH_STATE,
   loadout: DEFAULT_LOADOUT,
   lastUnlocked: null,
   targeting: null,
@@ -88,12 +95,29 @@ export const useKillstreakStore = create<KillstreakState>((set, get) => ({
 
   setLoadout: (loadout) => set({ loadout }),
 
+  registerKill: () => {
+    const { streak, bestStreak, loadout, ready } = get();
+    const next = streak + 1;
+    const unlocked = loadout.filter(
+      (id): id is KillstreakId => id !== null && findKillstreak(id).kills === next && !ready.includes(id),
+    );
+    set({
+      streak: next,
+      bestStreak: Math.max(bestStreak, next),
+      ready: [...ready, ...unlocked],
+      lastUnlocked: unlocked.length > 0 ? { id: unlocked[unlocked.length - 1], at: performance.now() } : get().lastUnlocked,
+    });
+    return unlocked;
+  },
+
+  registerDeath: () => set({ streak: 0 }),
+
   recordRewardKill: (id) =>
     set((state) => ({ killsBy: { ...state.killsBy, [id]: (state.killsBy[id] ?? 0) + 1 } })),
 
   resetForMatch: () =>
     set({
-      ...MOCK_STATE,
+      ...FRESH_STATE,
       active: {},
       lastUnlocked: null,
       targeting: null,

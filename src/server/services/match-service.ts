@@ -175,14 +175,24 @@ export function finishMatch(
           .run();
       }
       tx.update(matches)
-        .set({ result, winnerName: winner?.name ?? null, endedAt: Date.now() })
+        .set({
+          result,
+          winnerName: winner?.name ?? null,
+          endedAt: Date.now(),
+          bestStreak: Math.max(match.bestStreak, Math.min(input.bestStreak, local.kills)),
+        })
         .where(eq(matches.id, matchId))
         .run();
     });
   }
 
   const closed = db.select().from(matches).where(eq(matches.id, matchId)).get()!;
-  const coins = awardMatchCoins(playerId, matchId, { bestStreak: input.bestStreak });
+  // Kill beruntun untuk bonus koin: yang tercatat lewat kejadian killstreak
+  // selama pertandingan, atau yang dilaporkan di akhir bila lebih besar —
+  // keduanya tetap dijepit ke total kill oleh layanan koin.
+  const coins = awardMatchCoins(playerId, matchId, {
+    bestStreak: Math.max(closed.bestStreak, input.bestStreak),
+  });
 
   return {
     matchId,

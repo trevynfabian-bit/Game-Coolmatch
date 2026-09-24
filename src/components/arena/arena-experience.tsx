@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
+import { ServerMatchSync } from "@/components/arena/server-match-sync";
 import { KEYBOARD_MAP } from "@/lib/game/controls";
 import { armPlayerFrom } from "@/lib/game/arm-player";
 import { resetBotRuntime } from "@/lib/game/bot-runtime";
@@ -12,6 +13,7 @@ import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
+import { startServerMatch } from "@/lib/store/server-match-store";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
 import { buildMatchSnapshot } from "@/lib/mock/match";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
@@ -121,6 +123,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
     setRoundClock(armedMatch.round.secondsLeft);
     useMatchStore.getState().init(armedMatch);
     armPlayerFrom(armedMatch);
+    void startServerMatch(armedMatch);
   }, [armedMatch]);
 
   // Selagi pengaturan dibaca, tampilkan layar tunggu yang sama dengan yang
@@ -137,6 +140,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
   return (
     <KeyboardControls map={KEYBOARD_MAP}>
       <div className="relative h-full w-full overflow-hidden bg-slate-950">
+        <ServerMatchSync />
         <ArenaScene match={armedMatch} />
         <ArenaHud match={armedMatch} />
       </div>
