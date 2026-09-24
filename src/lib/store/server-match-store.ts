@@ -62,19 +62,26 @@ export async function startServerMatch(
   const generation = useServerMatchStore.getState().generation + 1;
   useServerMatchStore.setState({ matchId: null, status: "starting", generation, result: null, error: null, isTrial });
 
-  const response = await apiFetch<{ match: { id: number; killstreakLoadout: (KillstreakId | null)[] } }>("/api/pertandingan", {
-    method: "POST",
-    body: {
-      mapId: snapshot.map.id,
-      difficulty: snapshot.difficulty,
-      botCount: snapshot.botCount,
-      totalRounds: snapshot.round.total,
-      scoreLimit: snapshot.round.scoreLimit,
-      roundSeconds: snapshot.round.durationSeconds,
-      isTrial,
-      weaponId: snapshot.fighters.find((fighter) => fighter.isLocal)?.weaponId ?? null,
-    },
-  });
+  const weaponId = snapshot.fighters.find((fighter) => fighter.isLocal)?.weaponId ?? null;
+  // Uji coba punya endpoint sendiri yang sekaligus membuat sesi uji cobanya;
+  // aturan ronde kilatnya ditentukan server.
+  const response = isTrial
+    ? await apiFetch<{ match: { id: number; killstreakLoadout: (KillstreakId | null)[] } }>("/api/uji-coba", {
+        method: "POST",
+        body: { weaponId, difficulty: snapshot.difficulty, botCount: snapshot.botCount, mapId: snapshot.map.id },
+      })
+    : await apiFetch<{ match: { id: number; killstreakLoadout: (KillstreakId | null)[] } }>("/api/pertandingan", {
+        method: "POST",
+        body: {
+          mapId: snapshot.map.id,
+          difficulty: snapshot.difficulty,
+          botCount: snapshot.botCount,
+          totalRounds: snapshot.round.total,
+          scoreLimit: snapshot.round.scoreLimit,
+          roundSeconds: snapshot.round.durationSeconds,
+          weaponId,
+        },
+      });
   if (useServerMatchStore.getState().generation !== generation) return;
   if (!response.ok) {
     useServerMatchStore.setState({ status: "offline", error: response.message });
