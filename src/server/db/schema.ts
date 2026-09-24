@@ -530,6 +530,35 @@ export const playerFavorites = sqliteTable(
   (table) => [primaryKey({ columns: [table.playerId, table.kind, table.itemId] })],
 );
 
+/**
+ * Kejadian kill selama pertandingan, dikirim klien bertahap supaya skor
+ * langsung tersedia di server (papan skor, penonton, pemulihan bila tab
+ * tertutup). `seq` adalah nomor urut dari klien per pertandingan; kunci unik
+ * (match_id, seq) membuat pengiriman ulang batch yang sama tidak menggandakan.
+ */
+export const matchKillEvents = sqliteTable(
+  "match_kill_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    roundNumber: integer("round_number").notNull(),
+    killerName: text("killer_name").notNull(),
+    victimName: text("victim_name").notNull(),
+    weaponName: text("weapon_name").notNull(),
+    isHeadshot: integer("is_headshot", { mode: "boolean" }).notNull().default(false),
+    /** Bacaan jam ronde saat kejadian, detik. */
+    atSecond: integer("at_second").notNull().default(0),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (table) => [
+    uniqueIndex("match_kill_events_urutan_uq").on(table.matchId, table.seq),
+    check("match_kill_events_urutan_positif", sql`${table.seq} >= 1 AND ${table.roundNumber} >= 1`),
+  ],
+);
+
 /** Jenis notifikasi hadiah; sama dengan `RewardNotificationKind` di klien. */
 export const REWARD_NOTIFICATION_KINDS = ["koin", "skin", "upgrade", "hadiah", "senjata"] as const;
 
@@ -594,3 +623,4 @@ export type MatchKillstreakEventRow = typeof matchKillstreakEvents.$inferSelect;
 export type PlayerFavoriteRow = typeof playerFavorites.$inferSelect;
 export type RewardNotificationRow = typeof rewardNotifications.$inferSelect;
 export type NewRewardNotificationRow = typeof rewardNotifications.$inferInsert;
+export type MatchKillEventRow = typeof matchKillEvents.$inferSelect;

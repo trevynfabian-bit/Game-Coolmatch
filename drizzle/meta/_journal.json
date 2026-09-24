@@ -71,6 +71,13 @@
       "when": 1790273226123,
       "tag": "0009_notifikasi_hadiah",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790273799787,
+      "tag": "0010_kejadian_kill",
+      "breakpoints": true
     }
   ]
 }

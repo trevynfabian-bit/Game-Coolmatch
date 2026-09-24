@@ -6,8 +6,13 @@ import { useMatchStore } from "@/lib/store/match-store";
 import {
   abandonServerMatch,
   finishServerMatch,
+  flushKillEvents,
+  queueKillEvent,
   reportKillstreakEvent,
 } from "@/lib/store/server-match-store";
+
+/** Selang pengiriman kejadian kill ke server. */
+const KILL_SYNC_MS = 3000;
 
 /**
  * Penghubung arena ↔ server dan penghitung killstreak.
@@ -16,6 +21,8 @@ import {
  *   hadiah yang baru terbuka dilaporkan ke server ("terbuka").
  * - Hadiah yang dipanggil ("dipakai") dan kill yang dihasilkannya ("kill")
  *   ikut dilaporkan supaya server bisa memeriksa urutannya.
+ * - Setiap kill (siapa pun pelakunya) diantre lalu dikirim bertahap ke server
+ *   supaya skor langsung tersedia di sana.
  * - Saat pertandingan berakhir, hasilnya dikirim ke server untuk ditutup dan
  *   dibayar koinnya; meninggalkan arena di tengah jalan menandainya ditinggal.
  */
@@ -43,6 +50,14 @@ export function ServerMatchSync() {
         if (local.deaths > before.deaths) useKillstreakStore.getState().registerDeath();
       }
 
+      // Kejadian kill baru ada di depan kill feed, sampai entri teratas sebelumnya.
+      if (state.killFeed !== previous.killFeed && state.killFeed.length > 0) {
+        const lastKnown = previous.killFeed[0];
+        const fresh = lastKnown ? state.killFeed.indexOf(lastKnown) : state.killFeed.length;
+        const newEntries = state.killFeed.slice(0, fresh === -1 ? state.killFeed.length : fresh);
+        for (const entry of [...newEntries].reverse()) queueKillEvent(entry, state.round.current);
+      }
+
       if (state.round.status === "ended" && previous.round.status !== "ended") {
         void finishServerMatch();
       }
@@ -63,8 +78,11 @@ export function ServerMatchSync() {
       }
     });
 
+    const killTimer = setInterval(() => void flushKillEvents(), KILL_SYNC_MS);
+
     window.addEventListener("pagehide", abandonServerMatch);
     return () => {
+      clearInterval(killTimer);
       unsubscribeMatch();
       unsubscribeStreak();
       window.removeEventListener("pagehide", abandonServerMatch);

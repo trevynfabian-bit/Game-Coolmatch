@@ -6,7 +6,7 @@ import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { useWalletStore } from "@/lib/store/wallet-store";
 import type { CoinLine } from "@/lib/economy/coin-rules";
-import type { MatchSnapshot } from "@/types/game";
+import type { KillFeedEntry, MatchSnapshot } from "@/types/game";
 
 /**
  * Siklus hidup pertandingan di server.
@@ -84,6 +84,62 @@ export async function startServerMatch(
   if (!isTrial) useKillstreakStore.getState().setLoadout(response.data.match.killstreakLoadout);
 }
 
+interface PendingKillEvent {
+  seq: number;
+  roundNumber: number;
+  killerName: string;
+  victimName: string;
+  weaponName: string;
+  isHeadshot: boolean;
+  atSecond: number;
+}
+
+/** Antrean kejadian kill yang belum diterima server, plus nomor urut berikutnya. */
+const killSync = { queue: [] as PendingKillEvent[], nextSeq: 1, matchId: null as number | null, sending: false };
+
+/** Menambah kejadian kill ke antrean; dikirim bertahap oleh `flushKillEvents`. */
+export function queueKillEvent(entry: KillFeedEntry, roundNumber: number) {
+  const { matchId, status, isTrial } = useServerMatchStore.getState();
+  if (!matchId || status !== "live" || isTrial) return;
+  if (killSync.matchId !== matchId) {
+    killSync.matchId = matchId;
+    killSync.queue = [];
+    killSync.nextSeq = 1;
+  }
+  killSync.queue.push({
+    seq: killSync.nextSeq++,
+    roundNumber,
+    killerName: entry.killerName,
+    victimName: entry.victimName,
+    weaponName: entry.weaponName,
+    isHeadshot: entry.isHeadshot,
+    atSecond: Math.round(entry.atSecond),
+  });
+}
+
+/**
+ * Mengirim antrean kejadian kill ke server. Yang gagal terkirim tetap di
+ * antrean dan dicoba lagi pada pengiriman berikutnya; server mengabaikan
+ * nomor urut yang sudah pernah diterima, jadi kiriman ulang aman.
+ */
+export async function flushKillEvents() {
+  const { matchId, status } = useServerMatchStore.getState();
+  if (!matchId || killSync.matchId !== matchId || killSync.queue.length === 0 || killSync.sending) return;
+  if (status !== "live" && status !== "finishing") return;
+  const batch = killSync.queue.slice(0, 100);
+  killSync.sending = true;
+  const response = await apiFetch(`/api/pertandingan/${matchId}/kejadian`, {
+    method: "POST",
+    body: { events: batch },
+  });
+  killSync.sending = false;
+  if (response.ok || response.status === 400 || response.status === 409) {
+    // Diterima, atau ditolak permanen: jangan dikirim ulang terus-menerus.
+    const sent = new Set(batch.map((event) => event.seq));
+    killSync.queue = killSync.queue.filter((event) => !sent.has(event.seq));
+  }
+}
+
 /** Melaporkan kejadian killstreak; gagal diam-diam karena tidak boleh mengganggu permainan. */
 export function reportKillstreakEvent(rewardId: KillstreakId, kind: "terbuka" | "dipakai" | "kill", streak: number) {
   const { matchId, status, isTrial } = useServerMatchStore.getState();
@@ -117,6 +173,8 @@ export async function finishServerMatch() {
   const { matchId, status, generation } = useServerMatchStore.getState();
   if (!matchId || status !== "live") return;
   useServerMatchStore.setState({ status: "finishing" });
+  // Sisa kejadian kill dikirim dulu; setelah ditutup server menolaknya.
+  await flushKillEvents();
 
   const response = await apiFetch<MatchFinishResult>(`/api/pertandingan/${matchId}/selesai`, {
     method: "POST",
