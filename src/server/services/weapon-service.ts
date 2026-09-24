@@ -1,5 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
+import { ApiError } from "@/server/api/http";
 import { playerLoadouts, weapons, type WeaponRow } from "@/server/db/schema";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import {
@@ -116,4 +117,23 @@ export function getWeaponLoadout(playerId: number): { primaryWeaponId: string; u
   if (!row) return { primaryWeaponId: DEFAULT_LOADOUT_WEAPON_ID, updatedAt: null };
   const unlocked = computeOwnership(row.primaryWeaponId, getWeaponProgress(playerId)).isUnlocked;
   return { primaryWeaponId: unlocked ? row.primaryWeaponId : DEFAULT_LOADOUT_WEAPON_ID, updatedAt: row.updatedAt };
+}
+
+/**
+ * Menyimpan senjata utama loadout. Senjata harus ada di katalog (404) dan
+ * sudah terbuka bagi pemain (409 senjata_terkunci).
+ */
+export function saveWeaponLoadout(playerId: number, weaponId: string): { primaryWeaponId: string; updatedAt: number } {
+  const weapon = findCatalogWeapon(weaponId);
+  if (!weapon) throw new ApiError(404, "senjata_tidak_ada", "Senjata tidak dikenal.");
+  const ownership = computeOwnership(weaponId, getWeaponProgress(playerId));
+  if (!ownership.isUnlocked) {
+    throw new ApiError(409, "senjata_terkunci", `${weapon.name} masih terkunci: ${ownership.requirement}.`);
+  }
+  const updatedAt = Date.now();
+  db.insert(playerLoadouts)
+    .values({ playerId, primaryWeaponId: weaponId, updatedAt })
+    .onConflictDoUpdate({ target: playerLoadouts.playerId, set: { primaryWeaponId: weaponId, updatedAt } })
+    .run();
+  return { primaryWeaponId: weaponId, updatedAt };
 }
