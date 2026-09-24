@@ -14,6 +14,7 @@ import { syncMapCatalog } from "@/server/services/map-service";
 import { countsTowardProgress } from "@/server/services/progress-isolation";
 import { evaluateWeaponUnlocks } from "@/server/services/weapon-unlock-service";
 import { refreshPlayerStats } from "@/server/services/player-stats-service";
+import { getAllSettings, settingsSnapshot } from "@/server/services/settings-service";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import { maxBotsForMap } from "@/lib/mock/bots";
 import { MATCH_RULES, sameRules } from "@/lib/game/match-rules";
@@ -83,6 +84,7 @@ export function startMatch(playerId: number, input: StartMatchInput): MatchRow {
       ...input,
       isTrial: input.isTrial === true,
       weaponId: input.weaponId ?? null,
+      settingsSnapshot: settingsSnapshot(getAllSettings(playerId)),
       killstreakLoadout: getLoadout(playerId),
       startedAt: Date.now(),
     })

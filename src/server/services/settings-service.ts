@@ -4,6 +4,7 @@ import {
   playerAudioSettings,
   playerSettings,
   type PlayerAudioSettingsRow,
+  type MatchSettingsSnapshot,
   type PlayerSettingsRow,
 } from "@/server/db/schema";
 import { DEFAULT_BINDINGS, sanitizeBindings } from "@/lib/game/keybindings";
@@ -121,4 +122,19 @@ export function saveSettings(playerId: number, values: SettingsValues): AllSetti
     }
   });
   return getAllSettings(playerId);
+}
+
+/** Ringkasan pengaturan untuk dipotret ke `matches.settings_snapshot`. */
+export function settingsSnapshot(settings: AllSettings): MatchSettingsSnapshot {
+  const customKeys = Object.entries(settings.controls.bindings).filter(
+    ([action, code]) => DEFAULT_BINDINGS[action as keyof typeof DEFAULT_BINDINGS] !== code,
+  ).length;
+  return {
+    quality: settings.graphics.quality,
+    resolutionScale: settings.graphics.resolutionScale,
+    fov: settings.graphics.fov,
+    sensitivity: settings.controls.sensitivity,
+    customKeys,
+    muted: settings.audio.muted,
+  };
 }

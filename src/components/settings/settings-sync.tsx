@@ -4,27 +4,12 @@ import { useEffect } from "react";
 import { keepCursorFree } from "@/lib/game/keep-cursor-free";
 import { useSettingsSaveStore } from "@/lib/store/settings-save-store";
 import { loadSettingsRemote } from "@/lib/api/settings-remote";
+import {
+  applyServerSettings,
+  isApplyingServerSettings,
+  writeLocalSettingsTime,
+} from "@/lib/settings/remote-apply";
 import { SETTINGS_STORAGE_KEY, useSettingsStore } from "@/lib/store/settings-store";
-
-const LOCAL_TIME_KEY = "coolmatch:pengaturan-waktu";
-
-/** Kapan pengaturan di perangkat ini terakhir diubah (epoch ms); 0 bila tidak diketahui. */
-function readLocalTime(): number {
-  try {
-    const value = Number(localStorage.getItem(LOCAL_TIME_KEY));
-    return Number.isFinite(value) ? value : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function writeLocalTime(at: number) {
-  try {
-    localStorage.setItem(LOCAL_TIME_KEY, String(at));
-  } catch {
-    // Tanpa penyimpanan: server dianggap lebih baru pada sesi berikutnya.
-  }
-}
 
 /**
  * Menjaga satu state pengaturan di semua tab dan menyimpan salinannya:
@@ -38,7 +23,6 @@ function writeLocalTime(at: number) {
 export function SettingsSync() {
   useEffect(() => {
     let fromOtherTab = false;
-    let fromServer = false;
     let cancelled = false;
     const onStorage = (event: StorageEvent) => {
       if (event.key !== SETTINGS_STORAGE_KEY || event.storageArea !== localStorage) return;
@@ -50,9 +34,9 @@ export function SettingsSync() {
     const unsubscribe = useSettingsStore.subscribe((state, previous) => {
       // Perubahan hasil membaca ulang tab lain sudah disimpan oleh tab itu,
       // dan yang baru dimuat dari server tidak perlu dikirim balik.
-      if (fromOtherTab || fromServer) return;
+      if (fromOtherTab || isApplyingServerSettings()) return;
       if (state.audio === previous.audio && state.graphics === previous.graphics && state.controls === previous.controls) return;
-      writeLocalTime(Date.now());
+      writeLocalSettingsTime(Date.now());
       useSettingsSaveStore.getState().queueSave({ audio: state.audio, graphics: state.graphics, controls: state.controls });
     });
     // Pengaturan ikut pemain: bila server punya simpanan, itu yang dipakai;
@@ -62,17 +46,7 @@ export function SettingsSync() {
     // belum sempat terkirim tidak tertimpa nilai lama dari server.
     void loadSettingsRemote().then((saved) => {
       if (cancelled || !saved) return;
-      const localAt = readLocalTime();
-      const serverNewer = saved.savedAt >= localAt;
-      if (serverNewer) {
-        const store = useSettingsStore.getState();
-        fromServer = true;
-        if (saved.audio) store.setAudio(saved.audio);
-        if (saved.graphics) store.setGraphics(saved.graphics);
-        if (saved.controls) store.setControls(saved.controls);
-        fromServer = false;
-        if (saved.savedAt > 0) writeLocalTime(saved.savedAt);
-      }
+      const serverNewer = applyServerSettings(saved);
       // Perangkat ini lebih baru, atau ada bagian yang belum pernah tersimpan
       // di server: kirim pengaturan perangkat ini.
       if (!serverNewer || !saved.audio || !saved.graphics || !saved.controls) {

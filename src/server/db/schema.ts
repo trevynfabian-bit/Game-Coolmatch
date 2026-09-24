@@ -119,6 +119,16 @@ export const playerMapChoices = sqliteTable("player_map_choices", {
   updatedAt: integer("updated_at").notNull().default(now),
 });
 
+/** Potret pengaturan yang disimpan di `matches.settings_snapshot`. */
+export interface MatchSettingsSnapshot {
+  quality: string;
+  resolutionScale: number;
+  fov: number;
+  sensitivity: number;
+  customKeys: number;
+  muted: boolean;
+}
+
 /** Tingkat kesulitan musuh otomatis; sama dengan tipe `Difficulty` di klien. */
 export const DIFFICULTIES = ["santai", "normal", "susah"] as const;
 
@@ -161,6 +171,13 @@ export const matches = sqliteTable(
 
     /** Senjata yang dibawa pemain masuk arena (atau yang dicoba di uji coba). */
     weaponId: text("weapon_id"),
+
+    /**
+     * Potret pengaturan pemain saat pertandingan dimulai (kualitas, FOV,
+     * sensitivitas, jumlah tombol yang diubah, bisu). Untuk menelusuri keluhan
+     * rasa bermain; tidak memengaruhi hasil.
+     */
+    settingsSnapshot: text("settings_snapshot", { mode: "json" }).$type<MatchSettingsSnapshot | null>(),
 
     /**
      * Potret loadout hadiah killstreak saat pertandingan dimulai (tombol 6, 7,

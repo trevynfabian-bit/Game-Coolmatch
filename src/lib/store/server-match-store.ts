@@ -7,6 +7,8 @@ import { useMatchStore } from "@/lib/store/match-store";
 import { useWalletStore } from "@/lib/store/wallet-store";
 import { useWeaponStore } from "@/lib/store/weapon-store";
 import { sessionStats } from "@/lib/game/session-stats";
+import { applyServerSettings } from "@/lib/settings/remote-apply";
+import type { RemoteSettingsPayload } from "@/lib/api/settings-remote";
 import type { CoinLine } from "@/lib/economy/coin-rules";
 import type { KillFeedEntry, MatchSnapshot } from "@/types/game";
 
@@ -53,6 +55,11 @@ export const useServerMatchStore = create<ServerMatchState>(() => ({
   isTrial: false,
 }));
 
+interface StartResponse {
+  match: { id: number; killstreakLoadout: (KillstreakId | null)[] };
+  settings?: RemoteSettingsPayload & { updatedAt: { audio: number | null; settings: number | null } };
+}
+
 /** Membuat baris pertandingan di server untuk potret pertandingan ini. */
 export async function startServerMatch(
   snapshot: MatchSnapshot,
@@ -67,11 +74,11 @@ export async function startServerMatch(
   // Uji coba punya endpoint sendiri yang sekaligus membuat sesi uji cobanya;
   // aturan ronde kilatnya ditentukan server.
   const response = isTrial
-    ? await apiFetch<{ match: { id: number; killstreakLoadout: (KillstreakId | null)[] } }>("/api/uji-coba", {
+    ? await apiFetch<StartResponse>("/api/uji-coba", {
         method: "POST",
         body: { weaponId, difficulty: snapshot.difficulty, botCount: snapshot.botCount, mapId: snapshot.map.id },
       })
-    : await apiFetch<{ match: { id: number; killstreakLoadout: (KillstreakId | null)[] } }>("/api/pertandingan", {
+    : await apiFetch<StartResponse>("/api/pertandingan", {
         method: "POST",
         body: {
           mapId: snapshot.map.id,
@@ -89,6 +96,16 @@ export async function startServerMatch(
     return;
   }
   useServerMatchStore.setState({ matchId: response.data.match.id, status: "live" });
+  // Pengaturan tersimpan di server ikut datang bersama pertandingan; dipakai
+  // bila lebih baru daripada yang ada di perangkat ini.
+  const settings = response.data.settings;
+  if (settings) {
+    applyServerSettings({
+      ...(settings.updatedAt.audio != null ? { audio: settings.audio } : {}),
+      ...(settings.updatedAt.settings != null ? { graphics: settings.graphics, controls: settings.controls } : {}),
+      savedAt: Math.max(settings.updatedAt.audio ?? 0, settings.updatedAt.settings ?? 0),
+    });
+  }
   // Hadiah di arena mengikuti potret loadout yang dicatat server untuk
   // pertandingan ini, jadi tombol 6-8 selalu cocok dengan yang divalidasi.
   if (!isTrial) useKillstreakStore.getState().setLoadout(response.data.match.killstreakLoadout);

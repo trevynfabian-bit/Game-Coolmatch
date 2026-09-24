@@ -8,6 +8,7 @@ import {
 } from "@/server/api/http";
 import { MATCH_RULES } from "@/lib/game/match-rules";
 import { startMatch } from "@/server/services/match-service";
+import { getAllSettings } from "@/server/services/settings-service";
 import { currentPlayer } from "@/server/services/player-session";
 
 /**
@@ -19,6 +20,8 @@ import { currentPlayer } from "@/server/services/player-session";
  * ronde yang dikosongkan diisi server; pertandingan biasa wajib memakai aturan
  * standar (400 aturan_tidak_sah) dan jumlah lawan dibatasi kapasitas peta.
  * `weaponId` (opsional) mencatat senjata yang dibawa pemain untuk riwayat.
+ * Balasan juga membawa `settings` (seluruh pengaturan tersimpan pemain, bentuk
+ * sama dengan GET /api/pengaturan); potret ringkasnya dicatat di pertandingan.
  * Balasan 201: { match: { id, ..., killstreakLoadout } }. Id ini yang dipakai
  * untuk menutup pertandingan lewat /api/pertandingan/[id]/selesai, dan
  * `killstreakLoadout` adalah hadiah yang sah dipakai di pertandingan ini.
@@ -41,5 +44,7 @@ export const POST = handle(async (request: Request) => {
     weaponId: body.weaponId == null ? null : stringField(body.weaponId, "weaponId"),
   });
 
-  return Response.json({ match }, { status: 201 });
+  // Pengaturan tersimpan ikut dikirim supaya arena memakai pengaturan pemain
+  // yang sama di perangkat mana pun sejak pertandingan dimulai.
+  return Response.json({ match, settings: getAllSettings(player.id) }, { status: 201 });
 });
