@@ -2,7 +2,6 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import {
   DIFFICULTIES,
-  maps,
   matchRounds,
   matchScores,
   matches,
@@ -11,6 +10,7 @@ import {
 import { MAX_BOTS, MIN_BOTS } from "@/lib/game/difficulty";
 import { findMatchWinner } from "@/lib/game/round";
 import { MOCK_MAPS } from "@/lib/mock/maps";
+import { syncMapCatalog } from "@/server/services/map-service";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import { maxBotsForMap } from "@/lib/mock/bots";
 import { MATCH_RULES, sameRules } from "@/lib/game/match-rules";
@@ -47,19 +47,6 @@ export interface StartMatchInput {
 }
 
 /**
- * Peta di kode adalah sumber kebenarannya; barisnya di database dibuat saat
- * pertama kali dipakai supaya kunci asing `matches.map_id` selalu sah.
- */
-function ensureMap(mapId: string) {
-  const map = MOCK_MAPS.find((item) => item.id === mapId);
-  if (!map) throw new ApiError(404, "peta_tidak_ada", "Peta tidak dikenal.");
-  db.insert(maps)
-    .values({ id: map.id, name: map.name, description: map.description, previewUrl: map.previewUrl })
-    .onConflictDoNothing()
-    .run();
-}
-
-/**
  * Membuat pertandingan. Loadout hadiah killstreak pemain dipotret saat ini
  * juga, jadi hadiah yang sah di pertandingan ini adalah yang tersimpan ketika
  * pertandingan dimulai.
@@ -83,7 +70,9 @@ export function startMatch(playerId: number, input: StartMatchInput): MatchRow {
   if (input.weaponId != null && !MOCK_WEAPONS.some((weapon) => weapon.id === input.weaponId)) {
     throw new ApiError(404, "senjata_tidak_ada", "Senjata tidak dikenal.");
   }
-  ensureMap(input.mapId);
+  // Katalog peta (beserta baloknya) disalin ke database lebih dulu, supaya
+  // kunci asing `matches.map_id` selalu sah.
+  syncMapCatalog();
   return db
     .insert(matches)
     .values({

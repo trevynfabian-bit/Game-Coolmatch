@@ -5,6 +5,7 @@ import {
   index,
   integer,
   primaryKey,
+  real,
   sqliteTable,
   text,
   uniqueIndex,
@@ -44,7 +45,68 @@ export const maps = sqliteTable("maps", {
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
   previewUrl: text("preview_url"),
+  /** Ukuran lantai (lebar x dalam) dan batas area main, satuan dunia. */
+  floorWidth: real("floor_width").notNull().default(40),
+  floorDepth: real("floor_depth").notNull().default(40),
+  boundsMinX: real("bounds_min_x").notNull().default(-20),
+  boundsMaxX: real("bounds_max_x").notNull().default(20),
+  boundsMinZ: real("bounds_min_z").notNull().default(-20),
+  boundsMaxZ: real("bounds_max_z").notNull().default(20),
+  skyColor: text("sky_color").notNull().default("#0f172a"),
+  fogColor: text("fog_color").notNull().default("#0f172a"),
+  floorColor: text("floor_color").notNull().default("#1e293b"),
+  sortOrder: integer("sort_order").notNull().default(0),
 });
+
+/** Jenis balok penyusun arena; sama dengan `MapBlock["kind"]` di klien. */
+export const MAP_BLOCK_KINDS = ["wall", "crate", "ramp", "pillar", "platform"] as const;
+
+/**
+ * Balok penyusun peta modular: dinding, krat, ramp, pilar, dan panggung.
+ * `block_key` adalah id balok di kode, unik per peta.
+ */
+export const mapBlocks = sqliteTable(
+  "map_blocks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    mapId: text("map_id")
+      .notNull()
+      .references(() => maps.id, { onDelete: "cascade" }),
+    blockKey: text("block_key").notNull(),
+    kind: text("kind", { enum: MAP_BLOCK_KINDS }).notNull(),
+    posX: real("pos_x").notNull(),
+    posY: real("pos_y").notNull(),
+    posZ: real("pos_z").notNull(),
+    sizeX: real("size_x").notNull(),
+    sizeY: real("size_y").notNull(),
+    sizeZ: real("size_z").notNull(),
+    rotationY: real("rotation_y").notNull().default(0),
+    color: text("color"),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (table) => [
+    uniqueIndex("map_blocks_kunci_uq").on(table.mapId, table.blockKey),
+    check("map_blocks_ukuran_positif", sql`${table.sizeX} > 0 AND ${table.sizeY} > 0 AND ${table.sizeZ} > 0`),
+  ],
+);
+
+/** Titik muncul petarung di sebuah peta, urut; titik pertama milik pemain. */
+export const mapSpawnPoints = sqliteTable(
+  "map_spawn_points",
+  {
+    mapId: text("map_id")
+      .notNull()
+      .references(() => maps.id, { onDelete: "cascade" }),
+    slot: integer("slot").notNull(),
+    x: real("x").notNull(),
+    y: real("y").notNull(),
+    z: real("z").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.mapId, table.slot] }),
+    check("map_spawn_points_slot_positif", sql`${table.slot} >= 0`),
+  ],
+);
 
 /** Tingkat kesulitan musuh otomatis; sama dengan tipe `Difficulty` di klien. */
 export const DIFFICULTIES = ["santai", "normal", "susah"] as const;
@@ -716,3 +778,5 @@ export type MatchKillEventRow = typeof matchKillEvents.$inferSelect;
 export type WeaponRow = typeof weapons.$inferSelect;
 export type PlayerLoadoutRow = typeof playerLoadouts.$inferSelect;
 export type PlayerAudioSettingsRow = typeof playerAudioSettings.$inferSelect;
+export type MapBlockRow = typeof mapBlocks.$inferSelect;
+export type MapSpawnPointRow = typeof mapSpawnPoints.$inferSelect;
