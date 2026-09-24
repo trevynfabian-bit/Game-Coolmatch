@@ -134,6 +134,13 @@
       "when": 1790274991444,
       "tag": "0018_sesi_uji_coba",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1790275270435,
+      "tag": "0019_koleksi_senjata",
+      "breakpoints": true
     }
   ]
 }

@@ -246,6 +246,34 @@ export const playerLoadouts = sqliteTable("player_loadouts", {
   updatedAt: integer("updated_at").notNull().default(now),
 });
 
+/** Jalan terbukanya senjata: bawaan sejak awal atau lewat pencapaian. */
+export const WEAPON_UNLOCK_VIA = ["bawaan", "pencapaian"] as const;
+
+/**
+ * Koleksi senjata pemain: satu baris per senjata yang sudah terbuka.
+ * `announced_at` kosong berarti pemain belum melihat pemberitahuan senjata
+ * barunya (penanda "Baru" di koleksi dan dialog perayaan). Senjata bawaan
+ * dicatat langsung sebagai sudah dilihat.
+ */
+export const playerWeapons = sqliteTable(
+  "player_weapons",
+  {
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    weaponId: text("weapon_id")
+      .notNull()
+      .references(() => weapons.id, { onDelete: "cascade" }),
+    via: text("via", { enum: WEAPON_UNLOCK_VIA }).notNull(),
+    unlockedAt: integer("unlocked_at").notNull().default(now),
+    announcedAt: integer("announced_at"),
+  },
+  (table) => [
+    primaryKey({ columns: [table.playerId, table.weaponId] }),
+    index("player_weapons_belum_dilihat_idx").on(table.playerId, table.announcedAt),
+  ],
+);
+
 /** Sebab sebuah ronde berakhir. */
 export const ROUND_END_REASONS = [
   "batas_kill",
@@ -866,3 +894,4 @@ export type MapSpawnPointRow = typeof mapSpawnPoints.$inferSelect;
 export type PlayerMapChoiceRow = typeof playerMapChoices.$inferSelect;
 export type PracticeSessionRow = typeof practiceSessions.$inferSelect;
 export type TrialSessionRow = typeof trialSessions.$inferSelect;
+export type PlayerWeaponRow = typeof playerWeapons.$inferSelect;
