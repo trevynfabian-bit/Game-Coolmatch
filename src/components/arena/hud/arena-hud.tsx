@@ -8,6 +8,7 @@ import { DamageVignette } from "@/components/arena/hud/damage-vignette";
 import { Crosshair } from "@/components/arena/hud/crosshair";
 import { EngageOverlay } from "@/components/arena/hud/engage-overlay";
 import { KillFeed } from "@/components/arena/hud/kill-feed";
+import { KillstreakTracker } from "@/components/arena/hud/killstreak-tracker";
 import { LiveScore } from "@/components/arena/hud/live-score";
 import { MatchEndScreen } from "@/components/arena/hud/match-end-screen";
 import { RoundBanner } from "@/components/arena/hud/round-banner";
@@ -86,6 +87,7 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
         <StanceBadge />
         <VitalsPanel fighter={local} weapon={weapon} />
         <AmmoPanel weapon={weapon} />
+        <KillstreakTracker />
         <WeaponSlots />
         <MatchInfoStrip match={match} />
       </div>
