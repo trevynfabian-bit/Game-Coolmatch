@@ -1,6 +1,7 @@
 import { CoinError } from "@/server/services/coin-service";
 import { ShopError } from "@/server/services/shop-service";
 import { SkinError } from "@/server/services/skin-service";
+import { KillstreakError } from "@/server/services/killstreak-service";
 
 /**
  * Pembantu kecil untuk Route Handler `/api/*`: bentuk galat yang seragam,
@@ -106,7 +107,7 @@ export function toErrorResponse(error: unknown): Response {
   if (error instanceof ApiError) {
     return jsonError(error.status, error.code, error.message);
   }
-  if (error instanceof ShopError || error instanceof SkinError) {
+  if (error instanceof ShopError || error instanceof SkinError || error instanceof KillstreakError) {
     return jsonError(error.status, error.code, error.message);
   }
   if (error instanceof CoinError) {

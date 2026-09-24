@@ -42,7 +42,8 @@ export function KillstreakTracker() {
   const active = useKillstreakStore((state) => state.active);
   const loadout = useKillstreakStore((state) => state.loadout);
 
-  const rewards = KILLSTREAKS.filter((item) => loadout.includes(item.id));
+  // Urut sesuai loadout (tombol 6, 7, 8), slot kosong dilewati.
+  const rewards = loadout.flatMap((id) => KILLSTREAKS.filter((item) => item.id === id));
   const next = nextKillstreak(streak, rewards);
 
   return (
@@ -85,7 +86,9 @@ export function KillstreakTracker() {
                       {reward.name}
                     </span>
                     {isReady ? (
-                      <span className="rounded bg-white/15 px-1 font-mono text-[9px] text-white">{reward.key.label}</span>
+                      <span className="rounded bg-white/15 px-1 font-mono text-[9px] text-white">
+                        {6 + loadout.indexOf(reward.id)}
+                      </span>
                     ) : isActive ? (
                       <span className="text-[9px] tracking-wider uppercase" style={{ color: reward.color }}>
                         Aktif

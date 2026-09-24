@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { KILLSTREAKS, findKillstreak, type KillstreakId } from "@/lib/game/killstreak";
+import { apiFetch } from "@/lib/api/client";
+import { DEFAULT_LOADOUT, findKillstreak, type KillstreakId } from "@/lib/game/killstreak";
 
 /**
  * Keadaan killstreak pemain lokal selama pertandingan.
@@ -14,8 +15,8 @@ interface KillstreakState {
   bestStreak: number;
   ready: KillstreakId[];
   active: Partial<Record<KillstreakId, number>>;
-  /** Hadiah yang dipakai di pertandingan ini, urut sesuai loadout (tombol 6, 7, 8). */
-  loadout: KillstreakId[];
+  /** Hadiah yang dibawa ke pertandingan, urut sesuai tombol 6, 7, 8; null = slot kosong. */
+  loadout: (KillstreakId | null)[];
   /** Penanda hadiah yang BARU saja terbuka, untuk animasi HUD. */
   lastUnlocked: { id: KillstreakId; at: number } | null;
   /** Hadiah yang sedang menunggu pemain memilih sasaran di denah. */
@@ -45,6 +46,10 @@ interface KillstreakState {
   recordRewardKill: (id: KillstreakId) => void;
   /** Mengosongkan semuanya untuk pertandingan baru. */
   resetForMatch: () => void;
+  /** Memuat loadout tersimpan pemain dari server. */
+  loadLoadout: () => Promise<void>;
+  /** Mengganti loadout di klien (mis. sesudah disimpan dari halaman loadout). */
+  setLoadout: (loadout: (KillstreakId | null)[]) => void;
 }
 
 /** Data tiruan untuk fase frontend: ketiga hadiah sudah siap dipanggil. */
@@ -57,7 +62,7 @@ const MOCK_STATE: Pick<KillstreakState, "streak" | "bestStreak" | "ready" | "act
 
 export const useKillstreakStore = create<KillstreakState>((set, get) => ({
   ...MOCK_STATE,
-  loadout: KILLSTREAKS.map((item) => item.id),
+  loadout: DEFAULT_LOADOUT,
   lastUnlocked: null,
   targeting: null,
   strike: null,
@@ -75,6 +80,13 @@ export const useKillstreakStore = create<KillstreakState>((set, get) => ({
     }));
     return true;
   },
+
+  loadLoadout: async () => {
+    const result = await apiFetch<{ loadout: (KillstreakId | null)[] }>("/api/killstreak/loadout");
+    if (result.ok) set({ loadout: result.data.loadout });
+  },
+
+  setLoadout: (loadout) => set({ loadout }),
 
   recordRewardKill: (id) =>
     set((state) => ({ killsBy: { ...state.killsBy, [id]: (state.killsBy[id] ?? 0) + 1 } })),

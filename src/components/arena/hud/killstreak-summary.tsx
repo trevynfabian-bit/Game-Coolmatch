@@ -18,6 +18,7 @@ export function KillstreakSummary() {
   const loadout = useKillstreakStore((state) => state.loadout);
 
   const rewards = KILLSTREAKS.filter((item) => loadout.includes(item.id));
+
   const totalUsed = rewards.reduce((sum, item) => sum + (used[item.id] ?? 0), 0);
   const totalKills = rewards.reduce((sum, item) => sum + (killsBy[item.id] ?? 0), 0);
 

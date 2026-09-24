@@ -14,14 +14,14 @@ export interface KillstreakReward {
   kills: number;
   /** Keterangan singkat untuk HUD dan halaman loadout. */
   blurb: string;
-  /** Tombol untuk memanggilnya, sebagai kode tombol dan label. */
-  key: { code: string; label: string };
   /** Warna penanda di HUD. */
   color: string;
   /** Lama hadiah bekerja setelah dipanggil, dalam detik. */
   durationSeconds: number;
   /** Benar bila pemanggilannya butuh memilih titik sasaran di denah. */
   needsTarget: boolean;
+  /** Harga koin untuk membuka hadiah ini; nol berarti terbuka sejak awal. */
+  unlockPrice: number;
 }
 
 export const KILLSTREAKS: KillstreakReward[] = [
@@ -30,32 +30,38 @@ export const KILLSTREAKS: KillstreakReward[] = [
     name: "Radar UAV",
     kills: 3,
     blurb: "Posisi semua musuh muncul di radar mini selama beberapa detik.",
-    key: { code: "Digit6", label: "6" },
     color: "#38bdf8",
     durationSeconds: 20,
     needsTarget: false,
+    unlockPrice: 0,
   },
   {
     id: "serangan_udara",
     name: "Serangan Udara",
     kills: 5,
     blurb: "Tandai satu titik; rentetan ledakan menghantam area itu.",
-    key: { code: "Digit7", label: "7" },
     color: "#f97316",
     durationSeconds: 5,
     needsTarget: true,
+    unlockPrice: 0,
   },
   {
     id: "helikopter",
     name: "Helikopter Dukungan",
     kills: 7,
     blurb: "Helikopter berputar di atas arena dan menembaki musuh.",
-    key: { code: "Digit8", label: "8" },
     color: "#a3e635",
     durationSeconds: 30,
     needsTarget: false,
+    unlockPrice: 0,
   },
 ];
+
+/** Jumlah slot loadout hadiah (tombol 6, 7, 8). */
+export const LOADOUT_SLOTS = 3;
+
+/** Loadout bawaan: semua hadiah urut dari yang termurah. */
+export const DEFAULT_LOADOUT: (KillstreakId | null)[] = KILLSTREAKS.map((item) => item.id).slice(0, LOADOUT_SLOTS);
 
 export function findKillstreak(id: KillstreakId): KillstreakReward {
   return KILLSTREAKS.find((item) => item.id === id)!;

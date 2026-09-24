@@ -15,10 +15,9 @@ export function KillstreakReadyPrompt() {
   const loadout = useKillstreakStore((state) => state.loadout);
   const isLocked = usePlayerStore((state) => state.isLocked);
 
-  const items = loadout.filter((id) => ready.includes(id)).map((id) => ({
-    reward: findKillstreak(id),
-    keyLabel: String(6 + loadout.indexOf(id)),
-  }));
+  const items = loadout.flatMap((id, index) =>
+    id && ready.includes(id) ? [{ reward: findKillstreak(id), keyLabel: String(6 + index) }] : [],
+  );
   if (items.length === 0) return null;
 
   return (
