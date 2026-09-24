@@ -6,6 +6,7 @@ import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { useWalletStore } from "@/lib/store/wallet-store";
 import { useWeaponStore } from "@/lib/store/weapon-store";
+import { sessionStats } from "@/lib/game/session-stats";
 import type { CoinLine } from "@/lib/economy/coin-rules";
 import type { KillFeedEntry, MatchSnapshot } from "@/types/game";
 
@@ -159,9 +160,23 @@ export function reportKillstreakEvent(rewardId: KillstreakId, kind: "terbuka" | 
   });
 }
 
+/** Uji coba ditutup lewat endpointnya sendiri supaya catatan senjatanya ikut tersimpan. */
+function finishPath(matchId: number): string {
+  return useServerMatchStore.getState().isTrial
+    ? `/api/uji-coba/${matchId}/selesai`
+    : `/api/pertandingan/${matchId}/selesai`;
+}
+
 function finishBody(abandoned: boolean) {
   const { fighters, roundHistory } = useMatchStore.getState();
   return {
+    // Catatan senjata untuk uji coba; diabaikan endpoint pertandingan biasa.
+    stats: {
+      shots: sessionStats.shots,
+      hits: sessionStats.hits,
+      headshots: sessionStats.headshots,
+      damage: Math.round(sessionStats.damage),
+    },
     participants: fighters.map((fighter) => ({
       name: fighter.name,
       isBot: !fighter.isLocal,
@@ -186,7 +201,7 @@ export async function finishServerMatch() {
   await flushKillEvents();
 
   const body = finishBody(false);
-  const response = await apiFetch<MatchFinishResult>(`/api/pertandingan/${matchId}/selesai`, {
+  const response = await apiFetch<MatchFinishResult>(finishPath(matchId), {
     method: "POST",
     body,
   });
@@ -208,6 +223,8 @@ const PENDING_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface PendingResult {
   matchId: number;
+  /** Endpoint penutupnya (pertandingan biasa atau uji coba). */
+  path?: string;
   body: ReturnType<typeof finishBody>;
   savedAt: number;
 }
@@ -247,7 +264,7 @@ function writePending(items: PendingResult[]) {
  */
 function savePendingResult(matchId: number, body: ReturnType<typeof finishBody>) {
   const items = readPending().filter((item) => item.matchId !== matchId);
-  writePending([...items, { matchId, body, savedAt: Date.now() }]);
+  writePending([...items, { matchId, path: finishPath(matchId), body, savedAt: Date.now() }]);
 }
 
 let retrying = false;
@@ -264,7 +281,7 @@ export async function retryPendingResults(): Promise<number> {
   let saved = 0;
   const remaining: PendingResult[] = [];
   for (const item of items) {
-    const response = await apiFetch<MatchFinishResult>(`/api/pertandingan/${item.matchId}/selesai`, {
+    const response = await apiFetch<MatchFinishResult>(item.path ?? `/api/pertandingan/${item.matchId}/selesai`, {
       method: "POST",
       body: item.body,
     });
@@ -313,7 +330,7 @@ export function abandonServerMatch() {
   if (!matchId || status !== "live") return;
   useServerMatchStore.setState({ status: "finished" });
   try {
-    void fetch(`/api/pertandingan/${matchId}/selesai`, {
+    void fetch(finishPath(matchId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(finishBody(true)),

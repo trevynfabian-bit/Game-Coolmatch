@@ -1,10 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { trialSessions, type TrialSessionRow } from "@/server/db/schema";
 import { ApiError } from "@/server/api/http";
 import { MATCH_RULES } from "@/lib/game/match-rules";
 import { computeOwnership } from "@/lib/game/weapon-unlock";
-import { startMatch, type Difficulty } from "@/server/services/match-service";
+import { finishMatch, startMatch, type Difficulty, type FinishMatchInput } from "@/server/services/match-service";
 import { findCatalogWeapon, getWeaponProgress } from "@/server/services/weapon-service";
 
 /**
@@ -100,4 +100,52 @@ export function findTrialByMatch(playerId: number, matchId: number): TrialSessio
     .from(trialSessions)
     .where(and(eq(trialSessions.playerId, playerId), eq(trialSessions.matchId, matchId)))
     .get();
+}
+
+export interface TrialStatsInput {
+  shots: number;
+  hits: number;
+  headshots: number;
+  damage: number;
+}
+
+/**
+ * Mengakhiri uji coba: pertandingan uji cobanya ditutup lewat jalur yang sama
+ * dengan pertandingan biasa (koin otomatis dikecualikan untuk is_trial, dan
+ * statistik pemain memang tidak menghitung is_trial), lalu catatan senjatanya
+ * disimpan di sesi. Idempoten: sesi yang sudah berakhir dikembalikan apa adanya.
+ */
+export function finishTrial(
+  playerId: number,
+  matchId: number,
+  input: FinishMatchInput & { stats: TrialStatsInput },
+) {
+  const session = findTrialByMatch(playerId, matchId);
+  if (!session) throw new ApiError(404, "uji_coba_tidak_ada", "Sesi uji coba tidak ditemukan.");
+
+  const { stats } = input;
+  if (stats.hits > stats.shots || stats.headshots > stats.hits) {
+    throw new ApiError(400, "isian_tidak_sah", "Kena tidak boleh melebihi butir, dan kena kepala tidak boleh melebihi kena.");
+  }
+
+  const outcome = finishMatch(playerId, matchId, input);
+  if (session.endedAt == null) {
+    const local = input.participants.find((participant) => !participant.isBot);
+    db.update(trialSessions)
+      .set({
+        shots: stats.shots,
+        hits: stats.hits,
+        headshots: stats.headshots,
+        damage: Math.round(stats.damage),
+        kills: local?.kills ?? 0,
+        deaths: local?.deaths ?? 0,
+        endedAt: Date.now(),
+      })
+      .where(and(eq(trialSessions.id, session.id), isNull(trialSessions.endedAt)))
+      .run();
+  }
+  const saved = db.select().from(trialSessions).where(eq(trialSessions.id, session.id)).get()!;
+  // Bentuknya sama dengan penutupan pertandingan biasa (koin selalu
+  // `excluded`), ditambah sesi uji cobanya.
+  return { ...outcome, session: toTrialView(saved) };
 }
