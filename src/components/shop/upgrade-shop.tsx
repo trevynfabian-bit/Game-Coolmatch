@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { NoticeToast, useNotice } from "@/components/economy/notice-toast";
 import { AttachmentRow } from "@/components/shop/attachment-row";
 import { ShopTabs } from "@/components/shop/shop-tabs";
 import { StatComparison } from "@/components/shop/stat-comparison";
@@ -44,14 +45,9 @@ export function UpgradeShop() {
   // Pratinjau hanya berlaku untuk senjata yang sedang dibuka.
   const activePreview = preview && preview.weaponId === weapon.id ? preview : null;
 
-  const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), 4000);
-    return () => clearTimeout(timer);
-  }, [notice]);
+  const { notice, show } = useNotice();
   const report = (result: ShopResult, success: string) =>
-    setNotice(result.ok ? { tone: "ok", text: success } : { tone: "error", text: result.message });
+    show(result.ok ? { tone: "ok", text: success } : { tone: "error", text: result.message });
 
   const remainingCost = tracks.reduce(
     (sum, track) =>
@@ -78,19 +74,7 @@ export function UpgradeShop() {
 
       <ShopTabs active="/toko" />
 
-      <p
-        role="status"
-        aria-live="polite"
-        className={`fixed inset-x-0 bottom-6 z-40 mx-auto w-fit max-w-[90vw] rounded-lg border px-4 py-2 text-sm shadow-lg transition-opacity ${
-          notice ? "opacity-100" : "pointer-events-none opacity-0"
-        } ${
-          notice?.tone === "error"
-            ? "border-rose-400/40 bg-rose-950/90 text-rose-100"
-            : "border-emerald-400/40 bg-emerald-950/90 text-emerald-100"
-        }`}
-      >
-        {notice?.text ?? ""}
-      </p>
+      <NoticeToast notice={notice} />
 
       <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
         <nav aria-label="Senjata" className="lg:self-start lg:sticky lg:top-6">

@@ -7,6 +7,8 @@ import { WalletBadge } from "@/components/economy/wallet-badge";
 import { ShopTabs } from "@/components/shop/shop-tabs";
 import { CountryCamoShowcase } from "@/components/skins/country-camo-showcase";
 import { FlagSwatch } from "@/components/skins/flag-swatch";
+import { SkinPurchasePanel } from "@/components/skins/skin-purchase-panel";
+import { NoticeToast, useNotice } from "@/components/economy/notice-toast";
 import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
 import { RARITY_META, RARITY_ORDER, SKINS, findSkin } from "@/lib/economy/skin-catalog";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
@@ -53,6 +55,7 @@ export function SkinShop() {
   const [focusId, setFocusId] = useState<string | null>(null);
   const collection = useSkinStore((state) => state.collection);
   const balance = useWalletStore((state) => state.wallet.balance);
+  const { notice, show } = useNotice();
 
   const weapon = useMemo(() => findWeapon(weaponId), [weaponId]);
   const equippedSkin = findSkin(collection.equipped[weapon.id]);
@@ -86,6 +89,7 @@ export function SkinShop() {
       </header>
 
       <ShopTabs active="/toko/skin" />
+      <NoticeToast notice={notice} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0">
@@ -251,6 +255,23 @@ export function SkinShop() {
                   </p>
                 ) : null}
                 <p className="mt-1 text-xs leading-relaxed text-slate-400">{focused.description}</p>
+
+                {collection.ownedSkinIds.includes(focused.id) ? (
+                  <p className="mt-4 rounded-lg border border-sky-400/30 bg-sky-400/5 px-3 py-2 text-center text-xs text-sky-200">
+                    {collection.equipped[weapon.id] === focused.id
+                      ? `Terpasang di ${weapon.name}`
+                      : "Sudah ada di koleksimu"}
+                  </p>
+                ) : (
+                  <SkinPurchasePanel
+                    key={`${focused.id}:${weapon.id}`}
+                    skin={focused}
+                    weapon={weapon}
+                    onResult={(result, success) =>
+                      show(result.ok ? { tone: "ok", text: success } : { tone: "error", text: result.message })
+                    }
+                  />
+                )}
 
                 <p className="mt-4 text-[10px] tracking-[0.2em] text-slate-500 uppercase">Di semua senjata</p>
                 <ul className="mt-2 grid grid-cols-2 gap-2">
