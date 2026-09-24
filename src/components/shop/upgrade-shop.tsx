@@ -66,6 +66,42 @@ function UpgradeRow({
         </div>
         <LevelPips level={level} max={track.tiers.length} accent={accent} />
       </div>
+      <ol className="mt-3 grid grid-cols-3 gap-1.5" aria-label={`Tingkat ${track.label}`}>
+        {track.tiers.map((tier) => {
+          const owned = tier.level <= level;
+          const isNext = tier.level === level + 1;
+          return (
+            <li
+              key={tier.level}
+              className={`rounded-md border px-2 py-1.5 text-[11px] ${
+                owned
+                  ? "border-transparent"
+                  : isNext
+                    ? "border-white/20 bg-white/5"
+                    : "border-white/5 opacity-60"
+              }`}
+              style={owned ? { backgroundColor: `${accent}1f` } : undefined}
+            >
+              <span className="flex items-center justify-between gap-1">
+                <span className="font-semibold text-slate-200">Tk {tier.level}</span>
+                <span className="font-mono tabular-nums" style={{ color: owned || isNext ? accent : "#94a3b8" }}>
+                  +{tier.bonusPercent}%
+                </span>
+              </span>
+              <span className="mt-0.5 block text-[10px] text-slate-400">
+                {owned ? (
+                  "Dimiliki"
+                ) : (
+                  <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                    <CoinIcon className="h-3 w-3" />
+                    {formatCoins(tier.price)}
+                  </span>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
       <div className="mt-3 flex items-center justify-between gap-3 text-xs">
         <span className="text-slate-500">
           {current ? (
@@ -153,6 +189,14 @@ export function UpgradeShop() {
   const tracks = useMemo(() => upgradeTracksFor(weapon.id), [weapon.id]);
   const attachments = useMemo(() => attachmentsFor(weapon.type), [weapon.type]);
   const accent = WEAPON_SHAPES[weapon.type].accent;
+  const remainingCost = tracks.reduce(
+    (sum, track) =>
+      sum +
+      track.tiers
+        .filter((tier) => tier.level > state.levels[track.stat])
+        .reduce((acc, tier) => acc + tier.price, 0),
+    0,
+  );
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-10 sm:px-8">
@@ -206,9 +250,24 @@ export function UpgradeShop() {
 
         <div className="space-y-8">
           <section aria-labelledby="judul-statistik">
-            <h2 id="judul-statistik" className="text-[11px] tracking-[0.2em] text-slate-400 uppercase">
-              Peningkatan statistik · <span style={{ color: accent }}>{weapon.name}</span>
-            </h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 id="judul-statistik" className="text-[11px] tracking-[0.2em] text-slate-400 uppercase">
+                Peningkatan statistik · <span style={{ color: accent }}>{weapon.name}</span>
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                {remainingCost > 0 ? (
+                  <>
+                    Sisa ke maksimal:{" "}
+                    <span className="inline-flex items-center gap-1 font-mono text-amber-200 tabular-nums">
+                      <CoinIcon className="h-3 w-3" />
+                      {formatCoins(remainingCost)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-emerald-300">Semua statistik sudah maksimal</span>
+                )}
+              </p>
+            </div>
             <ul className="mt-3 space-y-2">
               {tracks.map((track) => (
                 <UpgradeRow key={track.id} track={track} state={state} balance={wallet.balance} accent={accent} />
