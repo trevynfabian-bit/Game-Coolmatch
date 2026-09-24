@@ -530,6 +530,43 @@ export const playerFavorites = sqliteTable(
   (table) => [primaryKey({ columns: [table.playerId, table.kind, table.itemId] })],
 );
 
+/** Jenis notifikasi hadiah; sama dengan `RewardNotificationKind` di klien. */
+export const REWARD_NOTIFICATION_KINDS = ["koin", "skin", "upgrade", "hadiah", "senjata"] as const;
+
+/**
+ * Kotak masuk hadiah pemain: satu baris per hadiah yang pantas diumumkan
+ * (koin dari pertandingan, skin, upgrade, hadiah killstreak, senjata baru).
+ * `seen_at` kosong berarti belum dilihat — pola yang sama dengan
+ * `announced_at`. `source_id` membuat pencatatan idempoten: peristiwa yang
+ * sama (mis. "pertandingan:12") tidak pernah menghasilkan dua notifikasi.
+ */
+export const rewardNotifications = sqliteTable(
+  "reward_notifications",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: REWARD_NOTIFICATION_KINDS }).notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    /** Id item terkait (skin, hadiah, senjata) untuk ikon dan tautan. */
+    itemId: text("item_id"),
+    /** Jumlah koin, wajib untuk notifikasi koin. */
+    amount: integer("amount"),
+    sourceId: text("source_id").notNull(),
+    createdAt: integer("created_at").notNull().default(now),
+    seenAt: integer("seen_at"),
+  },
+  (table) => [
+    uniqueIndex("reward_notifications_sumber_uq").on(table.playerId, table.sourceId),
+    index("reward_notifications_kotak_masuk_idx").on(table.playerId, table.createdAt),
+    index("reward_notifications_belum_dilihat_idx").on(table.playerId, table.seenAt),
+    check("reward_notifications_koin_ada_jumlah", sql`${table.kind} <> 'koin' OR (${table.amount} IS NOT NULL AND ${table.amount} > 0)`),
+    check("reward_notifications_judul_tidak_kosong", sql`length(${table.title}) > 0`),
+  ],
+);
+
 export type PlayerRow = typeof players.$inferSelect;
 export type MapRow = typeof maps.$inferSelect;
 export type MatchRow = typeof matches.$inferSelect;
@@ -555,3 +592,5 @@ export type KillstreakRewardRow = typeof killstreakRewards.$inferSelect;
 export type KillstreakLoadoutRow = typeof killstreakLoadouts.$inferSelect;
 export type MatchKillstreakEventRow = typeof matchKillstreakEvents.$inferSelect;
 export type PlayerFavoriteRow = typeof playerFavorites.$inferSelect;
+export type RewardNotificationRow = typeof rewardNotifications.$inferSelect;
+export type NewRewardNotificationRow = typeof rewardNotifications.$inferInsert;

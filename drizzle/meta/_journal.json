@@ -64,6 +64,13 @@
       "when": 1790267696601,
       "tag": "0008_potret_loadout_pertandingan",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790273226123,
+      "tag": "0009_notifikasi_hadiah",
+      "breakpoints": true
     }
   ]
 }
