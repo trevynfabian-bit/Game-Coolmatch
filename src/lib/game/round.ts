@@ -44,17 +44,22 @@ export function hasReachedScoreLimit(
 /**
  * Pemenang pertandingan: ronde menang terbanyak, seri dipecah oleh total kill,
  * lalu oleh kematian yang lebih sedikit. Null bila masih seri sepenuhnya.
+ *
+ * Hanya membaca tiga angka perolehan, jadi dipakai juga oleh server untuk
+ * menentukan juara dari fakta mentah yang dikirim klien.
  */
-export function findMatchWinner(fighters: Fighter[]): Fighter | null {
-  let best: Fighter | null = null;
+type MatchStanding = Pick<Fighter, "roundWins" | "kills" | "deaths">;
+
+export function findMatchWinner<T extends MatchStanding>(fighters: T[]): T | null {
+  let best: T | null = null;
   let tied = false;
 
-  const better = (a: Fighter, b: Fighter) => {
+  const better = (a: T, b: T) => {
     if (a.roundWins !== b.roundWins) return a.roundWins > b.roundWins;
     if (a.kills !== b.kills) return a.kills > b.kills;
     return a.deaths < b.deaths;
   };
-  const equal = (a: Fighter, b: Fighter) =>
+  const equal = (a: T, b: T) =>
     a.roundWins === b.roundWins && a.kills === b.kills && a.deaths === b.deaths;
 
   for (const fighter of fighters) {
