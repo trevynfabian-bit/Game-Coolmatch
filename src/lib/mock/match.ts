@@ -3,6 +3,7 @@ import { clampBotCount } from "@/lib/game/difficulty";
 import { buildBotRoster, maxBotsForMap } from "@/lib/mock/bots";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
 import { findWeapon } from "@/lib/mock/weapons";
+import { INTERMISSION_SECONDS, MATCH_RULES } from "@/lib/game/match-rules";
 import type {
   ArenaMapInfo,
   Difficulty,
@@ -10,11 +11,8 @@ import type {
   MatchSnapshot,
 } from "@/types/game";
 
-/** Aturan pertandingan bawaan; nanti bisa diatur di layar pengaturan sendiri. */
-const ROUND_SECONDS = 180;
-const INTERMISSION_SECONDS = 6;
-const TOTAL_ROUNDS = 5;
-const SCORE_LIMIT = 15;
+/** Aturan pertandingan bawaan: sama dengan yang ditegakkan server. */
+const { roundSeconds: ROUND_SECONDS, totalRounds: TOTAL_ROUNDS, scoreLimit: SCORE_LIMIT } = MATCH_RULES.standar;
 const DEFAULT_RESERVE_MAGAZINES = 3;
 
 /**

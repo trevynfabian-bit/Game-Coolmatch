@@ -1,12 +1,13 @@
 import { create } from "zustand";
+import { MATCH_RULES } from "@/lib/game/match-rules";
 import type { Difficulty } from "@/types/game";
 
 /**
  * Pengaturan mode uji coba senjata: simulasi kilat satu ronde untuk merasakan
  * senjata apa pun — termasuk yang belum terbuka — tanpa menyentuh progres.
  */
-export const TRIAL_ROUND_SECONDS = 60;
-export const TRIAL_SCORE_LIMIT = 10;
+export const TRIAL_ROUND_SECONDS = MATCH_RULES.uji_coba.roundSeconds;
+export const TRIAL_SCORE_LIMIT = MATCH_RULES.uji_coba.scoreLimit;
 
 interface TrialState {
   weaponId: string;

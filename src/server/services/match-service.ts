@@ -11,6 +11,8 @@ import {
 import { MAX_BOTS, MIN_BOTS } from "@/lib/game/difficulty";
 import { findMatchWinner } from "@/lib/game/round";
 import { MOCK_MAPS } from "@/lib/mock/maps";
+import { maxBotsForMap } from "@/lib/mock/bots";
+import { MATCH_RULES, sameRules } from "@/lib/game/match-rules";
 import { ApiError } from "@/server/api/http";
 import { awardMatchCoins, type MatchCoinAward } from "@/server/services/coin-service";
 import { getLoadout, getRewardsFor } from "@/server/services/killstreak-service";
@@ -59,8 +61,20 @@ function ensureMap(mapId: string) {
  * pertandingan dimulai.
  */
 export function startMatch(playerId: number, input: StartMatchInput): MatchRow {
-  if (input.botCount < MIN_BOTS || input.botCount > MAX_BOTS) {
-    throw new ApiError(400, "isian_tidak_sah", `Jumlah lawan harus ${MIN_BOTS}..${MAX_BOTS}.`);
+  const map = MOCK_MAPS.find((item) => item.id === input.mapId);
+  if (!map) throw new ApiError(404, "peta_tidak_ada", "Peta tidak dikenal.");
+  const maxBots = Math.min(MAX_BOTS, maxBotsForMap(map));
+  if (input.botCount < MIN_BOTS || input.botCount > maxBots) {
+    throw new ApiError(400, "isian_tidak_sah", `Jumlah lawan di ${map.name} harus ${MIN_BOTS}..${maxBots}.`);
+  }
+  // Pertandingan berkoin wajib memakai aturan standar; uji coba bebas di
+  // rentang yang sah karena tidak pernah menghasilkan koin.
+  if (!input.isTrial && !sameRules(input, MATCH_RULES.standar)) {
+    throw new ApiError(
+      400,
+      "aturan_tidak_sah",
+      "Aturan ronde pertandingan harus mengikuti aturan standar dari /api/pertandingan/konfigurasi.",
+    );
   }
   ensureMap(input.mapId);
   return db

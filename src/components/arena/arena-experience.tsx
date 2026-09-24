@@ -16,6 +16,7 @@ import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
+import { MATCH_RULES } from "@/lib/game/match-rules";
 import { TRIAL_ROUND_SECONDS, TRIAL_SCORE_LIMIT, useTrialStore } from "@/lib/store/trial-store";
 import { startServerMatch } from "@/lib/store/server-match-store";
 import { findMap } from "@/lib/mock/maps";
@@ -113,7 +114,7 @@ export function ArenaExperience({ match, trial = false }: { match?: MatchSnapsho
         botCount: trialSetup.botCount,
         weaponId: trialSetup.weaponId,
         map: findMap(setup.mapId),
-        rules: { totalRounds: 1, roundSeconds: TRIAL_ROUND_SECONDS, scoreLimit: TRIAL_SCORE_LIMIT },
+        rules: { totalRounds: MATCH_RULES.uji_coba.totalRounds, roundSeconds: TRIAL_ROUND_SECONDS, scoreLimit: TRIAL_SCORE_LIMIT },
         idPrefix: "uji",
       };
     }
