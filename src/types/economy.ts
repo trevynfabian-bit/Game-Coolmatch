@@ -68,3 +68,28 @@ export interface Wallet {
   balance: number;
   lifetimeEarned: number;
 }
+
+/** Jenis mutasi koin; sama dengan kolom `coin_transactions.kind`. */
+export type CoinTransactionKind =
+  | "pertandingan"
+  | "bonus_kill"
+  | "bonus_ronde"
+  | "bonus_killstreak"
+  | "beli_upgrade"
+  | "beli_attachment"
+  | "beli_skin"
+  | "buka_hadiah"
+  | "koreksi";
+
+/** Satu baris riwayat koin, bentuknya sama dengan respons /api/koin/riwayat. */
+export interface CoinTransaction {
+  id: number;
+  kind: CoinTransactionKind;
+  /** Positif untuk koin masuk, negatif untuk koin keluar. */
+  amount: number;
+  balanceAfter: number;
+  sourceType: string | null;
+  sourceId: string | null;
+  note: string;
+  createdAt: number;
+}

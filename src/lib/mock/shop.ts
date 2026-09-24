@@ -1,13 +1,9 @@
-import type { Wallet, WeaponUpgradeState } from "@/types/economy";
+import type { WeaponUpgradeState } from "@/types/economy";
 
 /**
- * Data tiruan toko untuk fase frontend: saldo dan kepemilikan upgrade pemain.
- * Nanti diganti respons /api/koin dan /api/toko.
+ * Data tiruan toko untuk fase frontend: kepemilikan upgrade pemain. Saldonya
+ * ada di mock/wallet. Nanti diganti respons /api/toko.
  */
-export const MOCK_WALLET: Wallet = {
-  balance: 640,
-  lifetimeEarned: 1180,
-};
 
 export const MOCK_WEAPON_UPGRADES: WeaponUpgradeState[] = [
   {

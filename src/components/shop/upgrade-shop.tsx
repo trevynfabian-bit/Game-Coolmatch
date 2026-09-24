@@ -16,6 +16,7 @@ import {
 } from "@/lib/economy/upgrade-catalog";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { upgradeStateOf, useShopStore, type ShopResult } from "@/lib/store/shop-store";
+import { useWalletStore } from "@/lib/store/wallet-store";
 import type { WeaponUpgradeState } from "@/types/economy";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
 
@@ -26,7 +27,8 @@ import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
  */
 export function UpgradeShop() {
   const [weaponId, setWeaponId] = useState(MOCK_WEAPONS[2]?.id ?? MOCK_WEAPONS[0].id);
-  const wallet = useShopStore((state) => state.wallet);
+  const wallet = useWalletStore((state) => state.wallet);
+  const transactions = useWalletStore((state) => state.transactions);
   const upgrades = useShopStore((state) => state.upgrades);
 
   const weapon = useMemo(() => findWeapon(weaponId), [weaponId]);
@@ -210,6 +212,26 @@ export function UpgradeShop() {
                 );
               })}
             </div>
+          </section>
+
+          <section aria-labelledby="judul-belanja">
+            <h2 id="judul-belanja" className="text-[11px] tracking-[0.2em] text-slate-400 uppercase">
+              Mutasi koin terakhir
+            </h2>
+            <ul className="mt-3 divide-y divide-white/5 rounded-xl border border-white/10 bg-slate-900/40">
+              {transactions.slice(0, 5).map((tx) => (
+                <li key={tx.id} className="flex items-center justify-between gap-3 px-4 py-2 text-xs">
+                  <span className="min-w-0 truncate text-slate-300">{tx.note}</span>
+                  <span className="flex shrink-0 items-center gap-3 font-mono tabular-nums">
+                    <span className={tx.amount > 0 ? "text-emerald-300" : "text-rose-300"}>
+                      {tx.amount > 0 ? "+" : "−"}
+                      {formatCoins(Math.abs(tx.amount))}
+                    </span>
+                    <span className="w-14 text-right text-slate-500">{formatCoins(tx.balanceAfter)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
           </section>
 
           <div className="flex flex-wrap gap-2 border-t border-white/10 pt-6">

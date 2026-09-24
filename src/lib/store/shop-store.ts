@@ -1,11 +1,14 @@
 import { create } from "zustand";
 import { findAttachment, findUpgradeTrack } from "@/lib/economy/upgrade-catalog";
-import { MOCK_WALLET, MOCK_WEAPON_UPGRADES, emptyUpgradeState } from "@/lib/mock/shop";
+import { MOCK_WEAPON_UPGRADES, emptyUpgradeState } from "@/lib/mock/shop";
 import { findWeapon } from "@/lib/mock/weapons";
-import type { AttachmentSlot, UpgradeStat, Wallet, WeaponUpgradeState } from "@/types/economy";
+import { useWalletStore } from "@/lib/store/wallet-store";
+import type { AttachmentSlot, UpgradeStat, WeaponUpgradeState } from "@/types/economy";
 
 /**
- * State toko di klien: saldo koin dan kepemilikan upgrade per senjata.
+ * State toko di klien: kepemilikan upgrade dan attachment per senjata.
+ * Pembayaran lewat `useWalletStore`, jadi saldo di menu, toko, dan HUD selalu
+ * sama.
  *
  * Untuk fase frontend isinya data tiruan dan aksi beli/pasang diproses di
  * sini; lapisan backend nanti mengganti isi aksi dengan panggilan API yang
@@ -15,11 +18,10 @@ import type { AttachmentSlot, UpgradeStat, Wallet, WeaponUpgradeState } from "@/
 export type ShopResult = { ok: true } | { ok: false; message: string };
 
 interface ShopState {
-  wallet: Wallet;
   upgrades: Record<string, WeaponUpgradeState>;
   /** Kunci aksi yang sedang diproses, supaya tombolnya bisa dimatikan. */
   pending: string | null;
-  hydrate: (input: { wallet?: Wallet; upgrades?: WeaponUpgradeState[] }) => void;
+  hydrate: (input: { upgrades?: WeaponUpgradeState[] }) => void;
   /** Membeli tingkat BERIKUTNYA satu statistik; tingkat tidak bisa dilompati. */
   buyUpgrade: (weaponId: string, stat: UpgradeStat) => Promise<ShopResult>;
   buyAttachment: (weaponId: string, attachmentId: string) => Promise<ShopResult>;
@@ -66,13 +68,11 @@ export const useShopStore = create<ShopState>((set, get) => {
   }
 
   return {
-    wallet: { ...MOCK_WALLET },
     upgrades: indexUpgrades(MOCK_WEAPON_UPGRADES),
     pending: null,
 
-    hydrate: ({ wallet, upgrades }) =>
+    hydrate: ({ upgrades }) =>
       set((state) => ({
-        wallet: wallet ?? state.wallet,
         upgrades: upgrades ? indexUpgrades(upgrades) : state.upgrades,
       })),
 
@@ -83,14 +83,21 @@ export const useShopStore = create<ShopState>((set, get) => {
         const current = upgradeStateOf(get().upgrades, weaponId);
         const next = track.tiers.find((tier) => tier.level === current.levels[stat] + 1);
         if (!next) return { ok: false, message: `${track.label} sudah di tingkat maksimal.` };
-        const { wallet } = get();
-        if (wallet.balance < next.price) {
+        const weapon = findWeapon(weaponId);
+        const paid = useWalletStore.getState().spend({
+          kind: "beli_upgrade",
+          amount: next.price,
+          note: `${track.label} Tk ${next.level} · ${weapon.name}`,
+          sourceType: "upgrade",
+          sourceId: `${track.id}:${next.level}`,
+        });
+        if (!paid) {
+          const balance = useWalletStore.getState().wallet.balance;
           return {
             ok: false,
-            message: `Koin kurang ${next.price - wallet.balance} untuk ${track.label} tingkat ${next.level}.`,
+            message: `Koin kurang ${next.price - balance} untuk ${track.label} tingkat ${next.level}.`,
           };
         }
-        set({ wallet: { ...wallet, balance: wallet.balance - next.price } });
         patchWeapon(weaponId, (s) => ({
           ...s,
           levels: { ...s.levels, [stat]: next.level },
@@ -109,14 +116,20 @@ export const useShopStore = create<ShopState>((set, get) => {
         if (current.ownedAttachmentIds.includes(attachmentId)) {
           return { ok: false, message: "Attachment ini sudah kamu miliki." };
         }
-        const { wallet } = get();
-        if (wallet.balance < attachment.price) {
+        const paid = useWalletStore.getState().spend({
+          kind: "beli_attachment",
+          amount: attachment.price,
+          note: `${attachment.name} · ${weapon.name}`,
+          sourceType: "attachment",
+          sourceId: `${weaponId}:${attachmentId}`,
+        });
+        if (!paid) {
+          const balance = useWalletStore.getState().wallet.balance;
           return {
             ok: false,
-            message: `Koin kurang ${attachment.price - wallet.balance} untuk membeli ${attachment.name}.`,
+            message: `Koin kurang ${attachment.price - balance} untuk membeli ${attachment.name}.`,
           };
         }
-        set({ wallet: { ...wallet, balance: wallet.balance - attachment.price } });
         // Barang yang baru dibeli langsung dipasang: itu yang hampir selalu diinginkan.
         patchWeapon(weaponId, (s) => ({
           ...s,

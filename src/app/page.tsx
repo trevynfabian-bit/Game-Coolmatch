@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WalletBadge } from "@/components/economy/wallet-badge";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
 
 /**
@@ -9,6 +10,9 @@ import { DEFAULT_MAP } from "@/lib/mock/maps";
 export default function Home() {
   return (
     <main className="grid min-h-dvh place-items-center px-6">
+      <div className="fixed top-5 right-5">
+        <WalletBadge />
+      </div>
       <div className="w-full max-w-md text-center">
         <p className="text-[11px] tracking-[0.3em] text-emerald-400 uppercase">
           Deathmatch 3D
