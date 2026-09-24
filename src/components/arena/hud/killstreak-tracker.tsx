@@ -46,7 +46,7 @@ export function KillstreakTracker() {
   const next = nextKillstreak(streak, rewards);
 
   return (
-    <div className="pointer-events-none absolute top-1/2 right-4 hidden -translate-y-1/2 sm:block sm:right-5">
+    <div className="pointer-events-none absolute right-4 bottom-52 hidden sm:block sm:right-5">
       <div className="w-44 rounded-lg border border-white/10 bg-slate-950/65 px-3 py-2.5 backdrop-blur-sm">
         <div className="flex items-baseline justify-between">
           <p className="text-[10px] tracking-[0.2em] text-slate-400 uppercase">Killstreak</p>

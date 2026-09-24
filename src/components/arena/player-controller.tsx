@@ -277,6 +277,7 @@ export function PlayerController({
     playerRuntime.position[0] = position.current.x;
     playerRuntime.position[1] = position.current.y;
     playerRuntime.position[2] = position.current.z;
+    playerRuntime.heading = Math.atan2(forward.current.x, forward.current.z);
 
     setMotion({
       isSprinting: sprinting && planarSpeed > 0.5,

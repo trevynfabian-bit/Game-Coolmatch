@@ -12,6 +12,7 @@ import { KillstreakReadyPrompt } from "@/components/arena/hud/killstreak-ready-p
 import { KillstreakTracker } from "@/components/arena/hud/killstreak-tracker";
 import { LiveScore } from "@/components/arena/hud/live-score";
 import { MatchEndScreen } from "@/components/arena/hud/match-end-screen";
+import { RadarPanel } from "@/components/arena/hud/radar-panel";
 import { RoundBanner } from "@/components/arena/hud/round-banner";
 import { RoundHeader } from "@/components/arena/hud/round-header";
 import { ScoreboardOverlay } from "@/components/arena/hud/scoreboard-overlay";
@@ -81,6 +82,7 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
       <div className="pointer-events-none absolute inset-0 z-10 select-none">
         <LiveScore scoreboard={scoreboard} />
         <RoundHeader round={round.total > 0 ? round : match.round} />
+        <RadarPanel map={match.map} />
         <KillFeed entries={killFeed.length > 0 ? killFeed : match.killFeed} />
         {isLocked && local.isAlive ? <Crosshair /> : null}
         <DamageNumbers />

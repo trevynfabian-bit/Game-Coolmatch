@@ -1,7 +1,7 @@
 import type { KillFeedEntry } from "@/types/game";
 
 /**
- * Feed kanan-atas berisi kejadian tembakan mematikan terbaru. Entri paling baru
+ * Feed kanan-atas (di bawah radar mini) berisi kejadian tembakan mematikan terbaru. Entri paling baru
  * ditaruh di atas; kill oleh pemain lokal diberi sorotan.
  */
 export function KillFeed({ entries }: { entries: KillFeedEntry[] }) {
@@ -13,7 +13,7 @@ export function KillFeed({ entries }: { entries: KillFeedEntry[] }) {
   if (latest.length === 0) return null;
 
   return (
-    <ul className="pointer-events-none absolute top-4 right-5 hidden w-64 flex-col gap-1 lg:flex">
+    <ul className="pointer-events-none absolute top-52 right-5 hidden w-64 flex-col gap-1 lg:flex">
       {latest.map((entry, index) => {
         const byPlayer = entry.killerName === "Kamu";
         return (

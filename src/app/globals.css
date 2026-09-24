@@ -120,3 +120,20 @@ body {
     animation: none;
   }
 }
+
+/* Sapuan radar mini saat UAV aktif. */
+@keyframes radar-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.radar-sweep {
+  animation: radar-sweep 2.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radar-sweep {
+    animation: none;
+  }
+}
