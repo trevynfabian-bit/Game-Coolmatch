@@ -10,7 +10,7 @@ export function FavoriteButton({ kind, id, label }: { kind: FavoriteKind; id: st
   return (
     <button
       type="button"
-      onClick={() => toggle(kind, id)}
+      onClick={() => void toggle(kind, id)}
       aria-pressed={active}
       aria-label={active ? `Hapus ${label} dari favorit` : `Tandai ${label} sebagai favorit`}
       title={active ? "Favorit" : "Tandai favorit"}

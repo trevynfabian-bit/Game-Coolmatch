@@ -1,11 +1,12 @@
 import { create } from "zustand";
+import { apiFetch } from "@/lib/api/client";
 
 /**
- * Penanda favorit untuk senjata dan skin di galeri.
+ * Penanda favorit untuk senjata dan skin di galeri, tersimpan di server.
  *
- * Kuncinya berbentuk "senjata:<id>" atau "skin:<id>". Fase frontend
- * menyimpannya di memori klien; lapisan backend nanti memuat dan menyimpannya
- * di server lewat `hydrate` dan aksi yang sama.
+ * Kuncinya berbentuk "senjata:<id>" atau "skin:<id>". Tombol bintang terasa
+ * seketika: state diubah lebih dulu (optimistis), lalu dikembalikan bila
+ * server menolak.
  */
 export type FavoriteKind = "senjata" | "skin";
 
@@ -15,25 +16,34 @@ export function favoriteKey(kind: FavoriteKind, id: string): string {
 
 interface FavoriteState {
   favorites: string[];
-  hydrate: (favorites: string[]) => void;
-  toggle: (kind: FavoriteKind, id: string) => void;
+  /** Pesan galat terakhir dari server, untuk ditampilkan sebentar. */
+  error: string | null;
+  load: () => Promise<void>;
+  toggle: (kind: FavoriteKind, id: string) => Promise<void>;
 }
 
-/** Favorit tiruan: senapan serbu sudah ditandai. */
-const MOCK_FAVORITES = [favoriteKey("senjata", "wpn-rifle-garuda")];
+export const useFavoriteStore = create<FavoriteState>((set, get) => ({
+  favorites: [],
+  error: null,
 
-export const useFavoriteStore = create<FavoriteState>((set) => ({
-  favorites: MOCK_FAVORITES,
-  hydrate: (favorites) => set({ favorites }),
-  toggle: (kind, id) =>
-    set((state) => {
-      const key = favoriteKey(kind, id);
-      return {
-        favorites: state.favorites.includes(key)
-          ? state.favorites.filter((item) => item !== key)
-          : [...state.favorites, key],
-      };
-    }),
+  load: async () => {
+    const result = await apiFetch<{ favorites: string[] }>("/api/favorit");
+    if (result.ok) set({ favorites: result.data.favorites });
+  },
+
+  toggle: async (kind, id) => {
+    const key = favoriteKey(kind, id);
+    const before = get().favorites;
+    set({
+      error: null,
+      favorites: before.includes(key) ? before.filter((item) => item !== key) : [...before, key],
+    });
+    const result = await apiFetch<{ favorites: string[] }>("/api/favorit/toggle", {
+      method: "POST",
+      body: { kind, itemId: id },
+    });
+    set(result.ok ? { favorites: result.data.favorites } : { favorites: before, error: result.message });
+  },
 }));
 
 /** Mengurutkan daftar supaya favorit berada di depan, urutan lain dipertahankan. */
