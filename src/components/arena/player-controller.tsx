@@ -14,6 +14,7 @@ import {
   type MoveAction,
 } from "@/lib/game/controls";
 import { playerRuntime } from "@/lib/game/player-runtime";
+import { playFootstep, playLanding } from "@/lib/audio/sfx";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { ArenaMapInfo, Vec3 } from "@/types/game";
@@ -239,9 +240,13 @@ export function PlayerController({
       map.playableBounds,
     );
 
+    const fallSpeed = -verticalVelocity.current;
+    const wasGrounded = grounded.current;
     position.current = outcome.position;
     verticalVelocity.current = outcome.verticalVelocity;
     grounded.current = outcome.grounded;
+    // Baru menjejak tanah sesudah melayang: bunyi mendarat.
+    if (!wasGrounded && grounded.current && fallSpeed > 3) playLanding(fallSpeed);
 
     // Menabrak dinding: buang kecepatan supaya tidak menempel lalu melesat.
     if (outcome.blocked) {
@@ -255,8 +260,13 @@ export function PlayerController({
     );
     let bob = 0;
     if (grounded.current && planarSpeed > 0.4) {
+      const before = bobPhase.current;
       bobPhase.current +=
         delta * MOVEMENT.bobFrequency * (planarSpeed / MOVEMENT.walkSpeed);
+      // Satu langkah tiap setengah putaran ayunan: saat kepala di titik terendah.
+      if (Math.floor(before / Math.PI) !== Math.floor(bobPhase.current / Math.PI)) {
+        playFootstep(planarSpeed > MOVEMENT.walkSpeed + 0.5);
+      }
       bob =
         Math.sin(bobPhase.current) *
         MOVEMENT.bobAmplitude *

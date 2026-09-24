@@ -191,3 +191,67 @@ export function playDryFire(): void {
   if (!bus) return;
   metalClick(bus, bus.context.currentTime, 3000, 0.04, 0.3);
 }
+
+/** Langkah kaki: hentakan rendah pendek; lari sedikit lebih keras dan tajam. */
+export function playFootstep(sprinting: boolean): void {
+  const bus = channel("sfx");
+  if (!bus) return;
+  const ctx = bus.context;
+  const now = ctx.currentTime;
+  const source = ctx.createBufferSource();
+  source.buffer = bus.noise;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = (sprinting ? 900 : 650) * (0.85 + Math.random() * 0.3);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(sprinting ? 0.22 : 0.14, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+  source.connect(filter).connect(gain).connect(bus.out);
+  source.start(now, Math.random());
+  source.stop(now + 0.1);
+}
+
+/** Bunyi mendarat sesudah melompat; makin keras makin cepat jatuhnya. */
+export function playLanding(impactSpeed: number): void {
+  const bus = channel("sfx");
+  if (!bus) return;
+  const ctx = bus.context;
+  const now = ctx.currentTime;
+  const strength = Math.min(1, impactSpeed / 14);
+  const osc = ctx.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(95, now);
+  osc.frequency.exponentialRampToValueAtTime(45, now + 0.15);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.25 + strength * 0.35, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+  osc.connect(gain).connect(bus.out);
+  osc.start(now);
+  osc.stop(now + 0.2);
+  playFootstep(true);
+}
+
+/**
+ * Peluru menghantam: "tak" kering untuk tembok dan krat, "buk" teredam untuk
+ * badan petarung. `distance` meredam bunyi yang jauh.
+ */
+export function playImpact(onFighter: boolean, distance: number): void {
+  const bus = channel("sfx");
+  if (!bus) return;
+  const volume = Math.max(0, 1 - distance / 60);
+  if (volume <= 0.02) return;
+  const ctx = bus.context;
+  const now = ctx.currentTime;
+  const source = ctx.createBufferSource();
+  source.buffer = bus.noise;
+  const filter = ctx.createBiquadFilter();
+  filter.type = onFighter ? "lowpass" : "bandpass";
+  filter.frequency.value = onFighter ? 500 : 2200 + Math.random() * 800;
+  filter.Q.value = onFighter ? 1 : 3;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime((onFighter ? 0.35 : 0.18) * volume, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + (onFighter ? 0.12 : 0.06));
+  source.connect(filter).connect(gain).connect(bus.out);
+  source.start(now, Math.random());
+  source.stop(now + 0.14);
+}

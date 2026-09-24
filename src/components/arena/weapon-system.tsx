@@ -24,7 +24,7 @@ import {
 import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { resolveShotDamage } from "@/lib/game/damage";
 import { useCombatStore } from "@/lib/store/combat-store";
-import { playDryFire, playGunshot, playHitConfirm, playReload } from "@/lib/audio/sfx";
+import { playDryFire, playGunshot, playHitConfirm, playImpact, playReload } from "@/lib/audio/sfx";
 import { viewmodelRuntime } from "@/lib/game/viewmodel-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
@@ -212,6 +212,7 @@ export function WeaponSystem({
 
       if (hit) {
         effects.current?.spawnImpact(hit.point, hit.kind === "fighter");
+        playImpact(hit.kind === "fighter", hit.distance);
         if (hit.kind === "fighter" && hit.fighterId) {
           const isHeadshot = hit.isHeadshot ?? false;
           const damage = resolveShotDamage(weapon.damage, isHeadshot);
