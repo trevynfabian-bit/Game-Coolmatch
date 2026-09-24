@@ -1,6 +1,13 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { playerAudioSettings, type PlayerAudioSettingsRow } from "@/server/db/schema";
+import {
+  playerAudioSettings,
+  playerSettings,
+  type PlayerAudioSettingsRow,
+  type PlayerSettingsRow,
+} from "@/server/db/schema";
+import { DEFAULT_BINDINGS, sanitizeBindings } from "@/lib/game/keybindings";
+import type { ControlValues, GraphicsValues } from "@/server/services/settings-validation";
 
 /**
  * Preferensi pemain yang ikut pindah perangkat. Klien memakai volume 0..1;
@@ -52,4 +59,36 @@ export function saveAudioPreferences(playerId: number, audio: AudioPreferences):
     .returning()
     .get();
   return { audio: toAudio(row), updatedAt: row.updatedAt };
+}
+
+export const DEFAULT_GRAPHICS_VALUES: GraphicsValues = { quality: "sedang", resolutionScale: 1, fov: 75, showFps: true };
+export const DEFAULT_CONTROL_VALUES: ControlValues = { sensitivity: 1, bindings: DEFAULT_BINDINGS };
+
+function toGraphics(row: PlayerSettingsRow): GraphicsValues {
+  return { quality: row.quality, resolutionScale: row.resolutionPercent / 100, fov: row.fov, showFps: row.showFps };
+}
+
+function toControls(row: PlayerSettingsRow): ControlValues {
+  // Aksi yang belum tercatat (mis. aksi baru) memakai tombol bawaan.
+  return { sensitivity: row.sensitivityCenti / 100, bindings: sanitizeBindings(row.bindings) };
+}
+
+export interface AllSettings {
+  audio: AudioPreferences;
+  graphics: GraphicsValues;
+  controls: ControlValues;
+  /** Kapan tiap bagian terakhir disimpan; null berarti masih bawaan. */
+  updatedAt: { audio: number | null; settings: number | null };
+}
+
+/** Seluruh pengaturan pemain dalam satu bentuk; bagian yang belum pernah disimpan berisi bawaan. */
+export function getAllSettings(playerId: number): AllSettings {
+  const audio = getAudioPreferences(playerId);
+  const row = db.select().from(playerSettings).where(eq(playerSettings.playerId, playerId)).get();
+  return {
+    audio: audio.audio,
+    graphics: row ? toGraphics(row) : DEFAULT_GRAPHICS_VALUES,
+    controls: row ? toControls(row) : DEFAULT_CONTROL_VALUES,
+    updatedAt: { audio: audio.updatedAt, settings: row?.updatedAt ?? null },
+  };
 }
