@@ -14,6 +14,7 @@ import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
+import { TRIAL_ROUND_SECONDS, TRIAL_SCORE_LIMIT, useTrialStore } from "@/lib/store/trial-store";
 import { startServerMatch } from "@/lib/store/server-match-store";
 import { findMap } from "@/lib/mock/maps";
 import { buildMatchSnapshot } from "@/lib/mock/match";
@@ -27,6 +28,8 @@ interface MatchEntry {
   botCount: number;
   weaponId: string;
   map: ArenaMapInfo;
+  rules?: { totalRounds: number; roundSeconds: number; scoreLimit: number };
+  idPrefix?: string;
 }
 
 /**
@@ -82,7 +85,7 @@ const ArenaScene = dynamic(
  * Sumber datanya masih `MOCK_MATCH`; prop `match` sengaja dibuka supaya task
  * backend nanti tinggal mengoper data asli dari server.
  */
-export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
+export function ArenaExperience({ match, trial = false }: { match?: MatchSnapshot; trial?: boolean }) {
   /**
    * Senjata dan pengaturan lawan yang dipilih pemain dibaca SEKALI saat arena
    * dibuka, bukan dilanggani. Pemain bisa menukar senjata di tengah
@@ -99,6 +102,19 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
    */
   const [entry] = useState<MatchEntry>(() => {
     const setup = useMatchSetupStore.getState();
+    if (trial) {
+      // Uji coba: senjata, jumlah, dan tingkat lawan dari menu uji coba; satu
+      // ronde singkat supaya benar-benar "kilat".
+      const trialSetup = useTrialStore.getState();
+      return {
+        difficulty: trialSetup.difficulty,
+        botCount: trialSetup.botCount,
+        weaponId: trialSetup.weaponId,
+        map: findMap(setup.mapId),
+        rules: { totalRounds: 1, roundSeconds: TRIAL_ROUND_SECONDS, scoreLimit: TRIAL_SCORE_LIMIT },
+        idPrefix: "uji",
+      };
+    }
     return {
       difficulty: setup.difficulty,
       botCount: setup.botCount,
@@ -130,8 +146,8 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
     setRoundClock(armedMatch.round.secondsLeft);
     useMatchStore.getState().init(armedMatch);
     armPlayerFrom(armedMatch);
-    void startServerMatch(armedMatch);
-  }, [armedMatch]);
+    void startServerMatch(armedMatch, { isTrial: trial });
+  }, [armedMatch, trial]);
 
   // Selagi pengaturan dibaca, tampilkan layar tunggu yang sama dengan yang
   // dipakai saat bundel 3D diunduh — buat pemain tidak ada kedipan tambahan,
@@ -150,7 +166,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
         <ServerMatchSync />
         <CombatAudio />
         <ArenaScene match={armedMatch} />
-        <ArenaHud match={armedMatch} />
+        <ArenaHud match={armedMatch} trial={trial} />
       </div>
     </KeyboardControls>
   );

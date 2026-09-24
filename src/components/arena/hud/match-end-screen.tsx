@@ -25,11 +25,14 @@ export function MatchEndScreen({
   fighters,
   map,
   snapshot,
+  trial = false,
 }: {
   round: RoundState;
   fighters: Fighter[];
   map: ArenaMapInfo;
   snapshot: MatchSnapshot;
+  /** Uji coba: tanpa koin dan killstreak; tombol kembali ke menu uji coba. */
+  trial?: boolean;
 }) {
   const ranked = useMemo(
     () =>
@@ -137,8 +140,16 @@ export function MatchEndScreen({
           </table>
         </div>
 
-        <CoinSummary fighters={fighters} difficulty={snapshot.difficulty} matchWinner={round.matchWinner} />
-        <KillstreakSummary />
+        {trial ? (
+          <p className="mt-4 rounded-xl border border-sky-400/30 bg-sky-400/5 px-4 py-3 text-center text-xs text-sky-200">
+            Ini uji coba: hasilnya tidak masuk statistik, tidak membuka senjata, dan tidak memberi koin.
+          </p>
+        ) : (
+          <>
+            <CoinSummary fighters={fighters} difficulty={snapshot.difficulty} matchWinner={round.matchWinner} />
+            <KillstreakSummary />
+          </>
+        )}
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <button
@@ -158,11 +169,11 @@ export function MatchEndScreen({
             hanya untuk menurunkan tingkat kesulitan.
           */}
           <Link
-            href="/lawan"
+            href={trial ? "/uji" : "/lawan"}
             onClick={(event) => event.stopPropagation()}
             className="rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
           >
-            Ganti lawan
+            {trial ? "Coba senjata lain" : "Ganti lawan"}
           </Link>
           <Link
             href="/"
@@ -176,8 +187,9 @@ export function MatchEndScreen({
         <NewRewardsHint />
 
         <p className="mt-4 text-center text-[11px] text-slate-600">
-          &ldquo;Main lagi&rdquo; memakai pengaturan yang sama; &ldquo;Ganti
-          lawan&rdquo; membuka lagi pilihan tingkat kesulitan dan jumlah musuh.
+          {trial
+            ? "“Main lagi” mengulang uji coba dengan senjata yang sama; “Coba senjata lain” kembali ke menu uji coba."
+            : "“Main lagi” memakai pengaturan yang sama; “Ganti lawan” membuka lagi pilihan tingkat kesulitan dan jumlah musuh."}
         </p>
       </div>
     </div>

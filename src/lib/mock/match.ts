@@ -49,6 +49,10 @@ export interface MatchSetup {
   /** Senjata yang dibawa pemain; bawaan mengikuti senjata pemain lokal. */
   weaponId?: string;
   map?: ArenaMapInfo;
+  /** Aturan khusus, mis. uji coba satu ronde singkat. */
+  rules?: { totalRounds?: number; roundSeconds?: number; scoreLimit?: number };
+  /** Awalan id pertandingan, supaya uji coba tidak tertukar dengan pertandingan biasa. */
+  idPrefix?: string;
 }
 
 /**
@@ -65,7 +69,10 @@ export function buildMatchSnapshot({
   botCount,
   weaponId,
   map = DEFAULT_MAP,
+  rules = {},
+  idPrefix = "match",
 }: MatchSetup): MatchSnapshot {
+  const roundSeconds = rules.roundSeconds ?? ROUND_SECONDS;
   // Dijepit dua kali: ke rentang yang masuk akal, lalu ke apa yang muat di
   // peta ini. Angka kedua yang dilaporkan potret pertandingan, supaya HUD dan
   // papan skor tidak pernah menjanjikan lawan yang tidak muncul.
@@ -79,17 +86,17 @@ export function buildMatchSnapshot({
   };
 
   return {
-    matchId: `match-${map.id}-${difficulty}-${bots}`,
+    matchId: `${idPrefix}-${map.id}-${difficulty}-${bots}`,
     map,
     difficulty,
     botCount: bots,
     round: {
       current: 1,
-      total: TOTAL_ROUNDS,
-      secondsLeft: ROUND_SECONDS,
-      durationSeconds: ROUND_SECONDS,
+      total: rules.totalRounds ?? TOTAL_ROUNDS,
+      secondsLeft: roundSeconds,
+      durationSeconds: roundSeconds,
       intermissionSeconds: INTERMISSION_SECONDS,
-      scoreLimit: SCORE_LIMIT,
+      scoreLimit: rules.scoreLimit ?? SCORE_LIMIT,
       status: "live",
       lastRoundWinner: null,
       matchWinner: null,

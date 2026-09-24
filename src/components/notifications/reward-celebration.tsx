@@ -14,7 +14,7 @@ import type { RewardNotification } from "@/types/economy";
 const CELEBRATED = new Set<RewardNotification["kind"]>(["skin", "upgrade", "hadiah"]);
 
 /** Halaman tempat dialog tidak boleh muncul karena pemain sedang bermain. */
-const QUIET_PATHS = ["/arena", "/latihan"];
+const QUIET_PATHS = ["/arena", "/latihan", "/uji/arena"];
 
 /** Serpihan konfeti deterministik supaya tidak berkedip saat render ulang. */
 const CONFETTI = Array.from({ length: 22 }, (_, index) => ({

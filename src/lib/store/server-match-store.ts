@@ -38,6 +38,8 @@ interface ServerMatchState {
   generation: number;
   result: MatchFinishResult | null;
   error: string | null;
+  /** Benar bila pertandingan berjalan adalah uji coba (tanpa koin/statistik/killstreak). */
+  isTrial: boolean;
 }
 
 export const useServerMatchStore = create<ServerMatchState>(() => ({
@@ -46,12 +48,18 @@ export const useServerMatchStore = create<ServerMatchState>(() => ({
   generation: 0,
   result: null,
   error: null,
+  isTrial: false,
 }));
 
 /** Membuat baris pertandingan di server untuk potret pertandingan ini. */
-export async function startServerMatch(snapshot: MatchSnapshot, { isTrial = false } = {}) {
+export async function startServerMatch(
+  snapshot: MatchSnapshot,
+  // Bawaan: sama dengan pertandingan sebelumnya, supaya "Main lagi" di uji
+  // coba tetap uji coba.
+  { isTrial = useServerMatchStore.getState().isTrial } = {},
+) {
   const generation = useServerMatchStore.getState().generation + 1;
-  useServerMatchStore.setState({ matchId: null, status: "starting", generation, result: null, error: null });
+  useServerMatchStore.setState({ matchId: null, status: "starting", generation, result: null, error: null, isTrial });
 
   const response = await apiFetch<{ match: { id: number; killstreakLoadout: (KillstreakId | null)[] } }>("/api/pertandingan", {
     method: "POST",
@@ -78,8 +86,8 @@ export async function startServerMatch(snapshot: MatchSnapshot, { isTrial = fals
 
 /** Melaporkan kejadian killstreak; gagal diam-diam karena tidak boleh mengganggu permainan. */
 export function reportKillstreakEvent(rewardId: KillstreakId, kind: "terbuka" | "dipakai" | "kill", streak: number) {
-  const { matchId, status } = useServerMatchStore.getState();
-  if (!matchId || status !== "live") return;
+  const { matchId, status, isTrial } = useServerMatchStore.getState();
+  if (!matchId || status !== "live" || isTrial) return;
   void apiFetch(`/api/pertandingan/${matchId}/killstreak`, {
     method: "POST",
     body: { rewardId, kind, streak },
@@ -130,6 +138,7 @@ export async function finishServerMatch() {
  * setelah pemain meninggalkan arena — RewardCelebration diam di arena.
  */
 async function announceMatchRewards(result: MatchFinishResult) {
+  if (result.coins.excluded) return;
   const notifications = useNotificationStore.getState();
   const { total } = result.coins.reward;
   if (total > 0 && !result.coins.alreadyAwarded) {

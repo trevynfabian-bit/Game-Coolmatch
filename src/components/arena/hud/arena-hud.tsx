@@ -61,7 +61,7 @@ function MatchInfoStrip({ match }: { match: MatchSnapshot }) {
  * lapisan ini tidak menangkap pointer sama sekali supaya input bidik langsung
  * sampai ke kanvas di bawahnya.
  */
-export function ArenaHud({ match }: { match: MatchSnapshot }) {
+export function ArenaHud({ match, trial = false }: { match: MatchSnapshot; trial?: boolean }) {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const fighters = useMatchStore((state) => state.fighters);
   const killFeed = useMatchStore((state) => state.killFeed);
@@ -92,7 +92,12 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
         <StanceBadge />
         <VitalsPanel fighter={local} weapon={weapon} />
         <AmmoPanel weapon={weapon} />
-        <KillstreakTracker />
+        {trial ? null : <KillstreakTracker />}
+        {trial ? (
+          <p className="absolute top-[5.5rem] left-1/2 -translate-x-1/2 rounded-full border border-sky-400/40 bg-sky-950/70 px-3 py-1 text-[10px] font-bold tracking-[0.25em] text-sky-200 uppercase">
+            Uji coba · tidak mengubah progres
+          </p>
+        ) : null}
         <WeaponSlots />
         <MatchInfoStrip match={match} />
         <FpsMeter />
@@ -100,7 +105,7 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
 
       {/* Di luar lapisan pointer-events-none supaya tombolnya bisa diklik saat kursor lepas. */}
       <div className="absolute inset-0 z-10 pointer-events-none select-none">
-        <KillstreakReadyPrompt />
+        {trial ? null : <KillstreakReadyPrompt />}
       </div>
 
       <ScoreboardOverlay
@@ -119,6 +124,7 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
         fighters={fighters.length > 0 ? fighters : match.fighters}
         map={match.map}
         snapshot={match}
+        trial={trial}
       />
 
       <AirstrikeTargeting map={match.map} />

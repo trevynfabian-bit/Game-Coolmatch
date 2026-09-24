@@ -9,7 +9,9 @@ import { usePlayerStore } from "@/lib/store/player-store";
 
 /** Halaman bertempur memakai musik arena; sisanya musik menu. */
 function moodFor(pathname: string | null): MusicMood {
-  return pathname?.startsWith("/arena") || pathname?.startsWith("/latihan") ? "arena" : "menu";
+  return pathname?.startsWith("/arena") || pathname?.startsWith("/latihan") || pathname?.startsWith("/uji/arena")
+    ? "arena"
+    : "menu";
 }
 
 /**
