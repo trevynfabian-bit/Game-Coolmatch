@@ -158,6 +158,21 @@ export const weapons = sqliteTable(
   ],
 );
 
+/**
+ * Loadout senjata pemain: senjata yang dibawa masuk arena. Satu baris per
+ * pemain; kunci asing ke katalog `weapons` menjamin hanya senjata yang
+ * dikenal yang bisa tersimpan. Syarat terbuka diperiksa layanan saat menyimpan.
+ */
+export const playerLoadouts = sqliteTable("player_loadouts", {
+  playerId: integer("player_id")
+    .primaryKey()
+    .references(() => players.id, { onDelete: "cascade" }),
+  primaryWeaponId: text("primary_weapon_id")
+    .notNull()
+    .references(() => weapons.id, { onDelete: "restrict" }),
+  updatedAt: integer("updated_at").notNull().default(now),
+});
+
 /** Sebab sebuah ronde berakhir. */
 export const ROUND_END_REASONS = [
   "batas_kill",
@@ -673,3 +688,4 @@ export type RewardNotificationRow = typeof rewardNotifications.$inferSelect;
 export type NewRewardNotificationRow = typeof rewardNotifications.$inferInsert;
 export type MatchKillEventRow = typeof matchKillEvents.$inferSelect;
 export type WeaponRow = typeof weapons.$inferSelect;
+export type PlayerLoadoutRow = typeof playerLoadouts.$inferSelect;

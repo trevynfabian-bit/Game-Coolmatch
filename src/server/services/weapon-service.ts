@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { weapons, type WeaponRow } from "@/server/db/schema";
+import { playerLoadouts, weapons, type WeaponRow } from "@/server/db/schema";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import {
   WEAPON_UNLOCK_RULES,
@@ -101,4 +101,19 @@ export function listPlayerWeapons(playerId: number): { weapons: PlayerWeapon[]; 
     progress,
     weapons: listWeaponCatalog().map((weapon) => ({ ...weapon, ownership: computeOwnership(weapon.id, progress) })),
   };
+}
+
+/** Senjata bawaan loadout: senapan serbu, yang selalu terbuka sejak awal. */
+export const DEFAULT_LOADOUT_WEAPON_ID = "wpn-rifle-garuda";
+
+/**
+ * Senjata utama di loadout pemain. Bila tersimpan senjata yang kini tidak
+ * lagi terbuka (mis. syaratnya berubah), yang dikembalikan senjata bawaan.
+ */
+export function getWeaponLoadout(playerId: number): { primaryWeaponId: string; updatedAt: number | null } {
+  syncWeaponCatalog();
+  const row = db.select().from(playerLoadouts).where(eq(playerLoadouts.playerId, playerId)).get();
+  if (!row) return { primaryWeaponId: DEFAULT_LOADOUT_WEAPON_ID, updatedAt: null };
+  const unlocked = computeOwnership(row.primaryWeaponId, getWeaponProgress(playerId)).isUnlocked;
+  return { primaryWeaponId: unlocked ? row.primaryWeaponId : DEFAULT_LOADOUT_WEAPON_ID, updatedAt: row.updatedAt };
 }
