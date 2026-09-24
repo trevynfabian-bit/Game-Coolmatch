@@ -1,5 +1,6 @@
 "use client";
 
+import { useActionKey } from "@/lib/game/use-keybindings";
 import { useCombatStore } from "@/lib/store/combat-store";
 import type { Weapon } from "@/types/game";
 
@@ -13,6 +14,7 @@ export function AmmoPanel({ weapon }: { weapon: Weapon }) {
   const reserve = useCombatStore((state) => state.ammoReserve);
   const isReloading = useCombatStore((state) => state.isReloading);
   const reloadSeconds = useCombatStore((state) => state.reloadSeconds);
+  const reloadKey = useActionKey("reload");
 
   const low = inMagazine <= Math.ceil(weapon.magazineSize * 0.25);
   const empty = inMagazine === 0;
@@ -62,7 +64,7 @@ export function AmmoPanel({ weapon }: { weapon: Weapon }) {
           </p>
         ) : empty ? (
           <p className="mt-2 text-[10px] tracking-[0.2em] text-amber-300 uppercase">
-            Tekan R untuk isi
+            Tekan {reloadKey} untuk isi
           </p>
         ) : null}
 

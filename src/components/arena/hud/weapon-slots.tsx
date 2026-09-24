@@ -4,7 +4,10 @@ import { swapSlotsFor } from "@/components/arena/weapon-swap";
 import { useServerMatchStore } from "@/lib/store/server-match-store";
 import { WeaponSilhouette } from "@/components/weapons/weapon-silhouette";
 import { useCombatStore } from "@/lib/store/combat-store";
+import { SLOT_ACTIONS } from "@/lib/game/controls";
+import { keyLabel } from "@/lib/game/keybindings";
 import { usePlayerStore } from "@/lib/store/player-store";
+import { useSettingsStore } from "@/lib/store/settings-store";
 import { WEAPON_SHAPES } from "@/lib/weapons/weapon-shape";
 
 /**
@@ -16,6 +19,7 @@ export function WeaponSlots() {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const activeWeaponId = useCombatStore((state) => state.activeWeaponId);
   const isSwapping = useCombatStore((state) => state.isSwapping);
+  const bindings = useSettingsStore((state) => state.controls.bindings);
 
   const isTrial = useServerMatchStore((state) => state.isTrial);
   const slots = swapSlotsFor(isTrial);
@@ -56,7 +60,7 @@ export function WeaponSlots() {
                       : "bg-white/5 text-slate-500"
                   }`}
                 >
-                  {index + 1}
+                  {keyLabel(bindings[SLOT_ACTIONS[index]])}
                 </span>
                 <span
                   className={`hidden truncate text-[10px] lg:inline ${

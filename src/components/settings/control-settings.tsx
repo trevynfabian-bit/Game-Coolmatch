@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { KeyBindingPanel } from "@/components/settings/key-binding-panel";
 import { SettingsShell } from "@/components/settings/settings-shell";
 import {
   BASE_RADIANS_PER_PIXEL,
@@ -15,18 +16,18 @@ function degreesPer100px(sensitivity: number): number {
 
 /**
  * Panel kontrol: sensitivitas pandangan mouse dengan penggeser dan bidang uji
- * kecil. Berlaku langsung, juga di tengah pertandingan berikutnya yang dibuka.
+ * kecil, lalu tata tombol yang bisa diganti. Berlaku di arena berikutnya.
  */
 export function ControlSettingsPage() {
   const controls = useSettingsStore((state) => state.controls);
   const setControls = useSettingsStore((state) => state.setControls);
-  const resetControls = useSettingsStore((state) => state.resetControls);
+  const setSensitivity = (sensitivity: number) => setControls({ sensitivity });
 
   return (
     <SettingsShell
       active="/pengaturan/kontrol"
       title="Kontrol"
-      description="Atur seberapa cepat pandangan berputar mengikuti mouse."
+      description="Kecepatan pandangan mouse dan tombol untuk tiap aksi."
     >
       <div className="space-y-3">
         <div className="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3">
@@ -46,7 +47,7 @@ export function ControlSettingsPage() {
             max={SENSITIVITY_RANGE.max}
             step={SENSITIVITY_RANGE.step}
             value={controls.sensitivity}
-            onChange={(event) => setControls({ sensitivity: Number(event.target.value) })}
+            onChange={(event) => setSensitivity(Number(event.target.value))}
             className="mt-2 w-full accent-emerald-400"
           />
           <div className="mt-1 flex justify-between text-[10px] text-slate-500">
@@ -58,9 +59,11 @@ export function ControlSettingsPage() {
         <SensitivityTester sensitivity={controls.sensitivity} />
       </div>
 
-      <button type="button" onClick={resetControls} className="mt-4 block text-xs text-slate-400 hover:text-slate-200">
-        Kembalikan ke bawaan
+      <button type="button" onClick={() => setSensitivity(1)} className="mt-4 block text-xs text-slate-400 hover:text-slate-200">
+        Kembalikan sensitivitas bawaan
       </button>
+
+      <KeyBindingPanel />
     </SettingsShell>
   );
 }

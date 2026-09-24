@@ -6,7 +6,7 @@ import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
 import { ServerMatchSync } from "@/components/arena/server-match-sync";
 import { CombatAudio } from "@/components/arena/combat-audio";
-import { KEYBOARD_MAP } from "@/lib/game/controls";
+import { useKeyboardMap } from "@/lib/game/use-keybindings";
 import { armPlayerFrom } from "@/lib/game/arm-player";
 import { resetBotRuntime } from "@/lib/game/bot-runtime";
 import { resetSessionStats } from "@/lib/game/session-stats";
@@ -151,6 +151,8 @@ export function ArenaExperience({ match, trial = false }: { match?: MatchSnapsho
     void startServerMatch(armedMatch, { isTrial: trial });
   }, [armedMatch, trial]);
 
+  const keyboardMap = useKeyboardMap();
+
   // Selagi pengaturan dibaca, tampilkan layar tunggu yang sama dengan yang
   // dipakai saat bundel 3D diunduh — buat pemain tidak ada kedipan tambahan,
   // karena kanvas memang belum bisa tampil pada tahap ini.
@@ -163,7 +165,7 @@ export function ArenaExperience({ match, trial = false }: { match?: MatchSnapsho
   }
 
   return (
-    <KeyboardControls map={KEYBOARD_MAP}>
+    <KeyboardControls map={keyboardMap}>
       <div className="relative h-full w-full overflow-hidden bg-slate-950">
         <ServerMatchSync />
         <CombatAudio />

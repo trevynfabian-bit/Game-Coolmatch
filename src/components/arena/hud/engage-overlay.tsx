@@ -3,7 +3,7 @@
 import { ExitSession } from "@/components/arena/hud/exit-session";
 import { RoundRulesPanel } from "@/components/arena/hud/round-rules-panel";
 import { QuickAudioControl } from "@/components/settings/quick-audio-control";
-import { CONTROL_HINTS } from "@/lib/game/controls";
+import { useControlHints } from "@/lib/game/use-keybindings";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
@@ -20,6 +20,7 @@ export function EngageOverlay({ mapName, trial = false }: { mapName: string; tri
   const round = useMatchStore((state) => state.round);
   const roundStatus = round.status;
   const targeting = useKillstreakStore((state) => state.targeting);
+  const hints = useControlHints();
 
   // Pertandingan usai dan denah sasaran punya layarnya sendiri; jangan tumpuk
   // dengan ajakan main.
@@ -42,8 +43,8 @@ export function EngageOverlay({ mapName, trial = false }: { mapName: string; tri
         {hasEngaged ? <ExitSession trial={trial} /> : null}
 
         <dl className="mx-auto mt-7 grid max-w-[18rem] grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-left">
-          {CONTROL_HINTS.map((hint) => (
-            <div key={hint.keys} className="contents">
+          {hints.map((hint) => (
+            <div key={hint.id} className="contents">
               <dt className="rounded border border-white/15 bg-white/5 px-2 py-0.5 text-center font-mono text-[11px] whitespace-nowrap text-slate-200">
                 {hint.keys}
               </dt>

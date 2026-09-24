@@ -1,6 +1,6 @@
 "use client";
 
-import { CONTROL_HINTS } from "@/lib/game/controls";
+import { useControlHints } from "@/lib/game/use-keybindings";
 import { usePlayerStore } from "@/lib/store/player-store";
 
 /**
@@ -14,6 +14,7 @@ import { usePlayerStore } from "@/lib/store/player-store";
 export function ControlHints() {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const hintsVisible = usePlayerStore((state) => state.hintsVisible);
+  const hints = useControlHints();
 
   if (!isLocked || !hintsVisible) return null;
 
@@ -24,8 +25,8 @@ export function ControlHints() {
           Kontrol
         </p>
         <dl className="grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-1 lg:grid-cols-[auto_1fr_auto_1fr] lg:gap-y-1.5">
-          {CONTROL_HINTS.map((hint) => (
-            <div key={hint.keys} className="contents">
+          {hints.map((hint) => (
+            <div key={hint.id} className="contents">
               <dt className="rounded border border-white/15 bg-white/5 px-1.5 py-0.5 text-center font-mono text-[10px] whitespace-nowrap text-slate-200">
                 {hint.keys}
               </dt>

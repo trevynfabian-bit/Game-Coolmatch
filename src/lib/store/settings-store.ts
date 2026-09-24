@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { DEFAULT_BINDINGS, sanitizeBindings, type KeyBindings } from "@/lib/game/keybindings";
 
 /**
  * Preferensi pemain: audio, grafis, dan kontrol (sensitivitas, tata tombol).
@@ -83,10 +84,13 @@ export function canvasDpr(graphics: GraphicsSettings): [number, number] {
 export interface ControlSettings {
   /** Pengali kecepatan pandangan mouse; 1 = bawaan three.js. */
   sensitivity: number;
+  /** Tombol utama tiap aksi (kode KeyboardEvent.code). */
+  bindings: KeyBindings;
 }
 
 export const DEFAULT_CONTROLS: ControlSettings = {
   sensitivity: 1,
+  bindings: DEFAULT_BINDINGS,
 };
 
 export const SENSITIVITY_RANGE = { min: 0.2, max: 3, step: 0.05 } as const;
@@ -99,7 +103,7 @@ export function sanitizeControls(value: unknown): ControlSettings {
   const sensitivity = typeof raw.sensitivity === "number" && Number.isFinite(raw.sensitivity)
     ? Math.min(SENSITIVITY_RANGE.max, Math.max(SENSITIVITY_RANGE.min, Math.round(raw.sensitivity * 100) / 100))
     : DEFAULT_CONTROLS.sensitivity;
-  return { sensitivity };
+  return { sensitivity, bindings: sanitizeBindings(raw.bindings) };
 }
 
 const STORAGE_KEY = "coolmatch:pengaturan";
@@ -134,6 +138,8 @@ interface SettingsState extends StoredSettings {
   resetGraphics: () => void;
   setControls: (patch: Partial<ControlSettings>) => void;
   resetControls: () => void;
+  /** Mengembalikan tata tombol saja, sensitivitas dibiarkan. */
+  resetBindings: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -145,7 +151,8 @@ export const useSettingsStore = create<SettingsState>()(
       resetGraphics: () => set({ graphics: { ...DEFAULT_GRAPHICS } }),
       controls: { ...DEFAULT_CONTROLS },
       setControls: (patch) => set((state) => ({ controls: sanitizeControls({ ...state.controls, ...patch }) })),
-      resetControls: () => set({ controls: { ...DEFAULT_CONTROLS } }),
+      resetControls: () => set({ controls: { ...DEFAULT_CONTROLS, bindings: { ...DEFAULT_BINDINGS } } }),
+      resetBindings: () => set((state) => ({ controls: { ...state.controls, bindings: { ...DEFAULT_BINDINGS } } })),
       setAudio: (patch) => set((state) => ({ audio: sanitizeAudio({ ...state.audio, ...patch }) })),
       resetAudio: () => set({ audio: { ...DEFAULT_AUDIO } }),
       toggleMute: () => set((state) => ({ audio: { ...state.audio, muted: !state.audio.muted } })),

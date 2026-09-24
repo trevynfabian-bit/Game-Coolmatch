@@ -1,7 +1,10 @@
 "use client";
 
 import { KILLSTREAKS, nextKillstreak } from "@/lib/game/killstreak";
+import { STREAK_ACTIONS } from "@/lib/game/controls";
+import { keyLabel } from "@/lib/game/keybindings";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
+import { useSettingsStore } from "@/lib/store/settings-store";
 
 /** Ikon sederhana per hadiah, digambar SVG supaya tanpa aset. */
 export function KillstreakIcon({ id, className }: { id: string; className?: string }) {
@@ -41,6 +44,7 @@ export function KillstreakTracker() {
   const ready = useKillstreakStore((state) => state.ready);
   const active = useKillstreakStore((state) => state.active);
   const loadout = useKillstreakStore((state) => state.loadout);
+  const bindings = useSettingsStore((state) => state.controls.bindings);
 
   // Urut sesuai loadout (tombol 6, 7, 8), slot kosong dilewati.
   const rewards = loadout.flatMap((id) => KILLSTREAKS.filter((item) => item.id === id));
@@ -87,7 +91,7 @@ export function KillstreakTracker() {
                     </span>
                     {isReady ? (
                       <span className="rounded bg-white/15 px-1 font-mono text-[9px] text-white">
-                        {6 + loadout.indexOf(reward.id)}
+                        {keyLabel(bindings[STREAK_ACTIONS[loadout.indexOf(reward.id)]])}
                       </span>
                     ) : isActive ? (
                       <span className="text-[9px] tracking-wider uppercase" style={{ color: reward.color }}>

@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo } from "react";
 import { KeyboardControls } from "@react-three/drei";
 import { PracticeHud } from "@/components/practice/practice-hud";
-import { KEYBOARD_MAP } from "@/lib/game/controls";
+import { useKeyboardMap } from "@/lib/game/use-keybindings";
 import { armPlayerFrom } from "@/lib/game/arm-player";
 import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
@@ -47,6 +47,7 @@ const PracticeScene = dynamic(
 export function PracticeExperience() {
   const selectedWeaponId = useLoadoutStore((state) => state.selectedWeaponId);
   const upgrades = useShopStore((state) => state.upgrades);
+  const keyboardMap = useKeyboardMap();
   // Upgrade ikut berlaku di tempat latihan supaya pemain bisa merasakan hasil belanjanya.
   const weapon = useMemo(
     () => applyUpgrades(findWeapon(selectedWeaponId), upgrades[selectedWeaponId]),
@@ -63,7 +64,7 @@ export function PracticeExperience() {
   }, [snapshot]);
 
   return (
-    <KeyboardControls map={KEYBOARD_MAP}>
+    <KeyboardControls map={keyboardMap}>
       <div className="relative h-full w-full overflow-hidden bg-slate-950">
         <PracticeScene snapshot={snapshot} weapon={weapon} />
         <PracticeHud weapon={weapon} />
