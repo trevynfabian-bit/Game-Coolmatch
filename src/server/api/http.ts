@@ -17,14 +17,22 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
+    /** Rincian per isian (mis. hasil validasi pengaturan), ikut dikirim ke klien. */
+    public readonly fields?: { field: string; message: string }[],
   ) {
     super(message);
     this.name = "ApiError";
   }
 }
 
-export function jsonError(status: number, code: string, message: string) {
-  return Response.json({ error: { code, message } }, { status });
+export function jsonError(status: number, code: string, message: string, fields?: { field: string; message: string }[]) {
+  return Response.json({ error: fields ? { code, message, fields } : { code, message } }, { status });
+}
+
+/** Galat 400 dari daftar isian yang ditolak validasi. */
+export function validationError(fields: { field: string; message: string }[]): ApiError {
+  const summary = fields.map((item) => (item.field ? `${item.field} ${item.message}` : item.message)).join("; ");
+  return new ApiError(400, "isian_tidak_sah", summary, fields);
 }
 
 /** Membaca badan JSON berupa objek; badan kosong dianggap objek kosong. */
@@ -106,7 +114,7 @@ const COIN_STATUS: Record<CoinError["code"], number> = {
  */
 export function toErrorResponse(error: unknown): Response {
   if (error instanceof ApiError) {
-    return jsonError(error.status, error.code, error.message);
+    return jsonError(error.status, error.code, error.message, error.fields);
   }
   if (
     error instanceof ShopError ||

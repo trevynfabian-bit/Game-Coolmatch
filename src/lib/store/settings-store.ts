@@ -3,6 +3,9 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useSettingsSaveStore } from "@/lib/store/settings-save-store";
 import { DEFAULT_BINDINGS, sanitizeBindings, type KeyBindings } from "@/lib/game/keybindings";
+import { FOV_RANGE, SENSITIVITY_RANGE, type GraphicsQuality } from "@/lib/settings/rules";
+
+export { FOV_RANGE, RESOLUTION_RANGE, SENSITIVITY_RANGE, type GraphicsQuality } from "@/lib/settings/rules";
 
 /**
  * Preferensi pemain: audio, grafis, dan kontrol (sensitivitas, tata tombol).
@@ -33,7 +36,6 @@ export const DEFAULT_AUDIO: AudioSettings = {
   muted: false,
 };
 
-export type GraphicsQuality = "rendah" | "sedang" | "tinggi";
 
 export interface GraphicsSettings {
   quality: GraphicsQuality;
@@ -58,7 +60,6 @@ export const QUALITY_PRESETS: Record<GraphicsQuality, { label: string; shadows: 
   tinggi: { label: "Tinggi", shadows: true, maxDpr: 2, antialias: true, blurb: "Kerapatan piksel penuh di layar tajam." },
 };
 
-export const FOV_RANGE = { min: 65, max: 100 } as const;
 
 export function sanitizeGraphics(value: unknown): GraphicsSettings {
   const raw = (value && typeof value === "object" ? value : {}) as Partial<GraphicsSettings>;
@@ -95,7 +96,6 @@ export const DEFAULT_CONTROLS: ControlSettings = {
   bindings: DEFAULT_BINDINGS,
 };
 
-export const SENSITIVITY_RANGE = { min: 0.2, max: 3, step: 0.05 } as const;
 
 /** Radian per piksel gerak mouse pada sensitivitas 1 (sama dengan PointerLockControls). */
 export const BASE_RADIANS_PER_PIXEL = 0.002;
