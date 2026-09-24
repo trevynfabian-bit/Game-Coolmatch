@@ -13,6 +13,16 @@ export default function Home() {
   return (
     <main className="grid min-h-dvh place-items-center px-6">
       <div className="fixed top-5 right-5 flex items-center gap-2">
+        <Link
+          href="/pengaturan"
+          aria-label="Pengaturan"
+          className="grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-slate-900/70 text-slate-300 hover:border-white/30 hover:text-white"
+        >
+          <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
+            <circle cx="8" cy="8" r="2.2" />
+            <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4" strokeLinecap="round" />
+          </svg>
+        </Link>
         <NotificationBell />
         <WalletBadge />
       </div>
