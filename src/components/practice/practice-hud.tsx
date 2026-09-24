@@ -6,6 +6,7 @@ import { Crosshair } from "@/components/arena/hud/crosshair";
 import { CONTROL_HINTS } from "@/lib/game/controls";
 import { RANGE_TARGETS } from "@/lib/practice/range-map";
 import { accuracyPercent, usePracticeStore } from "@/lib/store/practice-store";
+import { PracticeResults } from "@/components/practice/practice-results";
 import { usePlayerStore } from "@/lib/store/player-store";
 import { WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
 import type { Weapon } from "@/types/game";
@@ -90,12 +91,8 @@ function ScorePanel({ weapon }: { weapon: Weapon }) {
 function StartOverlay({ weapon }: { weapon: Weapon }) {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const hasEngaged = usePlayerStore((state) => state.hasEngaged);
-  const shots = usePracticeStore((state) => state.shots);
-  const hits = usePracticeStore((state) => state.hits);
-
   if (isLocked) return null;
 
-  const practiced = shots > 0;
   const stopClick = (event: { stopPropagation: () => void }) =>
     event.stopPropagation();
 
@@ -107,14 +104,7 @@ function StartOverlay({ weapon }: { weapon: Weapon }) {
         </p>
         <p className="mt-2 text-lg font-semibold text-white">{weapon.name}</p>
 
-        {practiced ? (
-          <p className="mt-2 text-xs text-slate-400">
-            Sudah {shots} butir dilepas, {hits} kena — ketepatan{" "}
-            <span className="font-mono text-slate-200">
-              {accuracyPercent(shots, hits).toFixed(0)}%
-            </span>
-          </p>
-        ) : null}
+        <PracticeResults />
 
         <button
           type="button"
@@ -141,7 +131,7 @@ function StartOverlay({ weapon }: { weapon: Weapon }) {
         </div>
 
         <dl className="mx-auto mt-7 grid max-w-[18rem] grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-left">
-          {CONTROL_HINTS.filter((hint) => hint.keys !== "Tab").map((hint) => (
+          {CONTROL_HINTS.filter((hint) => hint.keys !== "Tab" && hint.keys !== "6-8").map((hint) => (
             <div key={hint.keys} className="contents">
               <dt className="rounded border border-white/15 bg-white/5 px-2 py-0.5 text-center font-mono text-[11px] whitespace-nowrap text-slate-200">
                 {hint.keys}
@@ -169,6 +159,9 @@ export function PracticeHud({ weapon }: { weapon: Weapon }) {
         <ScorePanel weapon={weapon} />
         {isLocked ? <Crosshair /> : null}
         <AmmoPanel weapon={weapon} />
+        <p className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full border border-sky-400/40 bg-sky-950/70 px-3 py-1 text-[10px] font-bold tracking-[0.25em] text-sky-200 uppercase">
+          Mode latihan · tidak mengubah progres
+        </p>
         <p className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-slate-950/60 px-4 py-1.5 text-[11px] text-slate-400 backdrop-blur-sm">
           Tekan Esc untuk jeda, memakai senjata ini, atau menggantinya
         </p>
