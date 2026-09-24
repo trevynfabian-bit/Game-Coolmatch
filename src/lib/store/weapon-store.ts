@@ -16,27 +16,42 @@ import {
  */
 interface WeaponState {
   progress: WeaponProgress;
+  /**
+   * Kepemilikan per senjata menurut server — termasuk senjata yang sudah
+   * tercatat terbuka walau syaratnya kelak berubah. Null sebelum termuat.
+   */
+  ownership: Record<string, WeaponOwnership> | null;
   status: "idle" | "loading" | "ready" | "error";
   load: () => Promise<void>;
 }
 
 export const useWeaponStore = create<WeaponState>((set, get) => ({
   progress: EMPTY_PROGRESS,
+  ownership: null,
   status: "idle",
   load: async () => {
     if (get().status === "idle") set({ status: "loading" });
-    const response = await apiFetch<{ progress: WeaponProgress; degraded?: boolean }>("/api/senjata");
+    const response = await apiFetch<{
+      progress: WeaponProgress;
+      weapons: { id: string; ownership: WeaponOwnership }[];
+      degraded?: boolean;
+    }>("/api/senjata");
     if (!response.ok || response.data.degraded) {
       set({ status: get().status === "ready" ? "ready" : "error" });
       return;
     }
-    set({ progress: response.data.progress, status: "ready" });
+    set({
+      progress: response.data.progress,
+      ownership: Object.fromEntries(response.data.weapons.map((weapon) => [weapon.id, weapon.ownership])),
+      status: "ready",
+    });
   },
 }));
 
 /** Kepemilikan satu senjata saat ini (tidak berlangganan; pakai hook di komponen). */
 export function weaponOwnership(weaponId: string): WeaponOwnership {
-  return computeOwnership(weaponId, useWeaponStore.getState().progress);
+  const { ownership, progress } = useWeaponStore.getState();
+  return ownership?.[weaponId] ?? computeOwnership(weaponId, progress);
 }
 
 export function isWeaponUnlocked(weaponId: string): boolean {
@@ -52,5 +67,9 @@ export function firstUnlockedWeaponId(): string {
 /** Fungsi kepemilikan yang ikut memperbarui komponen begitu kemajuan termuat. */
 export function useWeaponOwnership(): (weaponId: string) => WeaponOwnership {
   const progress = useWeaponStore((state) => state.progress);
-  return useCallback((weaponId: string) => computeOwnership(weaponId, progress), [progress]);
+  const ownership = useWeaponStore((state) => state.ownership);
+  return useCallback(
+    (weaponId: string) => ownership?.[weaponId] ?? computeOwnership(weaponId, progress),
+    [ownership, progress],
+  );
 }

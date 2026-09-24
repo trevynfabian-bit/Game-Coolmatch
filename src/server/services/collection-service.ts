@@ -1,5 +1,5 @@
 import { SKINS } from "@/lib/economy/skin-catalog";
-import { catalogOwnership, getWeaponProgress } from "@/server/services/weapon-service";
+import { evaluateWeaponUnlocks } from "@/server/services/weapon-unlock-service";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import { listFavorites } from "@/server/services/favorite-service";
 import { getPlayerUpgrades } from "@/server/services/shop-service";
@@ -42,10 +42,11 @@ export function getPlayerCollection(playerId: number): PlayerCollection {
   const favorites = listFavorites(playerId);
   const fav = new Set(favorites);
   const byWeapon = new Map(upgrades.map((item) => [item.weaponId, item]));
-  const progress = getWeaponProgress(playerId);
+  // Kepemilikan dari evaluasi pembukaan: yang sudah tercatat terbuka tetap terbuka.
+  const ownershipById = new Map(evaluateWeaponUnlocks(playerId).weapons.map((item) => [item.id, item.ownership]));
 
   const weapons = MOCK_WEAPONS.map((weapon) => {
-    const ownership = catalogOwnership(weapon.id, progress);
+    const ownership = ownershipById.get(weapon.id) ?? { isUnlocked: true, requirement: null };
     return {
       weaponId: weapon.id,
       unlocked: ownership.isUnlocked,

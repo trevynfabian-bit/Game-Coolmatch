@@ -12,6 +12,7 @@ import { findMatchWinner } from "@/lib/game/round";
 import { MOCK_MAPS } from "@/lib/mock/maps";
 import { syncMapCatalog } from "@/server/services/map-service";
 import { countsTowardProgress } from "@/server/services/progress-isolation";
+import { evaluateWeaponUnlocks } from "@/server/services/weapon-unlock-service";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import { maxBotsForMap } from "@/lib/mock/bots";
 import { MATCH_RULES, sameRules } from "@/lib/game/match-rules";
@@ -227,7 +228,11 @@ export function finishMatch(
   // Statistik pemain baru saja bertambah: hadiah killstreak yang syarat
   // pencapaiannya kini terpenuhi dicatat terbuka (beserta notifikasinya)
   // sekarang, bukan menunggu pemain membuka menu hadiah.
-  if (countsTowardProgress(closed)) getRewardsFor(playerId);
+  if (countsTowardProgress(closed)) {
+    getRewardsFor(playerId);
+    // Senjata yang syaratnya baru terpenuhi dicatat terbuka sekarang juga.
+    evaluateWeaponUnlocks(playerId);
+  }
 
   return {
     matchId,

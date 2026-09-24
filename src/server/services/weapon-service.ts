@@ -89,24 +89,10 @@ export function findCatalogWeapon(weaponId: string): CatalogWeapon | null {
   return row ? toCatalogWeapon(row) : null;
 }
 
-export interface PlayerWeapon extends CatalogWeapon {
-  ownership: WeaponOwnership;
-}
-
 /** Kemajuan membuka senjata dari statistik pertandingan pemain yang sungguhan. */
 export function getWeaponProgress(playerId: number): WeaponProgress {
   const stats = getAchievementStats(playerId);
   return { wins: stats.wins, totalKills: stats.totalKills };
-}
-
-/** Katalog senjata lengkap dengan kepemilikan pemain. */
-export function listPlayerWeapons(playerId: number): { weapons: PlayerWeapon[]; progress: WeaponProgress } {
-  const progress = getWeaponProgress(playerId);
-  return {
-    progress,
-    // Syarat dibaca dari katalog di database, bukan dari kode klien.
-    weapons: listWeaponCatalog().map((weapon) => ({ ...weapon, ownership: computeOwnership(weapon.id, progress, weapon.unlock) })),
-  };
 }
 
 /** Senjata bawaan loadout: senapan serbu, yang selalu terbuka sejak awal. */
