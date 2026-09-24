@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MapPlan } from "@/components/maps/map-plan";
+import { MapPlan, MapPlanLegend } from "@/components/maps/map-plan";
 import { maxBotsForMap } from "@/lib/mock/bots";
 import { MOCK_MAPS } from "@/lib/mock/maps";
 import { useMatchSetupStore } from "@/lib/store/match-setup-store";
@@ -23,7 +23,11 @@ export function MapPicker() {
         Tiap arena dibangun dari balok sederhana. Denahnya menunjukkan penghalang dan titik muncul.
       </p>
 
-      <ul className="mt-8 grid gap-4 md:grid-cols-2">
+      <div className="mt-6">
+        <MapPlanLegend />
+      </div>
+
+      <ul className="mt-4 grid gap-4 md:grid-cols-2">
         {MOCK_MAPS.map((map) => {
           const selected = map.id === mapId;
           return (

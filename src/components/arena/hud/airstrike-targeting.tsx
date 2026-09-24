@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MapPlan } from "@/components/maps/map-plan";
 import { getBot } from "@/lib/game/bot-runtime";
 import { AIRSTRIKE, findKillstreak } from "@/lib/game/killstreak";
 import { playerRuntime } from "@/lib/game/player-runtime";
@@ -80,15 +81,17 @@ export function AirstrikeTargeting({ map }: { map: ArenaMapInfo }) {
   if (!open) return null;
 
   const { minX, maxX, minZ, maxZ } = map.playableBounds;
-  const width = maxX - minX;
-  const depth = maxZ - minZ;
   const reward = findKillstreak("serangan_udara");
 
-  /** Mengubah posisi klik di SVG menjadi koordinat dunia. */
+  /** Mengubah posisi klik di SVG menjadi koordinat dunia (memakai matriks layar SVG). */
   function worldFromEvent(event: React.MouseEvent<SVGSVGElement>) {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = minX + ((event.clientX - rect.left) / rect.width) * width;
-    const z = minZ + ((event.clientY - rect.top) / rect.height) * depth;
+    const svg = event.currentTarget;
+    const point = svg.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+    const world = point.matrixTransform(svg.getScreenCTM()?.inverse());
+    const x = Math.min(maxX, Math.max(minX, world.x));
+    const z = Math.min(maxZ, Math.max(minZ, world.y));
     return { x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10 };
   }
 
@@ -128,35 +131,14 @@ export function AirstrikeTargeting({ map }: { map: ArenaMapInfo }) {
           </p>
         </div>
 
-        <svg
-          viewBox={`${minX} ${minZ} ${width} ${depth}`}
+        <MapPlan
+          map={map}
+          showSpawns={false}
           className="aspect-square w-full cursor-crosshair rounded-xl border border-white/15 bg-slate-900"
           onPointerMove={(event) => setHover(worldFromEvent(event))}
           onPointerLeave={() => setHover(null)}
           onClick={(event) => setPicked(worldFromEvent(event))}
         >
-          <defs>
-            <pattern id="denah-grid" width="5" height="5" patternUnits="userSpaceOnUse">
-              <path d="M5 0H0V5" fill="none" stroke="#ffffff0d" strokeWidth="0.15" />
-            </pattern>
-          </defs>
-          <rect x={minX} y={minZ} width={width} height={depth} fill="url(#denah-grid)" />
-          {map.blocks.map((block) => (
-            <rect
-              key={block.id}
-              x={block.position[0] - block.size[0] / 2}
-              y={block.position[2] - block.size[2] / 2}
-              width={block.size[0]}
-              height={block.size[2]}
-              transform={
-                block.rotationY
-                  ? `rotate(${(-block.rotationY * 180) / Math.PI} ${block.position[0]} ${block.position[2]})`
-                  : undefined
-              }
-              fill={block.kind === "wall" ? "#475569" : "#334155"}
-            />
-          ))}
-
           {snapshot.enemies.map((enemy) => (
             <circle key={enemy.id} cx={enemy.x} cy={enemy.z} r="0.8" fill={enemy.color} stroke="#0f172a" strokeWidth="0.2" />
           ))}
@@ -181,7 +163,7 @@ export function AirstrikeTargeting({ map }: { map: ArenaMapInfo }) {
               />
             </g>
           ) : null}
-        </svg>
+        </MapPlan>
 
         {picked &&
         Math.hypot(picked.x - snapshot.player.x, picked.z - snapshot.player.z) < AIRSTRIKE.radius ? (
