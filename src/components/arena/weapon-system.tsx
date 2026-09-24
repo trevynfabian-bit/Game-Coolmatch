@@ -24,7 +24,7 @@ import {
 import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { resolveShotDamage } from "@/lib/game/damage";
 import { useCombatStore } from "@/lib/store/combat-store";
-import { playGunshot, playHitConfirm } from "@/lib/audio/sfx";
+import { playDryFire, playGunshot, playHitConfirm, playReload } from "@/lib/audio/sfx";
 import { viewmodelRuntime } from "@/lib/game/viewmodel-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
@@ -152,6 +152,7 @@ export function WeaponSystem({
     return useCombatStore.subscribe((state, previous) => {
       if (state.isReloading && !previous.isReloading) {
         reloadEndsAt.current = performance.now() / 1000 + state.reloadSeconds;
+        playReload(state.reloadSeconds);
       }
     });
   }, []);
@@ -159,6 +160,7 @@ export function WeaponSystem({
   const fireOnce = () => {
     const combat = useCombatStore.getState();
     if (!combat.consumeRound()) {
+      playDryFire();
       combat.beginReload(weapon.reloadSeconds);
       return;
     }

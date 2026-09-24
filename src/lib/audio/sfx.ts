@@ -151,3 +151,43 @@ export function playHitConfirm(kind: "badan" | "kepala" | "kill"): void {
     osc.stop(start + 0.08);
   });
 }
+
+/** Satu bunyi logam pendek: klik, dentang, atau geser, dijadwalkan pada `at` detik konteks. */
+function metalClick(bus: NonNullable<ReturnType<typeof channel>>, at: number, pitch: number, length: number, gain: number) {
+  const ctx = bus.context;
+  const source = ctx.createBufferSource();
+  source.buffer = bus.noise;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.value = pitch;
+  filter.Q.value = 6;
+  const amp = ctx.createGain();
+  amp.gain.setValueAtTime(gain, at);
+  amp.gain.exponentialRampToValueAtTime(0.001, at + length);
+  source.connect(filter).connect(amp).connect(bus.out);
+  source.start(at, Math.random() * 0.5);
+  source.stop(at + length + 0.02);
+}
+
+/**
+ * Rangkaian bunyi isi ulang yang mengikuti lama isi ulang senjata: magasin
+ * dilepas, magasin baru dipasang, lalu kokang. Senjata yang lambat diisi
+ * ulang terdengar lebih panjang jedanya.
+ */
+export function playReload(reloadSeconds: number): void {
+  const bus = channel("sfx");
+  if (!bus) return;
+  const now = bus.context.currentTime;
+  const span = Math.max(0.6, reloadSeconds);
+  metalClick(bus, now + 0.05, 1800, 0.08, 0.35); // magasin lepas
+  metalClick(bus, now + span * 0.55, 1300, 0.1, 0.45); // magasin masuk
+  metalClick(bus, now + span * 0.85, 2400, 0.06, 0.4); // kokang tarik
+  metalClick(bus, now + span * 0.92, 1600, 0.07, 0.45); // kokang lepas
+}
+
+/** Klik pelatuk kosong saat magasin habis. */
+export function playDryFire(): void {
+  const bus = channel("sfx");
+  if (!bus) return;
+  metalClick(bus, bus.context.currentTime, 3000, 0.04, 0.3);
+}
