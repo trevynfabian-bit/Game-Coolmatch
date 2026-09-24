@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { WalletBadge } from "@/components/economy/wallet-badge";
+import { CollectionTeaser } from "@/components/menu/collection-teaser";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
 
 /**
- * Titik masuk sementara. Menu utama lengkap (main cepat, pilih peta, pilih
- * senjata, koleksi, pengaturan) dibangun pada task menu tersendiri — halaman
- * ini hanya menyediakan jalan cepat ke arena.
+ * Menu utama: jalan cepat ke arena, pilih senjata, toko, dan galeri koleksi,
+ * plus saldo koin di pojok dan intipan koleksi pemain.
  */
 export default function Home() {
   return (
@@ -25,32 +25,40 @@ export default function Home() {
           kuasai panggung tengah, dan kumpulkan kill sampai batas skor tercapai.
         </p>
 
-        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <div className="mt-8 grid grid-cols-2 gap-3">
           <Link
             href="/lawan"
-            className="w-full rounded-lg bg-emerald-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 sm:w-auto"
+            className="col-span-2 w-full rounded-lg bg-emerald-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
           >
             Main Cepat
           </Link>
           <Link
             href="/senjata"
-            className="w-full rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
+            className="w-full rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
           >
             Pilih Senjata
           </Link>
           <Link
             href="/toko"
-            className="w-full rounded-lg border border-amber-400/30 px-6 py-3 text-center text-sm font-semibold text-amber-200 transition-colors hover:border-amber-400/60 hover:bg-amber-400/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 sm:w-auto"
+            className="w-full rounded-lg border border-amber-400/30 px-6 py-3 text-center text-sm font-semibold text-amber-200 transition-colors hover:border-amber-400/60 hover:bg-amber-400/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
           >
             Toko
           </Link>
           <Link
             href="/koleksi"
-            className="w-full rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
+            className="w-full rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
           >
             Koleksi
           </Link>
+          <Link
+            href="/latihan"
+            className="w-full rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+          >
+            Latihan
+          </Link>
         </div>
+
+        <CollectionTeaser />
 
         <p className="mt-6 text-xs text-slate-600">
           Peta saat ini: {DEFAULT_MAP.name}

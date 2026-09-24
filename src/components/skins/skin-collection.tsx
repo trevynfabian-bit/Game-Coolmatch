@@ -43,7 +43,11 @@ export function SkinCollectionView() {
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">Skin Milikku</h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
             Semua skin yang sudah kamu beli tersimpan permanen di akunmu, lengkap dengan senjata
-            tempat masing-masing terpasang.
+            tempat masing-masing terpasang. Lihat semuanya di{" "}
+            <Link href="/koleksi" className="text-emerald-300 underline-offset-2 hover:underline">
+              galeri koleksi
+            </Link>
+            .
           </p>
         </div>
         <WalletBadge />
