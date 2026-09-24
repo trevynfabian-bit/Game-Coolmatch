@@ -1,6 +1,7 @@
 "use client";
 
-import { SWAP_SLOTS } from "@/components/arena/weapon-swap";
+import { swapSlotsFor } from "@/components/arena/weapon-swap";
+import { useServerMatchStore } from "@/lib/store/server-match-store";
 import { WeaponSilhouette } from "@/components/weapons/weapon-silhouette";
 import { useCombatStore } from "@/lib/store/combat-store";
 import { usePlayerStore } from "@/lib/store/player-store";
@@ -16,7 +17,10 @@ export function WeaponSlots() {
   const activeWeaponId = useCombatStore((state) => state.activeWeaponId);
   const isSwapping = useCombatStore((state) => state.isSwapping);
 
-  if (!isLocked || SWAP_SLOTS.length < 2) return null;
+  const isTrial = useServerMatchStore((state) => state.isTrial);
+  const slots = swapSlotsFor(isTrial);
+
+  if (!isLocked || slots.length < 2) return null;
 
   return (
     <div
@@ -25,7 +29,7 @@ export function WeaponSlots() {
       }`}
     >
       <ul className="flex items-end gap-1.5 md:gap-2">
-        {SWAP_SLOTS.map((weapon, index) => {
+        {slots.map((weapon, index) => {
           const active = weapon.id === activeWeaponId;
           const accent = WEAPON_SHAPES[weapon.type].accent;
 

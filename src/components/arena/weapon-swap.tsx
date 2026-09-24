@@ -16,11 +16,21 @@ import { useCombatStore } from "@/lib/store/combat-store";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
+import { useServerMatchStore } from "@/lib/store/server-match-store";
 
 /** Senjata yang boleh dibawa bertanding, urut sesuai nomor slotnya. */
 export const SWAP_SLOTS = MOCK_WEAPONS.filter((weapon) =>
   isWeaponUnlocked(weapon.id),
 );
+
+/**
+ * Slot tukar untuk pertandingan yang sedang berjalan. Di uji coba semua
+ * senjata boleh dipegang — justru itu gunanya — jadi slotnya berisi seluruh
+ * senjata, termasuk yang belum terbuka.
+ */
+export function swapSlotsFor(isTrial: boolean) {
+  return isTrial ? MOCK_WEAPONS : SWAP_SLOTS;
+}
 
 /**
  * Menukar senjata di tengah pertandingan lewat tombol angka.
@@ -42,7 +52,7 @@ export function WeaponSwap() {
         (pressed) => {
           if (!pressed) return;
 
-          const target = SWAP_SLOTS[index];
+          const target = swapSlotsFor(useServerMatchStore.getState().isTrial)[index];
           if (!target) return;
           if (!usePlayerStore.getState().isLocked) return;
 
@@ -86,7 +96,8 @@ export function WeaponSwap() {
     const match = useMatchStore.getState();
     const local = match.fighters.find((fighter) => fighter.isLocal);
     if (local) match.setFighterWeapon(local.id, weapon.id);
-    useLoadoutStore.getState().selectWeapon(weapon.id);
+    // Uji coba tidak mengubah pilihan senjata pemain untuk pertandingan biasa.
+    if (!useServerMatchStore.getState().isTrial) useLoadoutStore.getState().selectWeapon(weapon.id);
   });
 
   return null;
