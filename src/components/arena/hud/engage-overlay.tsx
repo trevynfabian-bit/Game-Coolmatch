@@ -1,5 +1,6 @@
 "use client";
 
+import { RoundRulesPanel } from "@/components/arena/hud/round-rules-panel";
 import { CONTROL_HINTS } from "@/lib/game/controls";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
@@ -14,7 +15,8 @@ import { usePlayerStore } from "@/lib/store/player-store";
 export function EngageOverlay() {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const hasEngaged = usePlayerStore((state) => state.hasEngaged);
-  const roundStatus = useMatchStore((state) => state.round.status);
+  const round = useMatchStore((state) => state.round);
+  const roundStatus = round.status;
   const targeting = useKillstreakStore((state) => state.targeting);
 
   // Pertandingan usai dan denah sasaran punya layarnya sendiri; jangan tumpuk
@@ -48,6 +50,7 @@ export function EngageOverlay() {
           ))}
         </dl>
 
+        {round.total > 0 ? <RoundRulesPanel round={round} /> : null}
       </div>
     </div>
   );

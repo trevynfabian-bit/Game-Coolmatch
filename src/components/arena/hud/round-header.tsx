@@ -1,3 +1,4 @@
+import { RoundPips } from "@/components/arena/hud/round-rules-panel";
 import type { RoundState } from "@/types/game";
 
 /** Format detik menjadi m:ss untuk timer ronde. */
@@ -65,6 +66,7 @@ export function RoundHeader({ round }: { round: RoundState }) {
           </p>
         </div>
       </div>
+      <RoundPips round={round} />
     </div>
   );
 }
