@@ -3,7 +3,13 @@ import { db } from "@/server/db/client";
 import { playerWeapons, rewardNotifications, type PlayerWeaponRow } from "@/server/db/schema";
 import { computeOwnership, type WeaponOwnership, type WeaponProgress } from "@/lib/game/weapon-unlock";
 import { recordNotification } from "@/server/services/notification-service";
-import { getWeaponProgress, listWeaponCatalog, type CatalogWeapon } from "@/server/services/weapon-service";
+import {
+  getWeaponProgress,
+  listWeaponCatalog,
+  saveWeaponLoadout,
+  type CatalogWeapon,
+} from "@/server/services/weapon-service";
+import { ApiError } from "@/server/api/http";
 
 /**
  * Evaluasi pembukaan senjata. Syarat (dari katalog) dibandingkan dengan
@@ -115,4 +121,22 @@ export function markWeaponsSeen(playerId: number, weaponId: string | null, at = 
     tx.update(rewardNotifications).set({ seenAt: at }).where(and(...noteConditions)).run();
     return changed;
   });
+}
+
+/**
+ * Mengklaim senjata yang baru terbuka: pemberitahuannya ditandai dilihat dan
+ * senjata itu langsung dipasang sebagai senjata utama loadout. Hanya senjata
+ * yang sudah ada di koleksi pemain yang bisa diklaim (409 bila belum).
+ */
+export function claimWeapon(playerId: number, weaponId: string) {
+  evaluateWeaponUnlocks(playerId);
+  const owned = db
+    .select()
+    .from(playerWeapons)
+    .where(and(eq(playerWeapons.playerId, playerId), eq(playerWeapons.weaponId, weaponId)))
+    .get();
+  if (!owned) throw new ApiError(409, "belum_dimiliki", "Senjata ini belum ada di koleksimu.");
+  markWeaponsSeen(playerId, weaponId);
+  const loadout = saveWeaponLoadout(playerId, weaponId);
+  return { weaponId, loadout, unlockedAt: owned.unlockedAt, via: owned.via };
 }

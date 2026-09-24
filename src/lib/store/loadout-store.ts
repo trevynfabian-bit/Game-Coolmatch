@@ -45,3 +45,18 @@ export const useLoadoutStore = create<LoadoutState>((set, get) => ({
     });
   },
 }));
+
+/**
+ * Mengklaim senjata yang baru terbuka lewat /api/senjata/klaim: server
+ * menandainya dilihat dan memasangnya di loadout; klien menyusul memilihnya.
+ */
+export async function claimNewWeapon(weaponId: string): Promise<boolean> {
+  const response = await apiFetch<{ loadout: { primaryWeaponId: string } }>("/api/senjata/klaim", {
+    method: "POST",
+    body: { weaponId },
+  });
+  if (!response.ok) return false;
+  saveGeneration += 1;
+  useLoadoutStore.setState({ selectedWeaponId: response.data.loadout.primaryWeaponId });
+  return true;
+}

@@ -9,6 +9,8 @@ import { RARITY_META, findSkin } from "@/lib/economy/skin-catalog";
 import { findWeapon } from "@/lib/mock/weapons";
 import { WEAPON_SHAPES } from "@/lib/weapons/weapon-shape";
 import { useNotificationStore } from "@/lib/store/notification-store";
+import { claimNewWeapon } from "@/lib/store/loadout-store";
+import { useWeaponStore } from "@/lib/store/weapon-store";
 import type { RewardNotification } from "@/types/economy";
 
 /** Jenis hadiah yang pantas dirayakan dengan dialog, bukan sekadar daftar. */
@@ -59,6 +61,11 @@ export function RewardCelebration() {
   const pathname = usePathname();
   const items = useNotificationStore((state) => state.items);
   const markSeen = useNotificationStore((state) => state.markSeen);
+  // Klaim senjata sudah menandai notifikasinya di server; cukup ubah tampilan.
+  const markSeenLocally = (id: number) =>
+    useNotificationStore.setState((state) => ({
+      items: state.items.map((item) => (item.id === id && item.seenAt === null ? { ...item, seenAt: Date.now() } : item)),
+    }));
 
   const queue = useMemo(
     () =>
@@ -137,7 +144,7 @@ export function RewardCelebration() {
           <Hero item={current} />
         </div>
         <h2 id="judul-perayaan" className="text-2xl font-bold text-white">
-          {current.title.replace(/^(Skin baru|Senjata terbuka): /, "")}
+          {current.title.replace(/^(Skin baru|Senjata baru|Senjata terbuka): /, "")}
         </h2>
         <p className="mt-2 text-sm text-slate-400">{current.body}</p>
 
@@ -153,7 +160,18 @@ export function RewardCelebration() {
           </button>
           <Link
             href={next.href}
-            onClick={() => markSeen(current.id)}
+            onClick={() => {
+              // Senjata baru diklaim: ditandai dilihat sekaligus dipasang di loadout.
+              if (current.kind === "senjata" && current.itemId) {
+                const weaponId = current.itemId;
+                void claimNewWeapon(weaponId).then((ok) => {
+                  if (ok) void useWeaponStore.getState().load();
+                });
+                markSeenLocally(current.id);
+              } else {
+                markSeen(current.id);
+              }
+            }}
             className="rounded-lg px-5 py-2 text-sm font-medium text-slate-300 hover:text-white"
           >
             {next.label}
