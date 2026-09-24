@@ -24,6 +24,11 @@ interface SaveState {
   retry: () => void;
   dismiss: () => void;
   reportLocal: (ok: boolean) => void;
+  /**
+   * Mengirim simpanan yang masih tertunda seketika dengan `keepalive`, untuk
+   * dipanggil saat halaman ditutup supaya perubahan terakhir tidak hilang.
+   */
+  flushOnExit: () => void;
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -62,6 +67,25 @@ export const useSettingsSaveStore = create<SaveState>((set) => ({
     void flush(set);
   },
   dismiss: () => set({ dismissed: true }),
+  flushOnExit: () => {
+    if (!timer || !pending) return;
+    clearTimeout(timer);
+    timer = undefined;
+    const snapshot = pending;
+    pending = null;
+    latest = snapshot;
+    try {
+      void fetch("/api/pengaturan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(snapshot),
+        credentials: "same-origin",
+        keepalive: true,
+      }).catch(() => {});
+    } catch {
+      // Halaman sedang ditutup; tidak ada yang bisa dilakukan lagi.
+    }
+  },
   reportLocal: (ok) =>
     set((state) => (state.localFailed === !ok ? state : { localFailed: !ok, dismissed: false })),
 }));

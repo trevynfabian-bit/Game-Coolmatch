@@ -7,7 +7,7 @@ import {
   type PlayerSettingsRow,
 } from "@/server/db/schema";
 import { DEFAULT_BINDINGS, sanitizeBindings } from "@/lib/game/keybindings";
-import type { ControlValues, GraphicsValues } from "@/server/services/settings-validation";
+import type { ControlValues, GraphicsValues, SettingsValues } from "@/server/services/settings-validation";
 
 /**
  * Preferensi pemain yang ikut pindah perangkat. Klien memakai volume 0..1;
@@ -91,4 +91,34 @@ export function getAllSettings(playerId: number): AllSettings {
     controls: row ? toControls(row) : DEFAULT_CONTROL_VALUES,
     updatedAt: { audio: audio.updatedAt, settings: row?.updatedAt ?? null },
   };
+}
+
+/**
+ * Menyimpan pengaturan yang sudah lolos validasi. Hanya bagian yang dikirim
+ * yang berubah: mengirim grafis saja tidak menimpa kontrol, dan sebaliknya.
+ * Semua ditulis dalam satu transaksi.
+ */
+export function saveSettings(playerId: number, values: SettingsValues): AllSettings {
+  db.transaction(() => {
+    if (values.audio) saveAudioPreferences(playerId, values.audio);
+    if (values.graphics || values.controls) {
+      const current = getAllSettings(playerId);
+      const graphics = values.graphics ?? current.graphics;
+      const controls = values.controls ?? current.controls;
+      const row = {
+        quality: graphics.quality,
+        resolutionPercent: Math.round(graphics.resolutionScale * 100),
+        fov: graphics.fov,
+        showFps: graphics.showFps,
+        sensitivityCenti: Math.round(controls.sensitivity * 100),
+        bindings: controls.bindings,
+        updatedAt: Date.now(),
+      };
+      db.insert(playerSettings)
+        .values({ playerId, ...row })
+        .onConflictDoUpdate({ target: playerSettings.playerId, set: row })
+        .run();
+    }
+  });
+  return getAllSettings(playerId);
 }

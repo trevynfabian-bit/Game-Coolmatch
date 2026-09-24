@@ -2,20 +2,24 @@ import { apiFetch } from "@/lib/api/client";
 import type { AudioSettings, ControlSettings, GraphicsSettings } from "@/lib/store/settings-store";
 
 /**
- * Penyimpan pengaturan ke server. Bagian yang sudah punya endpoint dikirim ke
- * sana (audio: /api/pengaturan/audio); hasilnya satu bentuk supaya pemanggil
- * cukup membaca ok/gagal.
+ * Penyimpan pengaturan ke server (/api/pengaturan): audio, grafis, dan
+ * kontrol dikirim bersama; hasilnya satu bentuk supaya pemanggil cukup membaca
+ * ok/gagal.
  *
  * Di mode pengembangan kegagalan bisa dipaksa lewat
  * `window.__gagalSimpanPengaturan = true` untuk menguji notifikasi gagal simpan.
  */
 export type RemoteSaveResult = { ok: true; savedAt: number } | { ok: false; message: string };
 
-/** Potret pengaturan lengkap; bagian yang belum punya endpoint belum ikut terkirim. */
+/** Potret pengaturan lengkap yang disimpan ke server. */
 export interface RemoteSettingsPayload {
   audio: AudioSettings;
   graphics: GraphicsSettings;
   controls: ControlSettings;
+}
+
+interface RemoteSettings extends RemoteSettingsPayload {
+  updatedAt: { audio: number | null; settings: number | null };
 }
 
 function forcedFailure(): boolean {
@@ -28,18 +32,25 @@ function forcedFailure(): boolean {
 
 export async function saveSettingsRemote(payload: RemoteSettingsPayload): Promise<RemoteSaveResult> {
   if (forcedFailure()) return { ok: false, message: "server tidak menjawab" };
-  const response = await apiFetch<{ updatedAt: number }>("/api/pengaturan/audio", {
-    method: "POST",
-    body: payload.audio,
-  });
-  return response.ok ? { ok: true, savedAt: response.data.updatedAt } : { ok: false, message: response.message };
+  const response = await apiFetch<RemoteSettings>("/api/pengaturan", { method: "POST", body: payload });
+  if (!response.ok) return { ok: false, message: response.message };
+  const { audio, settings } = response.data.updatedAt;
+  return { ok: true, savedAt: Math.max(audio ?? 0, settings ?? 0) };
 }
 
-/** Pengaturan tersimpan di server; null bila pemain belum pernah menyimpan atau server tak terjangkau. */
-export async function loadSettingsRemote(): Promise<{ audio: AudioSettings; updatedAt: number } | null> {
-  const response = await apiFetch<{ audio: AudioSettings; updatedAt: number | null; degraded?: boolean }>(
-    "/api/pengaturan/audio",
-  );
-  if (!response.ok || response.data.degraded || response.data.updatedAt == null) return null;
-  return { audio: response.data.audio, updatedAt: response.data.updatedAt };
+/**
+ * Bagian pengaturan yang pernah disimpan di server. Bagian yang masih bawaan
+ * tidak dikembalikan, supaya pilihan di perangkat ini tidak tertimpa nilai
+ * bawaan. Null bila server tak terjangkau.
+ */
+export async function loadSettingsRemote(): Promise<(Partial<RemoteSettingsPayload> & { savedAt: number }) | null> {
+  const response = await apiFetch<RemoteSettings & { degraded?: boolean }>("/api/pengaturan");
+  if (!response.ok || response.data.degraded) return null;
+  const { audio, graphics, controls, updatedAt } = response.data;
+  return {
+    ...(updatedAt.audio != null ? { audio } : {}),
+    ...(updatedAt.settings != null ? { graphics, controls } : {}),
+    /** Waktu simpan terbaru di server; 0 bila belum pernah menyimpan apa pun. */
+    savedAt: Math.max(updatedAt.audio ?? 0, updatedAt.settings ?? 0),
+  };
 }
