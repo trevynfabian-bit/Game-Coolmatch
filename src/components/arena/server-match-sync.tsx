@@ -21,6 +21,12 @@ import {
  */
 export function ServerMatchSync() {
   useEffect(() => {
+    // Hanya di mode pengembangan: store dibuka di window supaya pengujian
+    // otomatis bisa mempercepat pertandingan tanpa bermain sungguhan.
+    if (process.env.NODE_ENV === "development") {
+      (window as unknown as { __arena?: unknown }).__arena = { useMatchStore, useKillstreakStore };
+    }
+
     const unsubscribeMatch = useMatchStore.subscribe((state, previous) => {
       // Pertandingan baru disiapkan: tidak ada kemajuan yang perlu dibandingkan.
       if (state.generation !== previous.generation) return;

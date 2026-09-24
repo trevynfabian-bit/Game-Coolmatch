@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { CoinSummary } from "@/components/arena/hud/coin-summary";
 import { KillstreakSummary } from "@/components/arena/hud/killstreak-summary";
 import { restartMatch } from "@/lib/game/match-reset";
 import type { ArenaMapInfo, Fighter, MatchSnapshot, RoundState } from "@/types/game";
@@ -135,6 +136,7 @@ export function MatchEndScreen({
           </table>
         </div>
 
+        <CoinSummary fighters={fighters} difficulty={snapshot.difficulty} matchWinner={round.matchWinner} />
         <KillstreakSummary />
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
