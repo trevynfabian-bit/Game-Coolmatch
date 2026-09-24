@@ -3,12 +3,12 @@ import type { HistoryMatch, StandingRow } from "@/types/history";
 /**
  * Klasemen gabungan: jumlahkan perolehan tiap peserta (menurut nama) dari
  * seluruh pertandingan, lalu urutkan: kemenangan pertandingan, total kill,
- * rasio K/M. Pertandingan yang ditinggal tidak dihitung.
+ * rasio K/M. Pertandingan yang ditinggal dan uji coba tidak dihitung.
  */
 export function buildStandings(matches: HistoryMatch[]): StandingRow[] {
   const rows = new Map<string, StandingRow>();
   for (const match of matches) {
-    if (match.result === "ditinggal") continue;
+    if (match.result === "ditinggal" || match.isTrial) continue;
     for (const p of match.participants) {
       const row = rows.get(p.name) ?? {
         name: p.name,

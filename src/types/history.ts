@@ -30,6 +30,10 @@ export interface HistoryMatch {
   winnerName: string | null;
   bestStreak: number;
   coinsEarned: number;
+  /** Uji coba senjata: ditampilkan terpisah dan tidak masuk klasemen. */
+  isTrial: boolean;
+  /** Senjata yang dicoba (uji coba) atau dibawa pemain. */
+  weaponId: string | null;
   startedAt: number;
   endedAt: number;
   participants: HistoryParticipant[];

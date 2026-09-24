@@ -52,6 +52,11 @@ export function MatchDetailPage({ matchId }: { matchId: number }) {
           <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase" suppressHydrationWarning>
             {formatMatchTime(match.startedAt)}
           </p>
+          {match.isTrial ? (
+            <p className="mt-1 inline-block rounded bg-sky-400/15 px-2 py-0.5 text-[10px] font-bold tracking-[0.15em] text-sky-200 uppercase">
+              Uji coba · tidak dihitung
+            </p>
+          ) : null}
           <h1 className="mt-1 text-3xl font-bold text-white">
             {match.result === "menang" ? "Kamu juara" : match.winnerName ? `${match.winnerName} juara` : "Seri"}
           </h1>

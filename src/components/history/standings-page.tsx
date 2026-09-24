@@ -22,7 +22,8 @@ export function StandingsPage() {
       <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase">Riwayat</p>
       <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">Klasemen</h1>
       <p className="mt-2 mb-6 text-sm text-slate-400">
-        Gabungan {matches.filter((m) => m.result !== "ditinggal").length} pertandingan terakhir.
+        Gabungan {matches.filter((m) => m.result !== "ditinggal" && !m.isTrial).length} pertandingan terakhir
+        (uji coba tidak dihitung).
         {myRank ? ` Kamu di peringkat ${myRank} dari ${standings.length}.` : ""}
       </p>
       <HistoryTabs active="/riwayat" />

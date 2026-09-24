@@ -47,6 +47,8 @@ function makeMatch(id: number): HistoryMatch {
   const local = participants[0];
   const result = ranked[0].name === "Kamu" ? "menang" : "kalah";
   const startedAt = ANCHOR - id * 5 * HOUR;
+  // Tiap pertandingan keempat adalah uji coba senjata satu ronde.
+  const isTrial = id % 4 === 2;
   return {
     id,
     mapId: id % 3 === 0 ? "map-pelabuhan-kabut" : "map-gudang-senja",
@@ -57,7 +59,9 @@ function makeMatch(id: number): HistoryMatch {
     result,
     winnerName: ranked[0].name,
     bestStreak: Math.min(local.kills, 2 + Math.floor(random() * 6)),
-    coinsEarned: 20 + (result === "menang" ? 40 : 0) + local.kills * 3 + local.roundWins * 10,
+    coinsEarned: isTrial ? 0 : 20 + (result === "menang" ? 40 : 0) + local.kills * 3 + local.roundWins * 10,
+    isTrial,
+    weaponId: isTrial ? "wpn-sniper-elang" : "wpn-rifle-garuda",
     startedAt,
     endedAt: startedAt + 11 * 60 * 1000,
     participants,

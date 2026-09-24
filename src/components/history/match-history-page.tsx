@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { findWeapon } from "@/lib/mock/weapons";
 import { CoinIcon } from "@/components/economy/coin-badge";
 import { HistoryTabs } from "@/components/history/history-tabs";
 import { useHistoryStore } from "@/lib/store/history-store";
@@ -30,25 +32,61 @@ export function formatMatchTime(timestamp: number): string {
  * Riwayat pertandingan lampau, terbaru di atas: hasil, peta, lawan, perolehan
  * pemain, dan koin. Tiap baris membuka rincian pertandingannya.
  */
+type HistoryFilter = "pertandingan" | "uji" | "semua";
+
+const FILTERS: { id: HistoryFilter; label: string }[] = [
+  { id: "pertandingan", label: "Pertandingan" },
+  { id: "uji", label: "Uji coba" },
+  { id: "semua", label: "Semua" },
+];
+
 export function MatchHistoryPage() {
-  const matches = useHistoryStore((state) => state.matches);
+  const all = useHistoryStore((state) => state.matches);
+  const [filter, setFilter] = useState<HistoryFilter>("pertandingan");
+  const matches = all.filter((match) =>
+    filter === "semua" ? true : filter === "uji" ? match.isTrial : !match.isTrial,
+  );
 
   return (
     <div className="mx-auto w-full max-w-4xl px-5 py-10 sm:px-8">
       <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase">Riwayat</p>
       <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">Pertandingan Lampau</h1>
-      <p className="mt-2 mb-6 text-sm text-slate-400">{matches.length} pertandingan tercatat.</p>
+      <p className="mt-2 mb-6 text-sm text-slate-400">
+        {all.filter((m) => !m.isTrial).length} pertandingan dan {all.filter((m) => m.isTrial).length} uji coba tercatat.
+      </p>
       <HistoryTabs active="/riwayat/pertandingan" />
+
+      <div className="mb-4 flex gap-1.5" role="group" aria-label="Saring riwayat">
+        {FILTERS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setFilter(item.id)}
+            aria-pressed={filter === item.id}
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+              filter === item.id ? "border-white/30 bg-white/10 text-white" : "border-white/10 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
 
       {matches.length === 0 ? (
         <p className="rounded-xl border border-dashed border-white/15 px-6 py-10 text-center text-sm text-slate-400">
-          Belum ada pertandingan. <Link href="/lawan" className="text-emerald-300 hover:underline">Main sekarang</Link>.
+          {filter === "uji" ? "Belum ada uji coba. " : "Belum ada pertandingan. "}
+          <Link href={filter === "uji" ? "/uji" : "/lawan"} className="text-emerald-300 hover:underline">
+            Main sekarang
+          </Link>
+          .
         </p>
       ) : (
         <ul className="space-y-2">
           {matches.map((match) => {
             const me = match.participants.find((p) => !p.isBot);
-            const style = RESULT_STYLE[match.result];
+            const style = match.isTrial
+              ? { label: "Uji coba", className: "bg-sky-400/15 text-sky-300" }
+              : RESULT_STYLE[match.result];
             return (
               <li key={match.id}>
                 <Link
@@ -57,7 +95,12 @@ export function MatchHistoryPage() {
                 >
                   <span className={`w-20 rounded px-2 py-1 text-center text-[11px] font-semibold ${style.className}`}>{style.label}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-white">{match.mapName}</span>
+                    <span className="block text-sm font-semibold text-white">
+                      {match.mapName}
+                      {match.isTrial && match.weaponId ? (
+                        <span className="font-normal text-slate-400"> · {findWeapon(match.weaponId).name}</span>
+                      ) : null}
+                    </span>
                     <span className="block text-[11px] text-slate-500" suppressHydrationWarning>
                       {formatMatchTime(match.startedAt)} · {DIFFICULTY_LABEL[match.difficulty]} · {match.botCount} bot
                     </span>
@@ -73,9 +116,13 @@ export function MatchHistoryPage() {
                       {me?.roundWins ?? 0}
                       <span className="ml-1 font-sans text-[10px] text-slate-500">ronde</span>
                     </span>
-                    <span className="inline-flex items-center gap-1 text-amber-200">
-                      <CoinIcon className="h-3 w-3" />+{match.coinsEarned}
-                    </span>
+                    {match.isTrial ? (
+                      <span className="text-[10px] text-slate-500">tidak dihitung</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-amber-200">
+                        <CoinIcon className="h-3 w-3" />+{match.coinsEarned}
+                      </span>
+                    )}
                   </span>
                   <span className="text-slate-600" aria-hidden>
                     →
