@@ -1,20 +1,20 @@
 import { create } from "zustand";
-import { findSkin } from "@/lib/economy/skin-catalog";
-import { MOCK_SKIN_COLLECTION } from "@/lib/mock/skins";
+import { apiFetch } from "@/lib/api/client";
 import { useWalletStore } from "@/lib/store/wallet-store";
 import type { ShopResult } from "@/lib/store/shop-store";
-import type { SkinCollection } from "@/types/economy";
+import type { CoinTransaction, SkinCollection, Wallet } from "@/types/economy";
 
 /**
- * Koleksi skin pemain di klien. Fase frontend memakai data tiruan dan
- * pembayaran lewat dompet klien; lapisan backend nanti mengganti isi aksi
- * dengan panggilan /api/skin yang mengembalikan bentuk hasil yang sama.
+ * Koleksi skin pemain di klien, dimuat dari /api/skin saat sesi dibuka.
+ * Pembelian dan pemasangan dikirim ke server; state hanya diperbarui dari
+ * balasannya.
  */
 interface SkinState {
   collection: SkinCollection;
+  loaded: boolean;
   /** Kunci aksi yang sedang diproses. */
   pending: string | null;
-  hydrate: (collection: SkinCollection) => void;
+  load: () => Promise<void>;
   /** Membeli skin; bila `equipOn` diisi, skin langsung dipasang di senjata itu. */
   buySkin: (skinId: string, equipOn?: string) => Promise<ShopResult>;
   /** Memasang skin milik pemain ke satu senjata, menggantikan skin sebelumnya. */
@@ -23,79 +23,59 @@ interface SkinState {
   unequipSkin: (weaponId: string) => Promise<ShopResult>;
 }
 
-const MOCK_LATENCY_MS = 250;
-const wait = () => new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
+interface PurchaseResponse {
+  collection: SkinCollection;
+  wallet: Wallet;
+  transaction: CoinTransaction | null;
+}
 
-export const useSkinStore = create<SkinState>((set, get) => ({
-  collection: {
-    ownedSkinIds: [...MOCK_SKIN_COLLECTION.ownedSkinIds],
-    equipped: { ...MOCK_SKIN_COLLECTION.equipped },
-  },
-  pending: null,
-  hydrate: (collection) => set({ collection }),
-
-  buySkin: async (skinId, equipOn) => {
+export const useSkinStore = create<SkinState>((set, get) => {
+  async function run(key: string, action: () => Promise<ShopResult>): Promise<ShopResult> {
     if (get().pending) return { ok: false, message: "Tunggu proses sebelumnya selesai." };
-    set({ pending: `beli:${skinId}` });
+    set({ pending: key });
     try {
-      await wait();
-      const skin = findSkin(skinId);
-      if (!skin) return { ok: false, message: "Skin ini tidak ada di katalog." };
-      const { collection } = get();
-      if (collection.ownedSkinIds.includes(skinId)) {
-        return { ok: false, message: `${skin.name} sudah kamu miliki.` };
-      }
-      const paid = useWalletStore.getState().spendLocally({
-        kind: "beli_skin",
-        amount: skin.price,
-        note: `Skin ${skin.name}`,
-        sourceType: "skin",
-        sourceId: skin.id,
-      });
-      if (!paid) {
-        const balance = useWalletStore.getState().wallet.balance;
-        return { ok: false, message: `Koin kurang ${skin.price - balance} untuk membeli ${skin.name}.` };
-      }
-      set({
-        collection: {
-          ownedSkinIds: [...collection.ownedSkinIds, skinId],
-          equipped: equipOn ? { ...collection.equipped, [equipOn]: skinId } : collection.equipped,
-        },
-      });
-      return { ok: true };
+      return await action();
     } finally {
       set({ pending: null });
     }
-  },
+  }
 
-  equipSkin: async (weaponId, skinId) => {
-    if (get().pending) return { ok: false, message: "Tunggu proses sebelumnya selesai." };
-    set({ pending: `pasang:${weaponId}` });
-    try {
-      await wait();
-      const { collection } = get();
-      if (!findSkin(skinId) || !collection.ownedSkinIds.includes(skinId)) {
-        return { ok: false, message: "Beli dulu skin ini sebelum memasangnya." };
-      }
-      set({ collection: { ...collection, equipped: { ...collection.equipped, [weaponId]: skinId } } });
-      return { ok: true };
-    } finally {
-      set({ pending: null });
-    }
-  },
+  async function setSkin(weaponId: string, skinId: string | null): Promise<ShopResult> {
+    const result = await apiFetch<{ collection: SkinCollection }>("/api/skin/pasang", {
+      method: "POST",
+      body: { weaponId, skinId },
+    });
+    if (!result.ok) return { ok: false, message: result.message };
+    set({ collection: result.data.collection });
+    return { ok: true };
+  }
 
-  unequipSkin: async (weaponId) => {
-    if (get().pending) return { ok: false, message: "Tunggu proses sebelumnya selesai." };
-    set({ pending: `pasang:${weaponId}` });
-    try {
-      await wait();
-      const { collection } = get();
-      const equipped = { ...collection.equipped };
-      delete equipped[weaponId];
-      set({ collection: { ...collection, equipped } });
-      return { ok: true };
-    } finally {
-      set({ pending: null });
-    }
-  },
-}));
+  return {
+    collection: { ownedSkinIds: [], equipped: {} },
+    loaded: false,
+    pending: null,
+
+    load: async () => {
+      const result = await apiFetch<{ collection: SkinCollection }>("/api/skin");
+      if (result.ok) set({ collection: result.data.collection, loaded: true });
+    },
+
+    buySkin: (skinId, equipOn) =>
+      run(`beli:${skinId}`, async () => {
+        const result = await apiFetch<PurchaseResponse>("/api/skin/beli", {
+          method: "POST",
+          body: { skinId, equipOn: equipOn ?? null },
+        });
+        if (!result.ok) {
+          if (result.code === "saldo_kurang") void useWalletStore.getState().load();
+          return { ok: false, message: result.message };
+        }
+        set({ collection: result.data.collection });
+        useWalletStore.getState().applyServerResult(result.data);
+        return { ok: true };
+      }),
+
+    equipSkin: (weaponId, skinId) => run(`pasang:${weaponId}`, () => setSkin(weaponId, skinId)),
+    unequipSkin: (weaponId) => run(`pasang:${weaponId}`, () => setSkin(weaponId, null)),
+  };
+});

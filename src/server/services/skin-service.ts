@@ -195,3 +195,65 @@ export function setWeaponSkin(playerId: number, weaponId: string, skinId: string
   });
   return getSkinCollection(playerId);
 }
+
+export interface OwnedSkinEntry {
+  skin: Skin;
+  purchasedAt: number;
+  /** Nama id senjata tempat skin ini terpasang. */
+  equippedOn: string[];
+}
+
+export interface SkinCollectionReport {
+  owned: OwnedSkinEntry[];
+  equipped: Record<string, string>;
+  /** Kelengkapan per tingkat: dimiliki / total katalog. */
+  completion: { rarity: SkinRarity; owned: number; total: number }[];
+  totalOwned: number;
+  totalCatalog: number;
+}
+
+/**
+ * Daftar koleksi lengkap untuk halaman "Skin Milikku": tiap skin yang
+ * dimiliki beserta detail katalognya, kapan dibeli, dan di senjata mana
+ * terpasang; plus kelengkapan koleksi per tingkat. Urut dari gold ke umum,
+ * lalu yang terbaru dibeli.
+ */
+export function getSkinCollectionReport(playerId: number): SkinCollectionReport {
+  syncSkinCatalog();
+  const rows = db
+    .select({ skin: skins, purchasedAt: playerSkins.purchasedAt })
+    .from(playerSkins)
+    .innerJoin(skins, eq(skins.id, playerSkins.skinId))
+    .where(eq(playerSkins.playerId, playerId))
+    .all();
+  const { equipped } = getSkinCollection(playerId);
+  const equippedOn = new Map<string, string[]>();
+  for (const [weaponId, skinId] of Object.entries(equipped)) {
+    equippedOn.set(skinId, [...(equippedOn.get(skinId) ?? []), weaponId]);
+  }
+
+  const owned = rows
+    .map((row) => ({
+      skin: toSkin(row.skin),
+      purchasedAt: row.purchasedAt,
+      equippedOn: equippedOn.get(row.skin.id) ?? [],
+    }))
+    .sort(
+      (a, b) =>
+        RARITY_ORDER.indexOf(b.skin.rarity) - RARITY_ORDER.indexOf(a.skin.rarity) ||
+        b.purchasedAt - a.purchasedAt,
+    );
+
+  const catalog = getSkinCatalog();
+  return {
+    owned,
+    equipped,
+    completion: RARITY_ORDER.map((rarity) => ({
+      rarity,
+      owned: owned.filter((entry) => entry.skin.rarity === rarity).length,
+      total: catalog.filter((skin) => skin.rarity === rarity).length,
+    })),
+    totalOwned: owned.length,
+    totalCatalog: catalog.length,
+  };
+}
