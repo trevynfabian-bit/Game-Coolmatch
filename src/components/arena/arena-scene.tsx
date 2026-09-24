@@ -9,6 +9,7 @@ import { RespawnTicker } from "@/components/arena/respawn-ticker";
 import { RoundTicker } from "@/components/arena/round-ticker";
 import { AirstrikeEffects } from "@/components/arena/airstrike-effects";
 import { KillstreakInput } from "@/components/arena/killstreak-input";
+import { SupportHelicopter } from "@/components/arena/support-helicopter";
 import { WeaponSwap } from "@/components/arena/weapon-swap";
 import { WeaponSystem } from "@/components/arena/weapon-system";
 import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
@@ -92,6 +93,7 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
       <WeaponSwap />
       <KillstreakInput />
       <AirstrikeEffects />
+      <SupportHelicopter map={match.map} />
       <BotDriver map={match.map} difficulty={match.difficulty} />
       <ArenaMap map={match.map} />
 

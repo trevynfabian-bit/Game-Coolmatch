@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { RadarMini } from "@/components/arena/hud/radar-mini";
 import { getBot } from "@/lib/game/bot-runtime";
+import { helicopterRuntime } from "@/lib/game/helicopter-runtime";
 import { playerRuntime } from "@/lib/game/player-runtime";
 import type { RadarBlip } from "@/lib/game/radar";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
@@ -57,7 +58,13 @@ export function RadarPanel({ map }: { map: ArenaMapInfo }) {
       const uavOn = uavEndsAt !== undefined && uavEndsAt > now;
       setFrame({
         player: { x, z, heading: playerRuntime.heading },
-        blips: uavOn ? liveEnemyBlips() : [],
+        blips: [
+          ...(uavOn ? liveEnemyBlips() : []),
+          // Helikopter kawan selalu terlihat di radar selama terbang.
+          ...(helicopterRuntime.active
+            ? [{ id: "helikopter", x: helicopterRuntime.x, z: helicopterRuntime.z, color: "#a3e635" }]
+            : []),
+        ],
         uavSeconds: uavOn ? Math.ceil((uavEndsAt - now) / 1000) : null,
       });
     };

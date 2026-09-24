@@ -39,11 +39,11 @@ interface KillstreakState {
   launchStrike: (target: { x: number; z: number }) => boolean;
 }
 
-/** Data tiruan untuk fase frontend: UAV dan serangan udara sudah siap dipanggil. */
+/** Data tiruan untuk fase frontend: ketiga hadiah sudah siap dipanggil. */
 const MOCK_STATE: Pick<KillstreakState, "streak" | "bestStreak" | "ready" | "active"> = {
-  streak: 5,
-  bestStreak: 5,
-  ready: ["uav", "serangan_udara"],
+  streak: 7,
+  bestStreak: 7,
+  ready: ["uav", "serangan_udara", "helikopter"],
   active: {},
 };
 

@@ -100,3 +100,53 @@ export function callKillstreak(
   }
   return store.activate(id);
 }
+
+/** Aturan helikopter dukungan. */
+export const HELICOPTER = {
+  /** Ketinggian terbang di atas lantai arena. */
+  altitude: 11,
+  /** Lama terbang masuk dan keluar arena, detik. */
+  transitSeconds: 3,
+  /** Satu putaran penuh jalur patroli, detik. */
+  loopSeconds: 16,
+  /** Seberapa jauh jalur patroli dari tengah, sebagai bagian dari batas arena. */
+  spread: 0.55,
+} as const;
+
+/**
+ * Posisi helikopter pada detik `t` sejak dipanggil, untuk hadiah yang
+ * berlangsung `duration` detik. Jalurnya angka delapan (Lissajous 1:2) di
+ * atas arena; pada awal dan akhir, helikopter meluncur masuk dari dan keluar
+ * ke luar batas arena.
+ */
+export function helicopterPosition(
+  t: number,
+  duration: number,
+  bounds: { minX: number; maxX: number; minZ: number; maxZ: number },
+): { x: number; y: number; z: number } {
+  const cx = (bounds.minX + bounds.maxX) / 2;
+  const cz = (bounds.minZ + bounds.maxZ) / 2;
+  const rx = ((bounds.maxX - bounds.minX) / 2) * HELICOPTER.spread;
+  const rz = ((bounds.maxZ - bounds.minZ) / 2) * HELICOPTER.spread;
+
+  const phase = (t / HELICOPTER.loopSeconds) * Math.PI * 2;
+  const patrol = {
+    x: cx + Math.sin(phase) * rx,
+    z: cz + Math.sin(phase * 2) * rz * 0.8,
+  };
+
+  // Titik masuk/keluar jauh di luar tembok utara.
+  const outside = { x: cx, z: bounds.minZ - 40 };
+  const transit = HELICOPTER.transitSeconds;
+  let blend = 1;
+  if (t < transit) blend = t / transit;
+  else if (t > duration - transit) blend = Math.max(0, (duration - t) / transit);
+  // Perlambatan halus di ujung transit.
+  const eased = blend * blend * (3 - 2 * blend);
+
+  return {
+    x: outside.x + (patrol.x - outside.x) * eased,
+    y: HELICOPTER.altitude + (1 - eased) * 6,
+    z: outside.z + (patrol.z - outside.z) * eased,
+  };
+}
