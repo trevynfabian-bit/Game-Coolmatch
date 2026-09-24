@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { apiFetch } from "@/lib/api/client";
-import { DEFAULT_LOADOUT, findKillstreak, type KillstreakId } from "@/lib/game/killstreak";
+import { DEFAULT_LOADOUT, KILLSTREAKS, findKillstreak, type KillstreakId } from "@/lib/game/killstreak";
 
 /**
  * Keadaan killstreak pemain lokal selama pertandingan.
@@ -10,6 +10,13 @@ import { DEFAULT_LOADOUT, findKillstreak, type KillstreakId } from "@/lib/game/k
  * tumbang, seperti di COD); `active` adalah hadiah yang sedang berjalan
  * beserta kapan berakhirnya (milidetik performance.now).
  */
+/** Status satu hadiah untuk pemain: harga buka dan sudah terbuka atau belum. */
+export interface RewardStatus {
+  id: KillstreakId;
+  unlockPrice: number;
+  unlocked: boolean;
+}
+
 interface KillstreakState {
   streak: number;
   bestStreak: number;
@@ -17,6 +24,8 @@ interface KillstreakState {
   active: Partial<Record<KillstreakId, number>>;
   /** Hadiah yang dibawa ke pertandingan, urut sesuai tombol 6, 7, 8; null = slot kosong. */
   loadout: (KillstreakId | null)[];
+  /** Status terbuka tiap hadiah untuk pemain ini, dari server. */
+  rewardStatus: RewardStatus[];
   /** Penanda hadiah yang BARU saja terbuka, untuk animasi HUD. */
   lastUnlocked: { id: KillstreakId; at: number } | null;
   /** Hadiah yang sedang menunggu pemain memilih sasaran di denah. */
@@ -70,6 +79,7 @@ const FRESH_STATE: Pick<KillstreakState, "streak" | "bestStreak" | "ready" | "ac
 export const useKillstreakStore = create<KillstreakState>((set, get) => ({
   ...FRESH_STATE,
   loadout: DEFAULT_LOADOUT,
+  rewardStatus: KILLSTREAKS.map((item) => ({ id: item.id, unlockPrice: item.unlockPrice, unlocked: item.unlockPrice === 0 })),
   lastUnlocked: null,
   targeting: null,
   strike: null,
@@ -89,8 +99,15 @@ export const useKillstreakStore = create<KillstreakState>((set, get) => ({
   },
 
   loadLoadout: async () => {
-    const result = await apiFetch<{ loadout: (KillstreakId | null)[] }>("/api/killstreak/loadout");
-    if (result.ok) set({ loadout: result.data.loadout });
+    const result = await apiFetch<{ loadout: (KillstreakId | null)[]; rewards: RewardStatus[] }>(
+      "/api/killstreak/loadout",
+    );
+    if (result.ok) {
+      set({
+        loadout: result.data.loadout,
+        rewardStatus: result.data.rewards.map(({ id, unlockPrice, unlocked }) => ({ id, unlockPrice, unlocked })),
+      });
+    }
   },
 
   setLoadout: (loadout) => set({ loadout }),
