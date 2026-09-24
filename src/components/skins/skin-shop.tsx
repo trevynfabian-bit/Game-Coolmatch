@@ -10,11 +10,17 @@ import { RARITY_META, RARITY_ORDER, SKINS, findSkin } from "@/lib/economy/skin-c
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { useSkinStore } from "@/lib/store/skin-store";
 import { useWalletStore } from "@/lib/store/wallet-store";
-import type { Skin, SkinRarity } from "@/types/economy";
+import {
+  SKIN_SORT_LABEL,
+  filterSkins,
+  groupByRarity,
+  type SkinOwnershipFilter,
+  type SkinRarityFilter,
+  type SkinSort,
+} from "@/lib/economy/skin-filter";
+import type { Skin } from "@/types/economy";
 
-type Filter = SkinRarity | "semua" | "negara";
-
-const FILTERS: { id: Filter; label: string }[] = [
+const FILTERS: { id: SkinRarityFilter; label: string }[] = [
   { id: "semua", label: "Semua" },
   ...RARITY_ORDER.map((rarity) => ({ id: rarity, label: RARITY_META[rarity].label })),
   { id: "negara", label: "Tema negara" },
@@ -38,7 +44,9 @@ function RarityBadge({ skin }: { skin: Skin }) {
  * atas siluet senjata yang sedang dipilih supaya pemain tahu hasilnya.
  */
 export function SkinShop() {
-  const [filter, setFilter] = useState<Filter>("semua");
+  const [filter, setFilter] = useState<SkinRarityFilter>("semua");
+  const [ownership, setOwnership] = useState<SkinOwnershipFilter>("semua");
+  const [sort, setSort] = useState<SkinSort>("tingkat");
   const [weaponId, setWeaponId] = useState(MOCK_WEAPONS[2]?.id ?? MOCK_WEAPONS[0].id);
   const [focusId, setFocusId] = useState<string | null>(null);
   const collection = useSkinStore((state) => state.collection);
@@ -49,13 +57,16 @@ export function SkinShop() {
   const focused = findSkin(focusId) ?? equippedSkin ?? null;
 
   const visible = useMemo(
+    () => filterSkins(SKINS, collection, { rarity: filter, ownership, sort }),
+    [collection, filter, ownership, sort],
+  );
+  // Judul per tingkat hanya berarti bila urutannya memang per tingkat.
+  const groups = useMemo(
     () =>
-      SKINS.filter((skin) =>
-        filter === "semua" ? true : filter === "negara" ? skin.country !== null : skin.rarity === filter,
-      ).sort(
-        (a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity) || a.price - b.price,
-      ),
-    [filter],
+      sort === "tingkat" || sort === "tingkat_turun"
+        ? groupByRarity(visible)
+        : [{ rarity: null, skins: visible }],
+    [visible, sort],
   );
 
   return (
@@ -76,6 +87,44 @@ export function SkinShop() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex gap-1 rounded-lg border border-white/10 p-0.5 text-xs" role="group" aria-label="Saring kepemilikan">
+              {(
+                [
+                  ["semua", "Semua"],
+                  ["belum", "Belum dimiliki"],
+                  ["dimiliki", "Dimiliki"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setOwnership(id)}
+                  aria-pressed={ownership === id}
+                  className={`rounded-md px-2.5 py-1 font-medium ${
+                    ownership === id ? "bg-white/10 text-white" : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <label className="flex items-center gap-2 text-xs text-slate-400">
+              Urutkan
+              <select
+                value={sort}
+                onChange={(event) => setSort(event.target.value as SkinSort)}
+                className="rounded-md border border-white/15 bg-slate-950 px-2 py-1 text-xs text-slate-100"
+              >
+                {(Object.keys(SKIN_SORT_LABEL) as SkinSort[]).map((key) => (
+                  <option key={key} value={key}>
+                    {SKIN_SORT_LABEL[key]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <div className="mb-4 flex flex-wrap gap-1.5" role="group" aria-label="Saring skin">
             {FILTERS.map((item) => (
               <button
@@ -94,54 +143,75 @@ export function SkinShop() {
             ))}
           </div>
 
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {visible.map((skin) => {
-              const owned = collection.ownedSkinIds.includes(skin.id);
-              const isEquipped = collection.equipped[weapon.id] === skin.id;
-              const meta = RARITY_META[skin.rarity];
-              return (
-                <li key={skin.id}>
-                  <button
-                    type="button"
-                    onClick={() => setFocusId(skin.id)}
-                    aria-pressed={focused?.id === skin.id}
-                    className={`group w-full rounded-xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
-                      focused?.id === skin.id ? "bg-white/5" : "bg-slate-900/60 hover:bg-slate-900"
-                    }`}
-                    style={{
-                      borderColor: focused?.id === skin.id ? meta.color : "rgba(255,255,255,0.1)",
-                      boxShadow: skin.rarity === "gold" ? `0 0 18px ${meta.glow}` : undefined,
-                    }}
+          <p className="mb-3 text-[11px] text-slate-500" aria-live="polite">
+            {visible.length} skin
+            {visible.length === 0 ? " — tidak ada yang cocok dengan saringan ini." : null}
+          </p>
+
+          <div className="space-y-6">
+            {groups.map((group) => (
+              <section key={group.rarity ?? "semua"} aria-label={group.rarity ? RARITY_META[group.rarity].label : undefined}>
+                {group.rarity ? (
+                  <h2
+                    className="mb-2 flex items-center gap-2 text-[11px] tracking-[0.2em] uppercase"
+                    style={{ color: RARITY_META[group.rarity].color }}
                   >
-                    <span className="block rounded-lg bg-slate-950/60 px-2 py-3 text-slate-500">
-                      <SkinnedWeapon type={weapon.type} skin={skin} className="h-12 w-full" />
-                    </span>
-                    <span className="mt-2 flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-semibold text-slate-100">{skin.name}</span>
-                      <RarityBadge skin={skin} />
-                    </span>
-                    <span className="mt-1 flex items-center justify-between text-[11px]">
-                      <span className="truncate text-slate-500">{skin.country?.name ?? " "}</span>
-                      {isEquipped ? (
-                        <span className="text-emerald-300">Terpasang</span>
-                      ) : owned ? (
-                        <span className="text-sky-300">Dimiliki</span>
-                      ) : (
-                        <span
-                          className={`inline-flex items-center gap-1 font-mono tabular-nums ${
-                            balance >= skin.price ? "text-amber-200" : "text-rose-300/80"
+                    {RARITY_META[group.rarity].label}
+                    <span className="h-px flex-1" style={{ backgroundColor: `${RARITY_META[group.rarity].color}33` }} />
+                    <span className="text-slate-500">{group.skins.length}</span>
+                  </h2>
+                ) : null}
+                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {group.skins.map((skin) => {
+                    const owned = collection.ownedSkinIds.includes(skin.id);
+                    const isEquipped = collection.equipped[weapon.id] === skin.id;
+                    const meta = RARITY_META[skin.rarity];
+                    return (
+                      <li key={skin.id}>
+                        <button
+                          type="button"
+                          onClick={() => setFocusId(skin.id)}
+                          aria-pressed={focused?.id === skin.id}
+                          className={`group w-full rounded-xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
+                            focused?.id === skin.id ? "bg-white/5" : "bg-slate-900/60 hover:bg-slate-900"
                           }`}
+                          style={{
+                            borderColor: focused?.id === skin.id ? meta.color : "rgba(255,255,255,0.1)",
+                            boxShadow: skin.rarity === "gold" ? `0 0 18px ${meta.glow}` : undefined,
+                          }}
                         >
-                          <CoinIcon className="h-3 w-3" />
-                          {formatCoins(skin.price)}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                          <span className="block rounded-lg bg-slate-950/60 px-2 py-3 text-slate-500">
+                            <SkinnedWeapon type={weapon.type} skin={skin} className="h-12 w-full" />
+                          </span>
+                          <span className="mt-2 flex items-center justify-between gap-2">
+                            <span className="truncate text-sm font-semibold text-slate-100">{skin.name}</span>
+                            <RarityBadge skin={skin} />
+                          </span>
+                          <span className="mt-1 flex items-center justify-between text-[11px]">
+                            <span className="truncate text-slate-500">{skin.country?.name ?? " "}</span>
+                            {isEquipped ? (
+                              <span className="text-emerald-300">Terpasang</span>
+                            ) : owned ? (
+                              <span className="text-sky-300">Dimiliki</span>
+                            ) : (
+                              <span
+                                className={`inline-flex items-center gap-1 font-mono tabular-nums ${
+                                  balance >= skin.price ? "text-amber-200" : "text-rose-300/80"
+                                }`}
+                              >
+                                <CoinIcon className="h-3 w-3" />
+                                {formatCoins(skin.price)}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+          </div>
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
