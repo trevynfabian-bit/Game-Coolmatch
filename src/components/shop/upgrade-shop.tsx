@@ -1,19 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AttachmentRow } from "@/components/shop/attachment-row";
 import { CoinBadge, CoinIcon, formatCoins } from "@/components/economy/coin-badge";
 import { WeaponSilhouette } from "@/components/weapons/weapon-silhouette";
 import {
   ATTACHMENT_SLOTS,
   ATTACHMENT_SLOT_LABEL,
   attachmentsFor,
+  findAttachment,
   upgradeTracksFor,
 } from "@/lib/economy/upgrade-catalog";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
-import { upgradeStateOf, useShopStore } from "@/lib/store/shop-store";
+import { upgradeStateOf, useShopStore, type ShopResult } from "@/lib/store/shop-store";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
-import type { Attachment, UpgradeTrack, WeaponUpgradeState } from "@/types/economy";
+import type { UpgradeTrack, WeaponUpgradeState } from "@/types/economy";
 
 function LevelPips({ level, max, accent }: { level: number; max: number; accent: string }) {
   return (
@@ -140,44 +142,10 @@ function UpgradeRow({
   );
 }
 
-function AttachmentRow({
-  attachment,
-  state,
-  balance,
-}: {
-  attachment: Attachment;
-  state: WeaponUpgradeState;
-  balance: number;
-}) {
-  const owned = state.ownedAttachmentIds.includes(attachment.id);
-  const equipped = state.equipped[attachment.slot] === attachment.id;
-
-  return (
-    <li className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-slate-900/50 px-3 py-2.5">
-      <div className="min-w-0">
-        <p className="flex items-center gap-1.5 text-sm font-medium text-slate-100">
-          {attachment.name}
-          {equipped ? (
-            <span className="rounded bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.12em] text-emerald-300 uppercase">
-              Terpasang
-            </span>
-          ) : owned ? (
-            <span className="rounded bg-sky-400/15 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.12em] text-sky-300 uppercase">
-              Dimiliki
-            </span>
-          ) : null}
-        </p>
-        <p className="mt-0.5 text-[11px] leading-relaxed text-slate-400">{attachment.description}</p>
-      </div>
-      {owned ? null : <PriceTag price={attachment.price} affordable={balance >= attachment.price} />}
-    </li>
-  );
-}
-
 /**
  * Halaman toko upgrade senjata: pilih senjata di kiri, lalu lihat jalur
  * peningkatan statistik dan attachment yang cocok untuknya. Semua data masih
- * tiruan dari `useShopStore`; alur pembelian dan pratinjau efek menyusul.
+ * tiruan dari `useShopStore`, termasuk aksi beli dan pasang attachment.
  */
 export function UpgradeShop() {
   const [weaponId, setWeaponId] = useState(MOCK_WEAPONS[2]?.id ?? MOCK_WEAPONS[0].id);
@@ -189,6 +157,16 @@ export function UpgradeShop() {
   const tracks = useMemo(() => upgradeTracksFor(weapon.id), [weapon.id]);
   const attachments = useMemo(() => attachmentsFor(weapon.type), [weapon.type]);
   const accent = WEAPON_SHAPES[weapon.type].accent;
+
+  const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+  const report = (result: ShopResult, success: string) =>
+    setNotice(result.ok ? { tone: "ok", text: success } : { tone: "error", text: result.message });
+
   const remainingCost = tracks.reduce(
     (sum, track) =>
       sum +
@@ -211,6 +189,20 @@ export function UpgradeShop() {
         </div>
         <CoinBadge balance={wallet.balance} />
       </header>
+
+      <p
+        role="status"
+        aria-live="polite"
+        className={`fixed inset-x-0 bottom-6 z-40 mx-auto w-fit max-w-[90vw] rounded-lg border px-4 py-2 text-sm shadow-lg transition-opacity ${
+          notice ? "opacity-100" : "pointer-events-none opacity-0"
+        } ${
+          notice?.tone === "error"
+            ? "border-rose-400/40 bg-rose-950/90 text-rose-100"
+            : "border-emerald-400/40 bg-emerald-950/90 text-emerald-100"
+        }`}
+      >
+        {notice?.text ?? ""}
+      </p>
 
       <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
         <nav aria-label="Senjata">
@@ -290,7 +282,18 @@ export function UpgradeShop() {
                     </p>
                     <ul className="space-y-1.5">
                       {inSlot.map((attachment) => (
-                        <AttachmentRow key={attachment.id} attachment={attachment} state={state} balance={wallet.balance} />
+                        <AttachmentRow
+                          key={attachment.id}
+                          attachment={attachment}
+                          state={state}
+                          balance={wallet.balance}
+                          replacing={
+                            state.equipped[slot] && state.equipped[slot] !== attachment.id
+                              ? (findAttachment(state.equipped[slot]!)?.name ?? null)
+                              : null
+                          }
+                          onResult={report}
+                        />
                       ))}
                     </ul>
                   </div>
