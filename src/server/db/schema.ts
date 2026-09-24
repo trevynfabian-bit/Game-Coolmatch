@@ -484,6 +484,27 @@ export const matchKillstreakEvents = sqliteTable(
   (table) => [index("match_killstreak_events_pertandingan_idx").on(table.matchId, table.kind)],
 );
 
+/** Jenis item yang bisa difavoritkan; sama dengan `FavoriteKind` di klien. */
+export const FAVORITE_KINDS = ["senjata", "skin"] as const;
+
+/**
+ * Penanda favorit pemain di galeri koleksi. Satu baris per item; urutan
+ * penandaan disimpan lewat `created_at` supaya favorit terbaru bisa
+ * ditampilkan lebih dulu bila perlu.
+ */
+export const playerFavorites = sqliteTable(
+  "player_favorites",
+  {
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: FAVORITE_KINDS }).notNull(),
+    itemId: text("item_id").notNull(),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (table) => [primaryKey({ columns: [table.playerId, table.kind, table.itemId] })],
+);
+
 export type PlayerRow = typeof players.$inferSelect;
 export type MapRow = typeof maps.$inferSelect;
 export type MatchRow = typeof matches.$inferSelect;
@@ -508,3 +529,4 @@ export type PlayerWeaponSkinRow = typeof playerWeaponSkins.$inferSelect;
 export type KillstreakRewardRow = typeof killstreakRewards.$inferSelect;
 export type KillstreakLoadoutRow = typeof killstreakLoadouts.$inferSelect;
 export type MatchKillstreakEventRow = typeof matchKillstreakEvents.$inferSelect;
+export type PlayerFavoriteRow = typeof playerFavorites.$inferSelect;

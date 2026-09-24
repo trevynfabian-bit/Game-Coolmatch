@@ -43,6 +43,13 @@
       "when": 1790265487649,
       "tag": "0005_killstreak_loadout",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790266323598,
+      "tag": "0006_favorit",
+      "breakpoints": true
     }
   ]
 }
