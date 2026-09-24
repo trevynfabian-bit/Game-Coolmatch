@@ -171,3 +171,27 @@ export function buySkin(playerId: number, skinId: string, equipOn?: string): Ski
 
   return { collection: getSkinCollection(playerId), wallet: paid.wallet, transaction: paid.transaction };
 }
+
+/**
+ * Memasang skin milik pemain ke satu senjata (menggantikan skin sebelumnya),
+ * atau mengembalikan senjata ke cat pabrik bila `skinId` null. Gratis.
+ */
+export function setWeaponSkin(playerId: number, weaponId: string, skinId: string | null): SkinCollection {
+  weaponOrThrow(weaponId);
+  db.transaction((tx) => {
+    if (skinId === null) {
+      tx.delete(playerWeaponSkins)
+        .where(and(eq(playerWeaponSkins.playerId, playerId), eq(playerWeaponSkins.weaponId, weaponId)))
+        .run();
+      return;
+    }
+    const owned = tx
+      .select()
+      .from(playerSkins)
+      .where(and(eq(playerSkins.playerId, playerId), eq(playerSkins.skinId, skinId)))
+      .get();
+    if (!owned) throw new SkinError(409, "belum_dimiliki", "Beli dulu skin ini sebelum memasangnya.");
+    equipInTx(tx, playerId, weaponId, skinId);
+  });
+  return getSkinCollection(playerId);
+}
