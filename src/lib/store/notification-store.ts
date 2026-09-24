@@ -12,6 +12,8 @@ interface NotificationState {
   hydrate: (items: RewardNotification[]) => void;
   markSeen: (id: number) => void;
   markAllSeen: () => void;
+  /** Menambah notifikasi yang lahir di klien (mis. hasil pertandingan barusan). */
+  push: (item: Omit<RewardNotification, "id" | "createdAt" | "seenAt">) => void;
 }
 
 export const useNotificationStore = create<NotificationState>((set) => ({
@@ -20,6 +22,13 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   markSeen: (id) =>
     set((state) => ({
       items: state.items.map((item) => (item.id === id && item.seenAt === null ? { ...item, seenAt: Date.now() } : item)),
+    })),
+  push: (item) =>
+    set((state) => ({
+      items: [
+        { ...item, id: Math.max(0, ...state.items.map((entry) => entry.id)) + 1, createdAt: Date.now(), seenAt: null },
+        ...state.items,
+      ],
     })),
   markAllSeen: () =>
     set((state) => ({

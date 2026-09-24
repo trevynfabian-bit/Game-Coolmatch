@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { apiFetch } from "@/lib/api/client";
-import type { KillstreakId } from "@/lib/game/killstreak";
+import { findKillstreak, type KillstreakId } from "@/lib/game/killstreak";
+import { useNotificationStore } from "@/lib/store/notification-store";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { useWalletStore } from "@/lib/store/wallet-store";
@@ -119,6 +120,42 @@ export async function finishServerMatch() {
   useServerMatchStore.setState({ status: "finished", result: response.data });
   useWalletStore.getState().applyServerResult({ wallet: response.data.coins.wallet });
   void useWalletStore.getState().load();
+  await announceMatchRewards(response.data);
+}
+
+/**
+ * Mengubah hasil pertandingan menjadi notifikasi hadiah: koin yang didapat,
+ * dan hadiah killstreak yang baru terbuka lewat pencapaian (statistik pemain
+ * bertambah dari pertandingan ini). Dialog perayaannya sendiri baru muncul
+ * setelah pemain meninggalkan arena — RewardCelebration diam di arena.
+ */
+async function announceMatchRewards(result: MatchFinishResult) {
+  const notifications = useNotificationStore.getState();
+  const { total } = result.coins.reward;
+  if (total > 0 && !result.coins.alreadyAwarded) {
+    notifications.push({
+      kind: "koin",
+      title: `+${total} koin dari pertandingan`,
+      body: result.coins.reward.lines.map((line) => line.label).join(", "),
+      itemId: null,
+      amount: total,
+    });
+  }
+
+  const streaks = useKillstreakStore.getState();
+  const lockedBefore = new Set(streaks.rewardStatus.filter((item) => !item.unlocked).map((item) => item.id));
+  await streaks.loadLoadout();
+  for (const reward of useKillstreakStore.getState().rewardStatus) {
+    if (!reward.unlocked || !lockedBefore.has(reward.id)) continue;
+    const info = findKillstreak(reward.id);
+    notifications.push({
+      kind: "hadiah",
+      title: `${info.name} terbuka`,
+      body: "Syarat pencapaiannya terpenuhi. Pasang di loadout hadiah untuk memakainya.",
+      itemId: reward.id,
+      amount: null,
+    });
+  }
 }
 
 /**

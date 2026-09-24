@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { CoinSummary } from "@/components/arena/hud/coin-summary";
 import { KillstreakSummary } from "@/components/arena/hud/killstreak-summary";
 import { restartMatch } from "@/lib/game/match-reset";
+import { unseenCount, useNotificationStore } from "@/lib/store/notification-store";
 import type { ArenaMapInfo, Fighter, MatchSnapshot, RoundState } from "@/types/game";
 
 function killRatio(fighter: Fighter): string {
@@ -172,11 +173,29 @@ export function MatchEndScreen({
           </Link>
         </div>
 
+        <NewRewardsHint />
+
         <p className="mt-4 text-center text-[11px] text-slate-600">
           &ldquo;Main lagi&rdquo; memakai pengaturan yang sama; &ldquo;Ganti
           lawan&rdquo; membuka lagi pilihan tingkat kesulitan dan jumlah musuh.
         </p>
       </div>
     </div>
+  );
+}
+
+/** Pengingat bahwa ada hadiah baru yang menunggu dirayakan di luar arena. */
+function NewRewardsHint() {
+  const celebrated = useNotificationStore(
+    (state) => state.items.filter((item) => item.seenAt === null && item.kind !== "koin").length,
+  );
+  const total = useNotificationStore((state) => unseenCount(state.items));
+  if (total === 0) return null;
+  return (
+    <p className="mt-3 text-center text-xs text-emerald-300" role="status">
+      {celebrated > 0
+        ? `${celebrated} hadiah baru menunggumu di menu.`
+        : `${total} notifikasi hadiah baru di kotak hadiah.`}
+    </p>
   );
 }
