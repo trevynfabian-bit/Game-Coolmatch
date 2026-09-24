@@ -853,6 +853,37 @@ export const trialSessions = sqliteTable(
   ],
 );
 
+/** Preset kualitas grafis; sama dengan `GraphicsQuality` di klien. */
+export const GRAPHICS_QUALITIES = ["rendah", "sedang", "tinggi"] as const;
+
+/**
+ * Pengaturan grafis dan kontrol pemain (audio punya tabelnya sendiri), satu
+ * baris per pemain supaya ikut pindah perangkat. Angka pecahan disimpan
+ * sebagai bilangan bulat — skala resolusi dalam persen, sensitivitas dalam
+ * perseratus — dan tata tombol sebagai JSON { aksi: kode tombol }.
+ */
+export const playerSettings = sqliteTable(
+  "player_settings",
+  {
+    playerId: integer("player_id")
+      .primaryKey()
+      .references(() => players.id, { onDelete: "cascade" }),
+    quality: text("quality", { enum: GRAPHICS_QUALITIES }).notNull().default("sedang"),
+    resolutionPercent: integer("resolution_percent").notNull().default(100),
+    fov: integer("fov").notNull().default(75),
+    showFps: integer("show_fps", { mode: "boolean" }).notNull().default(true),
+    sensitivityCenti: integer("sensitivity_centi").notNull().default(100),
+    bindings: text("bindings", { mode: "json" }).$type<Record<string, string>>().notNull().default(sql`'{}'`),
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (table) => [
+    check(
+      "player_settings_rentang",
+      sql`${table.resolutionPercent} BETWEEN 50 AND 100 AND ${table.fov} BETWEEN 65 AND 100 AND ${table.sensitivityCenti} BETWEEN 20 AND 300`,
+    ),
+  ],
+);
+
 /** Jenis notifikasi hadiah; sama dengan `RewardNotificationKind` di klien. */
 export const REWARD_NOTIFICATION_KINDS = ["koin", "skin", "upgrade", "hadiah", "senjata"] as const;
 
@@ -928,3 +959,4 @@ export type PracticeSessionRow = typeof practiceSessions.$inferSelect;
 export type TrialSessionRow = typeof trialSessions.$inferSelect;
 export type PlayerWeaponRow = typeof playerWeapons.$inferSelect;
 export type PlayerStatsRow = typeof playerStats.$inferSelect;
+export type PlayerSettingsRow = typeof playerSettings.$inferSelect;

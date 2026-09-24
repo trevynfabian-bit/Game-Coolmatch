@@ -148,6 +148,13 @@
       "when": 1790275684807,
       "tag": "0020_statistik_pemain",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1790276292910,
+      "tag": "0021_pengaturan_pemain",
+      "breakpoints": true
     }
   ]
 }
