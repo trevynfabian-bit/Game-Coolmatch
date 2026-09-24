@@ -76,6 +76,12 @@ export default function Home() {
             Uji Coba Senjata
           </Link>
           <Link
+            href="/riwayat"
+            className="col-span-2 w-full rounded-lg border border-white/15 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+          >
+            Riwayat &amp; Klasemen
+          </Link>
+          <Link
             href="/hadiah"
             className="w-full rounded-lg border border-lime-400/30 px-6 py-3 text-center text-sm font-semibold text-lime-200 transition-colors hover:border-lime-400/60 hover:bg-lime-400/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-400"
           >
