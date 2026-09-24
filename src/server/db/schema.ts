@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  foreignKey,
   index,
   integer,
   primaryKey,
@@ -335,6 +336,74 @@ export const playerAttachments = sqliteTable(
   ],
 );
 
+/** Tingkat kelangkaan skin; sama dengan `SkinRarity` di klien. */
+export const SKIN_RARITIES = ["umum", "langka", "epik", "gold"] as const;
+
+/** Pola cat skin; sama dengan `SkinPattern` di klien. */
+export const SKIN_PATTERNS = ["polos", "loreng", "digital", "garis", "bendera", "logam"] as const;
+
+/**
+ * Katalog skin & camo, diselaraskan dari `lib/economy/skin-catalog` seperti
+ * katalog upgrade. Camo bertema negara mengisi `country_code`.
+ */
+export const skins = sqliteTable(
+  "skins",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    rarity: text("rarity", { enum: SKIN_RARITIES }).notNull(),
+    pattern: text("pattern", { enum: SKIN_PATTERNS }).notNull(),
+    colors: text("colors", { mode: "json" }).$type<string[]>().notNull(),
+    countryCode: text("country_code"),
+    countryName: text("country_name"),
+    price: integer("price").notNull(),
+  },
+  (table) => [
+    index("skins_tingkat_idx").on(table.rarity),
+    check("skins_harga_positif", sql`${table.price} > 0`),
+  ],
+);
+
+/** Skin yang dimiliki pemain. Dibeli sekali, bisa dipasang di senjata mana pun. */
+export const playerSkins = sqliteTable(
+  "player_skins",
+  {
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    skinId: text("skin_id")
+      .notNull()
+      .references(() => skins.id, { onDelete: "restrict" }),
+    purchasedAt: integer("purchased_at").notNull().default(now),
+  },
+  (table) => [primaryKey({ columns: [table.playerId, table.skinId] })],
+);
+
+/**
+ * Skin yang terpasang per senjata pemain; satu baris per senjata. Kunci asing
+ * gabungan ke `player_skins` menjamin di tingkat database bahwa hanya skin
+ * yang benar-benar dimiliki yang bisa dipasang.
+ */
+export const playerWeaponSkins = sqliteTable(
+  "player_weapon_skins",
+  {
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    weaponId: text("weapon_id").notNull(),
+    skinId: text("skin_id").notNull(),
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (table) => [
+    primaryKey({ columns: [table.playerId, table.weaponId] }),
+    foreignKey({
+      columns: [table.playerId, table.skinId],
+      foreignColumns: [playerSkins.playerId, playerSkins.skinId],
+      name: "player_weapon_skins_dimiliki_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
 export type PlayerRow = typeof players.$inferSelect;
 export type MapRow = typeof maps.$inferSelect;
 export type MatchRow = typeof matches.$inferSelect;
@@ -353,3 +422,6 @@ export type WeaponUpgradeRow = typeof weaponUpgrades.$inferSelect;
 export type AttachmentRow = typeof attachments.$inferSelect;
 export type PlayerUpgradeRow = typeof playerUpgrades.$inferSelect;
 export type PlayerAttachmentRow = typeof playerAttachments.$inferSelect;
+export type SkinRow = typeof skins.$inferSelect;
+export type PlayerSkinRow = typeof playerSkins.$inferSelect;
+export type PlayerWeaponSkinRow = typeof playerWeaponSkins.$inferSelect;
