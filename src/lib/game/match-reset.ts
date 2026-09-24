@@ -3,6 +3,7 @@ import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
 import { resetBotRuntime } from "@/lib/game/bot-runtime";
+import { resetSessionStats } from "@/lib/game/session-stats";
 import { pickSpawnPoint } from "@/lib/game/spawn";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
@@ -42,6 +43,7 @@ export function restartMatch(map: ArenaMapInfo, snapshot: MatchSnapshot) {
   resetFighterHits();
   resetRespawnTimers();
   resetBotRuntime();
+  resetSessionStats();
   useKillstreakStore.getState().resetForMatch();
   useMatchStore.getState().startFreshMatch(snapshot, spawns);
   setRoundClock(useMatchStore.getState().round.secondsLeft);

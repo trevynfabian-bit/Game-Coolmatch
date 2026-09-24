@@ -26,6 +26,7 @@ import { resolveShotDamage } from "@/lib/game/damage";
 import { useCombatStore } from "@/lib/store/combat-store";
 import { playDryFire, playGunshot, playHitConfirm, playImpact, playReload } from "@/lib/audio/sfx";
 import { viewmodelRuntime } from "@/lib/game/viewmodel-runtime";
+import { sessionStats } from "@/lib/game/session-stats";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { MatchSnapshot, Vec3, Weapon } from "@/types/game";
@@ -229,6 +230,9 @@ export function WeaponSystem({
           // shotgun berikutnya yang datang sesudah butir yang mematikan.
           if (report) {
             if (report.isLethal) killedSomeone = true;
+            sessionStats.hits += 1;
+            if (isHeadshot) sessionStats.headshots += 1;
+            sessionStats.damage += report.healthLost + report.armorLost;
             markFighterHit(hit.fighterId);
             useCombatStore.getState().pushDamagePop({
               amount: report.healthLost + report.armorLost,
@@ -255,6 +259,8 @@ export function WeaponSystem({
 
     effects.current?.flashMuzzle();
     playGunshot(weapon.type);
+    sessionStats.shots += weapon.pellets;
+    sessionStats.byWeapon[weapon.id] = (sessionStats.byWeapon[weapon.id] ?? 0) + weapon.pellets;
     // Sentakan viewmodel sebanding dengan sentakan kamera senjata ini.
     viewmodelRuntime.kick = Math.min(1, viewmodelRuntime.kick + 0.25 + weapon.recoilDegrees * 0.2);
     recoil.current += weapon.recoilDegrees;

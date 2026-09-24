@@ -4,6 +4,7 @@ import { keepCursorFree } from "@/lib/game/keep-cursor-free";
 import Link from "next/link";
 import { useMemo } from "react";
 import { CoinSummary } from "@/components/arena/hud/coin-summary";
+import { TrialSummary } from "@/components/arena/hud/trial-summary";
 import { KillstreakSummary } from "@/components/arena/hud/killstreak-summary";
 import { restartMatch } from "@/lib/game/match-reset";
 import { unseenCount, useNotificationStore } from "@/lib/store/notification-store";
@@ -142,9 +143,7 @@ export function MatchEndScreen({
         </div>
 
         {trial ? (
-          <p className="mt-4 rounded-xl border border-sky-400/30 bg-sky-400/5 px-4 py-3 text-center text-xs text-sky-200">
-            Ini uji coba: hasilnya tidak masuk statistik, tidak membuka senjata, dan tidak memberi koin.
-          </p>
+          <TrialSummary local={local} weaponId={local?.weaponId ?? ""} />
         ) : (
           <>
             <CoinSummary fighters={fighters} difficulty={snapshot.difficulty} matchWinner={round.matchWinner} />
