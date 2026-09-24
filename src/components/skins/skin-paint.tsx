@@ -17,11 +17,23 @@ function seeded(seedText: string) {
   };
 }
 
-function FlagPattern({ id, skin }: { id: string; skin: Skin }) {
+/** Bidang gambar tempat pola bendera dibentangkan, dalam satuan viewBox. */
+export interface PaintBox {
+  width: number;
+  height: number;
+}
+
+/**
+ * Bendera digambar di kotak satuan lalu dibentangkan ke seluruh bidang gambar
+ * (bukan per bagian senjata), supaya laras, badan, dan popor bersama-sama
+ * membentuk satu bendera utuh.
+ */
+function FlagPattern({ id, skin, box }: { id: string; skin: Skin; box: PaintBox }) {
   const [a, b, c] = skin.colors;
   const code = skin.country?.code;
   return (
-    <pattern id={id} width="1" height="1" patternContentUnits="objectBoundingBox">
+    <pattern id={id} width={box.width} height={box.height} patternUnits="userSpaceOnUse">
+      <g transform={`scale(${box.width} ${box.height})`}>
       {code === "ID" ? (
         <>
           <rect width="1" height="0.5" fill={a} />
@@ -50,6 +62,18 @@ function FlagPattern({ id, skin }: { id: string; skin: Skin }) {
           <rect x="0.33" width="0.34" height="1" fill={b} />
           <rect x="0.66" width="0.34" height="1" fill={c} />
         </>
+      ) : code === "IT" ? (
+        <>
+          <rect width="0.34" height="1" fill={a} />
+          <rect x="0.33" width="0.34" height="1" fill={b} />
+          <rect x="0.66" width="0.34" height="1" fill={c} />
+        </>
+      ) : code === "TH" ? (
+        <>
+          <rect width="1" height="1" fill={a} />
+          <rect y="0.17" width="1" height="0.66" fill={b} />
+          <rect y="0.33" width="1" height="0.34" fill={c} />
+        </>
       ) : code === "KR" ? (
         <>
           <rect width="1" height="1" fill={a} />
@@ -69,11 +93,14 @@ function FlagPattern({ id, skin }: { id: string; skin: Skin }) {
           ))}
         </>
       )}
+      </g>
     </pattern>
   );
 }
 
-export function SkinPaint({ id, skin }: { id: string; skin: Skin }) {
+const DEFAULT_BOX: PaintBox = { width: 100, height: 40 };
+
+export function SkinPaint({ id, skin, box = DEFAULT_BOX }: { id: string; skin: Skin; box?: PaintBox }) {
   const [base, second = base, third = second, fourth = third] = skin.colors;
 
   switch (skin.pattern) {
@@ -153,6 +180,6 @@ export function SkinPaint({ id, skin }: { id: string; skin: Skin }) {
       );
 
     case "bendera":
-      return <FlagPattern id={id} skin={skin} />;
+      return <FlagPattern id={id} skin={skin} box={box} />;
   }
 }

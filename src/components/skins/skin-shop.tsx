@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 import { CoinIcon, formatCoins } from "@/components/economy/coin-badge";
 import { WalletBadge } from "@/components/economy/wallet-badge";
 import { ShopTabs } from "@/components/shop/shop-tabs";
+import { CountryCamoShowcase } from "@/components/skins/country-camo-showcase";
+import { FlagSwatch } from "@/components/skins/flag-swatch";
 import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
 import { RARITY_META, RARITY_ORDER, SKINS, findSkin } from "@/lib/economy/skin-catalog";
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
@@ -85,8 +87,10 @@ export function SkinShop() {
 
       <ShopTabs active="/toko/skin" />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-        <div>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0">
+          <CountryCamoShowcase collection={collection} focusedId={focused?.id ?? null} onFocus={setFocusId} />
+
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex gap-1 rounded-lg border border-white/10 p-0.5 text-xs" role="group" aria-label="Saring kepemilikan">
               {(
@@ -240,7 +244,32 @@ export function SkinShop() {
                 <p className="flex items-center gap-2 text-base font-semibold text-white">
                   {focused.name} <RarityBadge skin={focused} />
                 </p>
+                {focused.country ? (
+                  <p className="mt-1 flex items-center gap-2 text-xs text-slate-300">
+                    <FlagSwatch skin={focused} className="h-4 w-6" />
+                    Tema {focused.country.name}
+                  </p>
+                ) : null}
                 <p className="mt-1 text-xs leading-relaxed text-slate-400">{focused.description}</p>
+
+                <p className="mt-4 text-[10px] tracking-[0.2em] text-slate-500 uppercase">Di semua senjata</p>
+                <ul className="mt-2 grid grid-cols-2 gap-2">
+                  {MOCK_WEAPONS.map((item) => (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        onClick={() => setWeaponId(item.id)}
+                        aria-pressed={item.id === weapon.id}
+                        className={`w-full rounded-md border px-2 py-1.5 text-left ${
+                          item.id === weapon.id ? "border-white/25 bg-white/5" : "border-white/5 hover:border-white/15"
+                        }`}
+                      >
+                        <SkinnedWeapon type={item.type} skin={focused} className="h-7 w-full" />
+                        <span className="mt-0.5 block truncate text-[10px] text-slate-400">{item.name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ) : (
               <p className="mt-3 text-xs text-slate-400">

@@ -37,12 +37,19 @@ export const SKINS: Skin[] = [
   { id: "skin-negara-brasil", name: "Verde-Amarelo", rarity: "epik", pattern: "bendera", colors: ["#15803d", "#facc15", "#1d4ed8"], country: { code: "BR", name: "Brasil" }, description: "Hijau, kuning, dan biru penuh semangat.", price: 600 },
   { id: "skin-negara-jerman", name: "Schwarz-Rot-Gold", rarity: "epik", pattern: "bendera", colors: ["#111827", "#dc2626", "#facc15"], country: { code: "DE", name: "Jerman" }, description: "Tiga pita mendatar hitam, merah, emas.", price: 600 },
   { id: "skin-negara-prancis", name: "Tricolore", rarity: "epik", pattern: "bendera", colors: ["#1d4ed8", "#f8fafc", "#dc2626"], country: { code: "FR", name: "Prancis" }, description: "Biru, putih, merah dalam pita tegak.", price: 600 },
+  { id: "skin-negara-italia", name: "Il Tricolore", rarity: "epik", pattern: "bendera", colors: ["#15803d", "#f8fafc", "#dc2626"], country: { code: "IT", name: "Italia" }, description: "Hijau, putih, merah dalam pita tegak.", price: 600 },
+  { id: "skin-negara-thailand", name: "Trairanga", rarity: "epik", pattern: "bendera", colors: ["#dc2626", "#f8fafc", "#1e3a8a"], country: { code: "TH", name: "Thailand" }, description: "Lima pita merah, putih, dan biru tua di tengah.", price: 600 },
   { id: "skin-negara-korea", name: "Taegeuk", rarity: "epik", pattern: "bendera", colors: ["#f8fafc", "#dc2626", "#1d4ed8"], country: { code: "KR", name: "Korea Selatan" }, description: "Lingkaran merah-biru di tengah putih.", price: 650 },
 
   // Gold — paling mewah.
   { id: "skin-emas-murni", name: "Emas Murni", rarity: "gold", pattern: "logam", colors: ["#b8860b", "#fcd34d", "#fef3c7", "#92400e"], country: null, description: "Lapisan emas berkilau dari ujung laras sampai popor.", price: 1500 },
   { id: "skin-emas-garuda", name: "Garuda Emas", rarity: "gold", pattern: "logam", colors: ["#7f1d1d", "#fbbf24", "#fef3c7", "#b91c1c"], country: { code: "ID", name: "Indonesia" }, description: "Emas bergurat merah, penghormatan untuk sang Garuda.", price: 2000 },
 ];
+
+/** Skin bertema negara, urut menurut nama negara. */
+export const COUNTRY_SKINS: Skin[] = SKINS.filter((skin) => skin.country !== null).sort((a, b) =>
+  a.country!.name.localeCompare(b.country!.name, "id"),
+);
 
 export function findSkin(id: string | null | undefined): Skin | undefined {
   return id ? SKINS.find((skin) => skin.id === id) : undefined;
