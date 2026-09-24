@@ -18,6 +18,7 @@ import { difficultyProfile } from "@/lib/game/difficulty";
 import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { raycastArena } from "@/lib/game/shooting";
 import { findWeapon } from "@/lib/mock/weapons";
+import { playHurt, playRemoteGunshot } from "@/lib/audio/sfx";
 import { useCombatStore } from "@/lib/store/combat-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
@@ -137,6 +138,9 @@ export function BotDriver({
       // moncongnya masih melenceng. Musuh yang baru berbalik badan menembak ke
       // arah yang salah dulu sebelum bidikannya benar-benar tertuju.
       const distance = Math.hypot(target[0] - state.x, target[2] - state.z);
+      // Setiap tembakan musuh terdengar, kena atau tidak.
+      playRemoteGunshot(weapon.type, distance);
+
       const chance =
         hitChance(profile, distance) * aimFactor(next.aimOffRadians);
       if (Math.random() > chance) continue;
@@ -152,6 +156,7 @@ export function BotDriver({
       if (!report) continue;
 
       markFighterHit(local.id);
+      playHurt((report.healthLost + report.armorLost) / local.maxHealth);
 
       // Sudut penyerang relatif arah pandang, supaya busur menunjuk ke arah
       // yang benar.

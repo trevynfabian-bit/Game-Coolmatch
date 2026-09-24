@@ -259,3 +259,89 @@ export function playImpact(onFighter: boolean, distance: number): void {
   source.start(now, Math.random());
   source.stop(now + 0.14);
 }
+
+/**
+ * Tembakan musuh: suara yang sama dengan senjatanya, diredam dan disaring
+ * menurut jarak supaya pemain bisa menebak seberapa dekat bahayanya.
+ */
+export function playRemoteGunshot(type: string, distance: number): void {
+  const bus = channel("sfx");
+  if (!bus) return;
+  const volume = Math.max(0, 1 - distance / 70);
+  if (volume <= 0.03) return;
+  const ctx = bus.context;
+  const now = ctx.currentTime;
+  const source = ctx.createBufferSource();
+  source.buffer = bus.noise;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  // Makin jauh makin teredam: frekuensi tinggi hilang lebih dulu.
+  filter.frequency.value = 600 + 2400 * volume;
+  const gain = ctx.createGain();
+  const peak = (type === "sniper" || type === "shotgun" ? 0.35 : 0.22) * volume;
+  gain.gain.setValueAtTime(peak, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+  source.connect(filter).connect(gain).connect(bus.out);
+  source.start(now, Math.random());
+  source.stop(now + 0.2);
+}
+
+/** Pemain terkena tembakan: dengus rendah dan desis singkat. */
+export function playHurt(severity: number): void {
+  const bus = channel("sfx");
+  if (!bus) return;
+  const ctx = bus.context;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(160, now);
+  osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 500;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.08 + Math.min(0.2, severity * 0.4), now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+  osc.connect(filter).connect(gain).connect(bus.out);
+  osc.start(now);
+  osc.stop(now + 0.2);
+}
+
+/** Nada pendek antarmuka: urutan frekuensi yang dimainkan berurutan. */
+function stinger(notes: number[], step: number, type: OscillatorType, peak: number): void {
+  const bus = channel("ui");
+  if (!bus) return;
+  const ctx = bus.context;
+  const now = ctx.currentTime;
+  notes.forEach((hz, index) => {
+    const at = now + index * step;
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(hz, at);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(peak, at + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + step * 1.8);
+    osc.connect(gain).connect(bus.out);
+    osc.start(at);
+    osc.stop(at + step * 2);
+  });
+}
+
+/** Penanda peristiwa: tumbang, muncul lagi, ronde mulai/selesai, menang/kalah. */
+export function playCue(cue: "tumbang" | "muncul" | "ronde_mulai" | "ronde_selesai" | "menang" | "kalah"): void {
+  switch (cue) {
+    case "tumbang":
+      return stinger([392, 311, 233], 0.14, "triangle", 0.12);
+    case "muncul":
+      return stinger([523, 784], 0.08, "sine", 0.08);
+    case "ronde_mulai":
+      return stinger([440, 440, 880], 0.12, "square", 0.05);
+    case "ronde_selesai":
+      return stinger([660, 523], 0.15, "triangle", 0.09);
+    case "menang":
+      return stinger([523, 659, 784, 1047], 0.13, "triangle", 0.12);
+    case "kalah":
+      return stinger([440, 392, 349, 330], 0.16, "triangle", 0.1);
+  }
+}

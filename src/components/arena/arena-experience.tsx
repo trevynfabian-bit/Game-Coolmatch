@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { KeyboardControls } from "@react-three/drei";
 import { ArenaHud } from "@/components/arena/hud/arena-hud";
 import { ServerMatchSync } from "@/components/arena/server-match-sync";
+import { CombatAudio } from "@/components/arena/combat-audio";
 import { KEYBOARD_MAP } from "@/lib/game/controls";
 import { armPlayerFrom } from "@/lib/game/arm-player";
 import { resetBotRuntime } from "@/lib/game/bot-runtime";
@@ -141,6 +142,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
     <KeyboardControls map={KEYBOARD_MAP}>
       <div className="relative h-full w-full overflow-hidden bg-slate-950">
         <ServerMatchSync />
+        <CombatAudio />
         <ArenaScene match={armedMatch} />
         <ArenaHud match={armedMatch} />
       </div>
