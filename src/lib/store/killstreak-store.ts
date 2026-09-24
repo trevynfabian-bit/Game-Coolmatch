@@ -22,6 +22,10 @@ interface KillstreakState {
   targeting: KillstreakId | null;
   /** Serangan udara yang sudah diluncurkan: titik sasaran dan waktu diluncurkan (ms). */
   strike: { x: number; z: number; launchedAt: number } | null;
+  /** Berapa kali tiap hadiah dipanggil di pertandingan ini. */
+  used: Partial<Record<KillstreakId, number>>;
+  /** Kill yang dihasilkan tiap hadiah di pertandingan ini. */
+  killsBy: Partial<Record<KillstreakId, number>>;
 
   /**
    * Memanggil hadiah yang sudah siap. Mengembalikan false bila hadiah itu
@@ -37,6 +41,10 @@ interface KillstreakState {
   cancelTargeting: () => void;
   /** Meluncurkan serangan udara ke titik yang dipilih. */
   launchStrike: (target: { x: number; z: number }) => boolean;
+  /** Mencatat satu kill yang dihasilkan sebuah hadiah. */
+  recordRewardKill: (id: KillstreakId) => void;
+  /** Mengosongkan semuanya untuk pertandingan baru. */
+  resetForMatch: () => void;
 }
 
 /** Data tiruan untuk fase frontend: ketiga hadiah sudah siap dipanggil. */
@@ -53,17 +61,34 @@ export const useKillstreakStore = create<KillstreakState>((set, get) => ({
   lastUnlocked: null,
   targeting: null,
   strike: null,
+  used: {},
+  killsBy: {},
 
   activate: (id) => {
     const { ready, active } = get();
     if (!ready.includes(id) || active[id] !== undefined) return false;
     const endsAt = performance.now() + findKillstreak(id).durationSeconds * 1000;
-    set({
+    set((state) => ({
       ready: ready.filter((item) => item !== id),
       active: { ...active, [id]: endsAt },
-    });
+      used: { ...state.used, [id]: (state.used[id] ?? 0) + 1 },
+    }));
     return true;
   },
+
+  recordRewardKill: (id) =>
+    set((state) => ({ killsBy: { ...state.killsBy, [id]: (state.killsBy[id] ?? 0) + 1 } })),
+
+  resetForMatch: () =>
+    set({
+      ...MOCK_STATE,
+      active: {},
+      lastUnlocked: null,
+      targeting: null,
+      strike: null,
+      used: {},
+      killsBy: {},
+    }),
 
   expire: (now) => {
     const { active } = get();

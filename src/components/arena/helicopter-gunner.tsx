@@ -11,6 +11,7 @@ import { helicopterRuntime } from "@/lib/game/helicopter-runtime";
 import { HELICOPTER_GUN } from "@/lib/game/killstreak";
 import { playerRuntime } from "@/lib/game/player-runtime";
 import { raycastArena } from "@/lib/game/shooting";
+import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import type { ArenaMapInfo, Vec3 } from "@/types/game";
 
@@ -157,7 +158,10 @@ export function HelicopterGunner({ map }: { map: ArenaMapInfo }) {
         weaponName: "Helikopter Dukungan",
       });
       if (report) markFighterHit(fighter.id);
-      if (report?.isLethal) gun.current.shotsLeft = 0;
+      if (report?.isLethal) {
+        gun.current.shotsLeft = 0;
+        useKillstreakStore.getState().recordRewardKill("helikopter");
+      }
     }
 
     gun.current.shotsLeft -= 1;

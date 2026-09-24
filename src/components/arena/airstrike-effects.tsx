@@ -78,6 +78,7 @@ function detonate(bomb: Bomb) {
       weaponName: "Serangan Udara",
     });
     if (report) markFighterHit(fighter.id);
+    if (report?.isLethal) useKillstreakStore.getState().recordRewardKill("serangan_udara");
   }
 
   const [px, , pz] = playerRuntime.position;

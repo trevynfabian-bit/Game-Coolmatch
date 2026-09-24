@@ -10,6 +10,7 @@ import { resetBotRuntime } from "@/lib/game/bot-runtime";
 import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { setRoundClock } from "@/lib/game/round-runtime";
+import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { DEFAULT_MAP } from "@/lib/mock/maps";
 import { buildMatchSnapshot } from "@/lib/mock/match";
@@ -116,6 +117,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
     resetFighterHits();
     resetRespawnTimers();
     resetBotRuntime();
+    useKillstreakStore.getState().resetForMatch();
     setRoundClock(armedMatch.round.secondsLeft);
     useMatchStore.getState().init(armedMatch);
     armPlayerFrom(armedMatch);

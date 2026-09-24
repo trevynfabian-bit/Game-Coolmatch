@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { KillstreakSummary } from "@/components/arena/hud/killstreak-summary";
 import { restartMatch } from "@/lib/game/match-reset";
 import type { ArenaMapInfo, Fighter, MatchSnapshot, RoundState } from "@/types/game";
 
@@ -133,6 +134,8 @@ export function MatchEndScreen({
             </tbody>
           </table>
         </div>
+
+        <KillstreakSummary />
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <button
