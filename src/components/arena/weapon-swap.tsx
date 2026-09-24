@@ -10,7 +10,8 @@ import {
   type MoveAction,
 } from "@/lib/game/controls";
 import { isWeaponUnlocked } from "@/lib/mock/player-weapons";
-import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
+import { MOCK_WEAPONS } from "@/lib/mock/weapons";
+import { playerWeapon } from "@/lib/weapons/player-weapon";
 import { useCombatStore } from "@/lib/store/combat-store";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useMatchStore } from "@/lib/store/match-store";
@@ -71,7 +72,7 @@ export function WeaponSwap() {
     if (performance.now() / 1000 < swapEndsAt.current) return;
 
     pendingWeaponId.current = null;
-    const weapon = findWeapon(target);
+    const weapon = playerWeapon(target);
 
     useCombatStore.getState().swapTo({
       weaponId: weapon.id,

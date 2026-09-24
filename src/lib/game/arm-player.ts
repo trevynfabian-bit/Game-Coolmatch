@@ -1,4 +1,4 @@
-import { findWeapon } from "@/lib/mock/weapons";
+import { playerWeapon } from "@/lib/weapons/player-weapon";
 import { useCombatStore } from "@/lib/store/combat-store";
 import type { MatchSnapshot, Weapon } from "@/types/game";
 
@@ -21,7 +21,7 @@ export function defaultReserveFor(weapon: Weapon): number {
  */
 export function armPlayerFrom(snapshot: MatchSnapshot) {
   const local = snapshot.fighters.find((fighter) => fighter.isLocal);
-  const weapon = findWeapon(local?.weaponId ?? "");
+  const weapon = playerWeapon(local?.weaponId ?? "");
 
   useCombatStore.getState().arm({
     weaponId: weapon.id,
@@ -39,7 +39,7 @@ export function armPlayerFrom(snapshot: MatchSnapshot) {
  */
 export function refillActiveWeapon() {
   const combat = useCombatStore.getState();
-  const weapon = findWeapon(combat.activeWeaponId);
+  const weapon = playerWeapon(combat.activeWeaponId);
 
   combat.arm({
     weaponId: weapon.id,

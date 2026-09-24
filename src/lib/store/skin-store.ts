@@ -45,7 +45,7 @@ export const useSkinStore = create<SkinState>((set, get) => ({
       if (collection.ownedSkinIds.includes(skinId)) {
         return { ok: false, message: `${skin.name} sudah kamu miliki.` };
       }
-      const paid = useWalletStore.getState().spend({
+      const paid = useWalletStore.getState().spendLocally({
         kind: "beli_skin",
         amount: skin.price,
         note: `Skin ${skin.name}`,

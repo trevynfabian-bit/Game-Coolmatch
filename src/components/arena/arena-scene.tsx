@@ -12,7 +12,8 @@ import { WeaponSystem } from "@/components/arena/weapon-system";
 import { WeaponViewmodel } from "@/components/arena/weapon-viewmodel";
 import { EYE_HEIGHT } from "@/lib/game/controls";
 import { getLocalFighter } from "@/lib/mock/match";
-import { findWeapon } from "@/lib/mock/weapons";
+import { useShopStore } from "@/lib/store/shop-store";
+import { playerWeapon } from "@/lib/weapons/player-weapon";
 import { useMatchStore } from "@/lib/store/match-store";
 import type { MatchSnapshot } from "@/types/game";
 
@@ -55,7 +56,9 @@ export function ArenaScene({ match }: { match: MatchSnapshot }) {
   const fighters = useMatchStore((state) => state.fighters);
   // Senjata juga dibaca dari state hidup, bukan dari potret, supaya pergantian
   // senjata di tengah pertandingan langsung dipakai sistem tembak.
-  const weapon = findWeapon(
+  // Upgrade dilanggani supaya senjata ikut berubah begitu data toko termuat.
+  useShopStore((state) => state.upgrades);
+  const weapon = playerWeapon(
     fighters.find((fighter) => fighter.isLocal)?.weaponId ??
       spawnFighter.weaponId,
   );

@@ -17,7 +17,7 @@ import { StanceBadge } from "@/components/arena/hud/stance-badge";
 import { VitalsPanel } from "@/components/arena/hud/vitals-panel";
 import { WeaponSlots } from "@/components/arena/hud/weapon-slots";
 import { getLocalFighter } from "@/lib/mock/match";
-import { findWeapon } from "@/lib/mock/weapons";
+import { playerWeapon } from "@/lib/weapons/player-weapon";
 import { sortScoreboard, useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { MatchSnapshot } from "@/types/game";
@@ -70,7 +70,7 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
     () => sortScoreboard(fighters.length > 0 ? fighters : match.fighters),
     [fighters, match.fighters],
   );
-  const weapon = findWeapon(local.weaponId);
+  const weapon = playerWeapon(local.weaponId);
 
   return (
     <>

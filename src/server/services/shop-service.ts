@@ -336,3 +336,51 @@ export function getEffectiveWeapons(playerId: number): EffectiveWeapon[] {
     return { weaponId: base.id, base, effective: applyUpgrades(base, upgrades), upgrades };
   });
 }
+
+/**
+ * Memasang attachment milik pemain (menggantikan yang ada di slotnya), atau
+ * mengosongkan slot bila `attachmentId` null. Tidak ada koin yang berpindah.
+ */
+export function setEquippedAttachment(
+  playerId: number,
+  weaponId: string,
+  slot: AttachmentSlot,
+  attachmentId: string | null,
+): WeaponUpgradeState {
+  weaponOrThrow(weaponId);
+  db.transaction((tx) => {
+    if (attachmentId !== null) {
+      const owned = tx
+        .select()
+        .from(playerAttachments)
+        .where(
+          and(
+            eq(playerAttachments.playerId, playerId),
+            eq(playerAttachments.weaponId, weaponId),
+            eq(playerAttachments.attachmentId, attachmentId),
+          ),
+        )
+        .get();
+      if (!owned) {
+        throw new ShopError(409, "belum_dimiliki", "Beli dulu attachment ini sebelum memasangnya.");
+      }
+      if (owned.slot !== slot) {
+        throw new ShopError(400, "slot_tidak_cocok", "Attachment ini bukan untuk slot itu.");
+      }
+    }
+    equipInTx(tx, playerId, weaponId, slot);
+    if (attachmentId !== null) {
+      tx.update(playerAttachments)
+        .set({ isEquipped: true })
+        .where(
+          and(
+            eq(playerAttachments.playerId, playerId),
+            eq(playerAttachments.weaponId, weaponId),
+            eq(playerAttachments.attachmentId, attachmentId),
+          ),
+        )
+        .run();
+    }
+  });
+  return stateOf(playerId, weaponId);
+}

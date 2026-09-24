@@ -1,47 +1,90 @@
 import { create } from "zustand";
-import { MOCK_TRANSACTIONS, MOCK_WALLET } from "@/lib/mock/wallet";
-import type { CoinTransaction, CoinTransactionKind, Wallet } from "@/types/economy";
+import { apiFetch } from "@/lib/api/client";
+import type { CoinTransaction, Wallet } from "@/types/economy";
 
 /**
  * Dompet koin di klien: saldo dan riwayat terbaru.
  *
  * Satu sumber untuk semua tempat yang menampilkan koin — menu utama, toko,
- * HUD, dan layar akhir — jadi belanja di toko langsung terlihat di mana pun.
- * Untuk fase frontend isinya tiruan dan mutasi dihitung di sini; lapisan
- * backend nanti mengisinya dari /api/koin lewat `hydrate`.
+ * HUD, dan layar akhir. Server adalah pemilik saldo: store ini hanya memuat
+ * dari /api/koin dan menerima saldo baru yang dikembalikan tiap pembelian.
  */
 
-/** Jumlah riwayat yang disimpan di klien; sisanya dibaca dari server bila perlu. */
+/** Jumlah riwayat yang disimpan di klien. */
 const HISTORY_LIMIT = 50;
 
-export interface Mutation {
-  kind: CoinTransactionKind;
-  /** Selalu positif; arah ditentukan oleh `spend` atau `credit`. */
-  amount: number;
-  note: string;
-  sourceType?: string;
-  sourceId?: string;
+interface WalletResponse {
+  wallet: Wallet & { updatedAt: number };
+  degraded: boolean;
+}
+interface HistoryResponse {
+  transactions: CoinTransaction[];
+  degraded: boolean;
 }
 
 interface WalletState {
   wallet: Wallet;
   transactions: CoinTransaction[];
+  /** Benar setelah saldo pertama kali berhasil dimuat dari server. */
+  loaded: boolean;
   /** Benar bila saldo terakhir berasal dari cadangan karena server gagal dibaca. */
   degraded: boolean;
-  hydrate: (input: { wallet?: Wallet; transactions?: CoinTransaction[]; degraded?: boolean }) => void;
-  /** Mengurangi saldo; menolak (false) bila saldo tidak cukup, tanpa mengubah apa pun. */
-  spend: (mutation: Mutation) => boolean;
-  credit: (mutation: Mutation) => void;
+  /** Memuat saldo dan riwayat dari server. */
+  load: () => Promise<void>;
+  /** Menerapkan hasil mutasi dari server: saldo baru dan (bila ada) transaksi barunya. */
+  applyServerResult: (input: { wallet: Wallet; transaction?: CoinTransaction | null }) => void;
+  /**
+   * Pemotongan saldo di klien untuk aksi yang BELUM punya endpoint (toko skin
+   * selama fase frontend). Menolak (false) bila saldo tidak cukup.
+   */
+  spendLocally: (mutation: {
+    kind: CoinTransaction["kind"];
+    amount: number;
+    note: string;
+    sourceType?: string;
+    sourceId?: string;
+  }) => boolean;
 }
 
-export const useWalletStore = create<WalletState>((set, get) => {
-  function record(signed: number, mutation: Mutation) {
+export const useWalletStore = create<WalletState>((set, get) => ({
+  wallet: { balance: 0, lifetimeEarned: 0 },
+  transactions: [],
+  loaded: false,
+  degraded: false,
+
+  load: async () => {
+    const [wallet, history] = await Promise.all([
+      apiFetch<WalletResponse>("/api/koin"),
+      apiFetch<HistoryResponse>("/api/koin/riwayat?limit=20"),
+    ]);
+    set((state) => ({
+      wallet: wallet.ok
+        ? { balance: wallet.data.wallet.balance, lifetimeEarned: wallet.data.wallet.lifetimeEarned }
+        : state.wallet,
+      transactions: history.ok ? history.data.transactions : state.transactions,
+      loaded: state.loaded || wallet.ok,
+      degraded: !wallet.ok || wallet.data.degraded,
+    }));
+  },
+
+  applyServerResult: ({ wallet, transaction }) =>
+    set((state) => ({
+      wallet: { balance: wallet.balance, lifetimeEarned: wallet.lifetimeEarned },
+      transactions: transaction
+        ? [transaction, ...state.transactions.filter((t) => t.id !== transaction.id)].slice(0, HISTORY_LIMIT)
+        : state.transactions,
+      degraded: false,
+    })),
+
+  spendLocally: (mutation) => {
+    const amount = Math.floor(mutation.amount);
     const { wallet, transactions } = get();
-    const balance = wallet.balance + signed;
+    if (amount <= 0 || wallet.balance < amount) return false;
+    const balance = wallet.balance - amount;
     const entry: CoinTransaction = {
-      id: (transactions[0]?.id ?? 0) + 1,
+      id: -Date.now(),
       kind: mutation.kind,
-      amount: signed,
+      amount: -amount,
       balanceAfter: balance,
       sourceType: mutation.sourceType ?? null,
       sourceId: mutation.sourceId ?? null,
@@ -49,37 +92,9 @@ export const useWalletStore = create<WalletState>((set, get) => {
       createdAt: Date.now(),
     };
     set({
-      wallet: {
-        balance,
-        lifetimeEarned: wallet.lifetimeEarned + Math.max(0, signed),
-      },
+      wallet: { ...wallet, balance },
       transactions: [entry, ...transactions].slice(0, HISTORY_LIMIT),
     });
-  }
-
-  return {
-    wallet: { ...MOCK_WALLET },
-    transactions: [...MOCK_TRANSACTIONS],
-    degraded: false,
-
-    hydrate: ({ wallet, transactions, degraded }) =>
-      set((state) => ({
-        wallet: wallet ?? state.wallet,
-        transactions: transactions ?? state.transactions,
-        degraded: degraded ?? state.degraded,
-      })),
-
-    spend: (mutation) => {
-      const amount = Math.floor(mutation.amount);
-      if (amount <= 0 || get().wallet.balance < amount) return false;
-      record(-amount, mutation);
-      return true;
-    },
-
-    credit: (mutation) => {
-      const amount = Math.floor(mutation.amount);
-      if (amount <= 0) return;
-      record(amount, mutation);
-    },
-  };
-});
+    return true;
+  },
+}));

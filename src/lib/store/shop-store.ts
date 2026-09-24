@@ -1,32 +1,44 @@
 import { create } from "zustand";
-import { findAttachment, findUpgradeTrack } from "@/lib/economy/upgrade-catalog";
-import { MOCK_WEAPON_UPGRADES, emptyUpgradeState } from "@/lib/mock/shop";
-import { findWeapon } from "@/lib/mock/weapons";
+import { apiFetch } from "@/lib/api/client";
+import { findAttachment } from "@/lib/economy/upgrade-catalog";
+import { emptyUpgradeState } from "@/lib/mock/shop";
 import { useWalletStore } from "@/lib/store/wallet-store";
-import type { AttachmentSlot, UpgradeStat, WeaponUpgradeState } from "@/types/economy";
+import type {
+  AttachmentSlot,
+  CoinTransaction,
+  UpgradeStat,
+  Wallet,
+  WeaponUpgradeState,
+} from "@/types/economy";
 
 /**
  * State toko di klien: kepemilikan upgrade dan attachment per senjata.
- * Pembayaran lewat `useWalletStore`, jadi saldo di menu, toko, dan HUD selalu
- * sama.
  *
- * Untuk fase frontend isinya data tiruan dan aksi beli/pasang diproses di
- * sini; lapisan backend nanti mengganti isi aksi dengan panggilan API yang
- * mengembalikan bentuk hasil yang sama, jadi komponen tidak berubah.
+ * Isinya dimuat dari /api/toko saat sesi dibuka (lihat SessionBootstrap), jadi
+ * upgrade yang dibeli kemarin langsung berlaku hari ini. Setiap aksi dikirim
+ * ke server; state hanya diperbarui dari balasan server, bukan ditebak di
+ * klien, sehingga harga dan saldo tidak bisa berselisih.
  */
 
 export type ShopResult = { ok: true } | { ok: false; message: string };
 
 interface ShopState {
   upgrades: Record<string, WeaponUpgradeState>;
+  loaded: boolean;
   /** Kunci aksi yang sedang diproses, supaya tombolnya bisa dimatikan. */
   pending: string | null;
-  hydrate: (input: { upgrades?: WeaponUpgradeState[] }) => void;
+  load: () => Promise<void>;
   /** Membeli tingkat BERIKUTNYA satu statistik; tingkat tidak bisa dilompati. */
   buyUpgrade: (weaponId: string, stat: UpgradeStat) => Promise<ShopResult>;
   buyAttachment: (weaponId: string, attachmentId: string) => Promise<ShopResult>;
   equipAttachment: (weaponId: string, attachmentId: string) => Promise<ShopResult>;
   unequipSlot: (weaponId: string, slot: AttachmentSlot) => Promise<ShopResult>;
+}
+
+interface PurchaseResponse {
+  weapon: WeaponUpgradeState;
+  wallet: Wallet;
+  transaction: CoinTransaction | null;
 }
 
 function indexUpgrades(list: WeaponUpgradeState[]): Record<string, WeaponUpgradeState> {
@@ -41,125 +53,82 @@ export function upgradeStateOf(
   return upgrades[weaponId] ?? emptyUpgradeState(weaponId);
 }
 
-/** Jeda kecil tiruan supaya keadaan "memproses" ikut teruji sebelum ada server. */
-const MOCK_LATENCY_MS = 250;
-const wait = () => new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
-
 export const useShopStore = create<ShopState>((set, get) => {
   /** Menjalankan satu aksi dengan penanda pending; aksi lain ditolak selama itu. */
-  async function run(key: string, action: () => ShopResult): Promise<ShopResult> {
+  async function run(key: string, action: () => Promise<ShopResult>): Promise<ShopResult> {
     if (get().pending) return { ok: false, message: "Tunggu proses sebelumnya selesai." };
     set({ pending: key });
     try {
-      await wait();
-      return action();
+      return await action();
     } finally {
       set({ pending: null });
     }
   }
 
-  function patchWeapon(weaponId: string, patch: (s: WeaponUpgradeState) => WeaponUpgradeState) {
-    set((state) => ({
-      upgrades: {
-        ...state.upgrades,
-        [weaponId]: patch(upgradeStateOf(state.upgrades, weaponId)),
-      },
-    }));
+  function storeWeapon(weapon: WeaponUpgradeState) {
+    set((state) => ({ upgrades: { ...state.upgrades, [weapon.weaponId]: weapon } }));
+  }
+
+  async function purchase(path: string, body: unknown): Promise<ShopResult> {
+    const result = await apiFetch<PurchaseResponse>(path, { method: "POST", body });
+    if (!result.ok) {
+      // Saldo di server bisa sudah berbeda (mis. dibelanjakan di tab lain).
+      if (result.code === "saldo_kurang" || result.code === "tingkat_berubah") {
+        void useWalletStore.getState().load();
+        void get().load();
+      }
+      return { ok: false, message: result.message };
+    }
+    storeWeapon(result.data.weapon);
+    useWalletStore.getState().applyServerResult(result.data);
+    return { ok: true };
   }
 
   return {
-    upgrades: indexUpgrades(MOCK_WEAPON_UPGRADES),
+    upgrades: {},
+    loaded: false,
     pending: null,
 
-    hydrate: ({ upgrades }) =>
-      set((state) => ({
-        upgrades: upgrades ? indexUpgrades(upgrades) : state.upgrades,
-      })),
+    load: async () => {
+      const result = await apiFetch<{ upgrades: WeaponUpgradeState[] }>("/api/toko");
+      if (result.ok) set({ upgrades: indexUpgrades(result.data.upgrades), loaded: true });
+    },
 
     buyUpgrade: (weaponId, stat) =>
-      run(`upgrade:${weaponId}:${stat}`, () => {
-        const track = findUpgradeTrack(weaponId, stat);
-        if (!track) return { ok: false, message: "Upgrade ini tidak ada di katalog." };
-        const current = upgradeStateOf(get().upgrades, weaponId);
-        const next = track.tiers.find((tier) => tier.level === current.levels[stat] + 1);
-        if (!next) return { ok: false, message: `${track.label} sudah di tingkat maksimal.` };
-        const weapon = findWeapon(weaponId);
-        const paid = useWalletStore.getState().spend({
-          kind: "beli_upgrade",
-          amount: next.price,
-          note: `${track.label} Tk ${next.level} · ${weapon.name}`,
-          sourceType: "upgrade",
-          sourceId: `${track.id}:${next.level}`,
-        });
-        if (!paid) {
-          const balance = useWalletStore.getState().wallet.balance;
-          return {
-            ok: false,
-            message: `Koin kurang ${next.price - balance} untuk ${track.label} tingkat ${next.level}.`,
-          };
-        }
-        patchWeapon(weaponId, (s) => ({
-          ...s,
-          levels: { ...s.levels, [stat]: next.level },
-        }));
-        return { ok: true };
-      }),
+      run(`upgrade:${weaponId}:${stat}`, () =>
+        purchase("/api/toko/upgrade", {
+          weaponId,
+          stat,
+          level: upgradeStateOf(get().upgrades, weaponId).levels[stat] + 1,
+        }),
+      ),
 
     buyAttachment: (weaponId, attachmentId) =>
-      run(`beli:${weaponId}:${attachmentId}`, () => {
-        const attachment = findAttachment(attachmentId);
-        const weapon = findWeapon(weaponId);
-        if (!attachment || !attachment.compatibleTypes.includes(weapon.type)) {
-          return { ok: false, message: "Attachment ini tidak cocok untuk senjata itu." };
-        }
-        const current = upgradeStateOf(get().upgrades, weaponId);
-        if (current.ownedAttachmentIds.includes(attachmentId)) {
-          return { ok: false, message: "Attachment ini sudah kamu miliki." };
-        }
-        const paid = useWalletStore.getState().spend({
-          kind: "beli_attachment",
-          amount: attachment.price,
-          note: `${attachment.name} · ${weapon.name}`,
-          sourceType: "attachment",
-          sourceId: `${weaponId}:${attachmentId}`,
-        });
-        if (!paid) {
-          const balance = useWalletStore.getState().wallet.balance;
-          return {
-            ok: false,
-            message: `Koin kurang ${attachment.price - balance} untuk membeli ${attachment.name}.`,
-          };
-        }
-        // Barang yang baru dibeli langsung dipasang: itu yang hampir selalu diinginkan.
-        patchWeapon(weaponId, (s) => ({
-          ...s,
-          ownedAttachmentIds: [...s.ownedAttachmentIds, attachmentId],
-          equipped: { ...s.equipped, [attachment.slot]: attachmentId },
-        }));
-        return { ok: true };
-      }),
+      run(`beli:${weaponId}:${attachmentId}`, () =>
+        purchase("/api/toko/beli", { type: "attachment", weaponId, attachmentId }),
+      ),
 
     equipAttachment: (weaponId, attachmentId) =>
-      run(`pasang:${weaponId}:${attachmentId}`, () => {
-        const attachment = findAttachment(attachmentId);
-        const current = upgradeStateOf(get().upgrades, weaponId);
-        if (!attachment || !current.ownedAttachmentIds.includes(attachmentId)) {
-          return { ok: false, message: "Beli dulu attachment ini sebelum memasangnya." };
-        }
-        patchWeapon(weaponId, (s) => ({
-          ...s,
-          equipped: { ...s.equipped, [attachment.slot]: attachmentId },
-        }));
+      run(`pasang:${weaponId}:${attachmentId}`, async () => {
+        const slot = findAttachment(attachmentId)?.slot;
+        if (!slot) return { ok: false, message: "Attachment ini tidak ada di katalog." };
+        const result = await apiFetch<{ weapon: WeaponUpgradeState }>("/api/toko/pasang", {
+          method: "POST",
+          body: { weaponId, slot, attachmentId },
+        });
+        if (!result.ok) return { ok: false, message: result.message };
+        storeWeapon(result.data.weapon);
         return { ok: true };
       }),
 
     unequipSlot: (weaponId, slot) =>
-      run(`lepas:${weaponId}:${slot}`, () => {
-        patchWeapon(weaponId, (s) => {
-          const equipped = { ...s.equipped };
-          delete equipped[slot];
-          return { ...s, equipped };
+      run(`lepas:${weaponId}:${slot}`, async () => {
+        const result = await apiFetch<{ weapon: WeaponUpgradeState }>("/api/toko/pasang", {
+          method: "POST",
+          body: { weaponId, slot, attachmentId: null },
         });
+        if (!result.ok) return { ok: false, message: result.message };
+        storeWeapon(result.data.weapon);
         return { ok: true };
       }),
   };

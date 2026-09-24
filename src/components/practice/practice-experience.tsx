@@ -9,6 +9,8 @@ import { armPlayerFrom } from "@/lib/game/arm-player";
 import { resetFighterHits } from "@/lib/game/fighter-runtime";
 import { resetRespawnTimers } from "@/lib/game/respawn-runtime";
 import { practiceMatch } from "@/lib/practice/practice-match";
+import { useShopStore } from "@/lib/store/shop-store";
+import { applyUpgrades } from "@/lib/economy/weapon-modifiers";
 import { findWeapon } from "@/lib/mock/weapons";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useMatchStore } from "@/lib/store/match-store";
@@ -44,7 +46,12 @@ const PracticeScene = dynamic(
  */
 export function PracticeExperience() {
   const selectedWeaponId = useLoadoutStore((state) => state.selectedWeaponId);
-  const weapon = useMemo(() => findWeapon(selectedWeaponId), [selectedWeaponId]);
+  const upgrades = useShopStore((state) => state.upgrades);
+  // Upgrade ikut berlaku di tempat latihan supaya pemain bisa merasakan hasil belanjanya.
+  const weapon = useMemo(
+    () => applyUpgrades(findWeapon(selectedWeaponId), upgrades[selectedWeaponId]),
+    [selectedWeaponId, upgrades],
+  );
   const snapshot = useMemo(() => practiceMatch(weapon), [weapon]);
 
   useEffect(() => {
