@@ -1,16 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { InspectViewer } from "@/components/gallery/inspect-viewer";
 import { GalleryItemCard } from "@/components/gallery/gallery-item-card";
 import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
 import { RARITY_META, findSkin } from "@/lib/economy/skin-catalog";
 import { applyUpgrades } from "@/lib/economy/weapon-modifiers";
 import { weaponOwnership } from "@/lib/mock/player-weapons";
-import { MOCK_WEAPONS } from "@/lib/mock/weapons";
+import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { upgradeStateOf, useShopStore } from "@/lib/store/shop-store";
 import { useSkinStore } from "@/lib/store/skin-store";
-import { unseenItemIds, useNotificationStore } from "@/lib/store/notification-store";
+import { markItemSeen, unseenItemIds, useNotificationStore } from "@/lib/store/notification-store";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
 import { weaponStatBars } from "@/lib/weapons/weapon-stats";
 
@@ -24,6 +25,13 @@ export function WeaponCollectionPage() {
   const equipped = useSkinStore((state) => state.collection.equipped);
   const notifications = useNotificationStore((state) => state.items);
   const newWeapons = useMemo(() => unseenItemIds(notifications, "senjata"), [notifications]);
+  const [opened, setOpened] = useState<string | null>(null);
+
+  /** Membuka senjata dari dekat; penanda "Baru"-nya langsung hilang. */
+  const open = (weaponId: string) => {
+    markItemSeen("senjata", weaponId);
+    setOpened(weaponId);
+  };
 
   const items = useMemo(
     () =>
@@ -80,6 +88,18 @@ export function WeaponCollectionPage() {
               <GalleryItemCard
                 status={locked ? "terkunci" : "dimiliki"}
                 isNew={!locked && newWeapons.has(weapon.id)}
+                actions={
+                  locked ? undefined : (
+                    <button
+                      type="button"
+                      onClick={() => open(weapon.id)}
+                      aria-label={`Buka ${weapon.name}`}
+                      className="rounded-md border border-white/10 bg-slate-900/80 px-2 py-1 text-[10px] font-semibold text-slate-200 hover:border-white/30"
+                    >
+                      Buka
+                    </button>
+                  )
+                }
                 preview={
                   <span className="block" style={{ color: WEAPON_SHAPES[weapon.type].accent }}>
                     <SkinnedWeapon type={weapon.type} skin={locked ? null : skin} className="h-16 w-full" />
@@ -120,6 +140,14 @@ export function WeaponCollectionPage() {
           );
         })}
       </ul>
+
+      {opened ? (
+        <InspectViewer
+          weapon={findWeapon(opened)}
+          skin={findSkin(equipped[opened]) ?? null}
+          onClose={() => setOpened(null)}
+        />
+      ) : null}
     </div>
   );
 }
