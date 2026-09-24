@@ -36,6 +36,13 @@
       "when": 1790263031042,
       "tag": "0004_skin_camo",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790265487649,
+      "tag": "0005_killstreak_loadout",
+      "breakpoints": true
     }
   ]
 }

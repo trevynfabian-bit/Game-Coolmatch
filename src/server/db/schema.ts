@@ -83,6 +83,9 @@ export const matches = sqliteTable(
      */
     isTrial: integer("is_trial", { mode: "boolean" }).notNull().default(false),
 
+    /** Kill beruntun terpanjang pemain dalam satu nyawa di pertandingan ini. */
+    bestStreak: integer("best_streak").notNull().default(0),
+
     /** Kosong selama pertandingan masih berjalan. */
     result: text("result", { enum: MATCH_RESULTS }),
     winnerName: text("winner_name"),
@@ -404,6 +407,83 @@ export const playerWeaponSkins = sqliteTable(
   ],
 );
 
+/** Id hadiah killstreak; sama dengan `KillstreakId` di klien. */
+export const KILLSTREAK_IDS = ["uav", "serangan_udara", "helikopter"] as const;
+
+/**
+ * Katalog hadiah killstreak, diselaraskan dari `lib/game/killstreak`.
+ * `unlock_price` nol berarti hadiah terbuka sejak awal; selain itu pemain
+ * harus membukanya dulu (Fase 4: syarat buka hadiah).
+ */
+export const killstreakRewards = sqliteTable(
+  "killstreak_rewards",
+  {
+    id: text("id", { enum: KILLSTREAK_IDS }).primaryKey(),
+    name: text("name").notNull(),
+    killsRequired: integer("kills_required").notNull(),
+    durationSeconds: integer("duration_seconds").notNull(),
+    unlockPrice: integer("unlock_price").notNull().default(0),
+  },
+  (table) => [
+    check("killstreak_rewards_kill_positif", sql`${table.killsRequired} > 0`),
+    check("killstreak_rewards_harga_sah", sql`${table.unlockPrice} >= 0`),
+  ],
+);
+
+/** Hadiah killstreak yang sudah dibuka pemain (untuk hadiah berbayar). */
+export const playerKillstreakUnlocks = sqliteTable(
+  "player_killstreak_unlocks",
+  {
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    rewardId: text("reward_id", { enum: KILLSTREAK_IDS })
+      .notNull()
+      .references(() => killstreakRewards.id, { onDelete: "cascade" }),
+    unlockedAt: integer("unlocked_at").notNull().default(now),
+  },
+  (table) => [primaryKey({ columns: [table.playerId, table.rewardId] })],
+);
+
+/**
+ * Loadout hadiah killstreak pemain: sampai tiga hadiah yang dibawa ke arena,
+ * urut sesuai tombol 6, 7, 8. Satu baris per pemain; slot kosong berarti
+ * tidak ada hadiah di tombol itu.
+ */
+export const killstreakLoadouts = sqliteTable("killstreak_loadouts", {
+  playerId: integer("player_id")
+    .primaryKey()
+    .references(() => players.id, { onDelete: "cascade" }),
+  slot1: text("slot1", { enum: KILLSTREAK_IDS }),
+  slot2: text("slot2", { enum: KILLSTREAK_IDS }),
+  slot3: text("slot3", { enum: KILLSTREAK_IDS }),
+  updatedAt: integer("updated_at").notNull().default(now),
+});
+
+/** Jenis kejadian killstreak dalam sebuah pertandingan. */
+export const KILLSTREAK_EVENT_KINDS = ["terbuka", "dipakai", "kill"] as const;
+
+/**
+ * Kejadian killstreak per pertandingan: hadiah terbuka, dipanggil, dan kill
+ * yang dihasilkannya. Dipakai server untuk memeriksa kill beruntun yang
+ * diklaim klien dan untuk ringkasan hadiah di riwayat pertandingan.
+ */
+export const matchKillstreakEvents = sqliteTable(
+  "match_killstreak_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    rewardId: text("reward_id", { enum: KILLSTREAK_IDS }).notNull(),
+    kind: text("kind", { enum: KILLSTREAK_EVENT_KINDS }).notNull(),
+    /** Kill beruntun pemain saat kejadian. */
+    streak: integer("streak").notNull().default(0),
+    at: integer("at").notNull().default(now),
+  },
+  (table) => [index("match_killstreak_events_pertandingan_idx").on(table.matchId, table.kind)],
+);
+
 export type PlayerRow = typeof players.$inferSelect;
 export type MapRow = typeof maps.$inferSelect;
 export type MatchRow = typeof matches.$inferSelect;
@@ -425,3 +505,6 @@ export type PlayerAttachmentRow = typeof playerAttachments.$inferSelect;
 export type SkinRow = typeof skins.$inferSelect;
 export type PlayerSkinRow = typeof playerSkins.$inferSelect;
 export type PlayerWeaponSkinRow = typeof playerWeaponSkins.$inferSelect;
+export type KillstreakRewardRow = typeof killstreakRewards.$inferSelect;
+export type KillstreakLoadoutRow = typeof killstreakLoadouts.$inferSelect;
+export type MatchKillstreakEventRow = typeof matchKillstreakEvents.$inferSelect;
