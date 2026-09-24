@@ -65,7 +65,7 @@ export function toTrialView(row: TrialSessionRow): TrialSessionView {
 export function startTrial(playerId: number, input: StartTrialInput) {
   const weapon = findCatalogWeapon(input.weaponId);
   if (!weapon) throw new ApiError(404, "senjata_tidak_ada", "Senjata tidak dikenal.");
-  const locked = !computeOwnership(weapon.id, getWeaponProgress(playerId)).isUnlocked;
+  const locked = !computeOwnership(weapon.id, getWeaponProgress(playerId), weapon.unlock).isUnlocked;
 
   return db.transaction(() => {
     const match = startMatch(playerId, {
