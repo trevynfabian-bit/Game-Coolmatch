@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { keepCursorFree } from "@/lib/game/keep-cursor-free";
 import { useSettingsSaveStore } from "@/lib/store/settings-save-store";
+import { loadSettingsRemote } from "@/lib/api/settings-remote";
 import { SETTINGS_STORAGE_KEY, useSettingsStore } from "@/lib/store/settings-store";
 
 /**
@@ -17,6 +18,8 @@ import { SETTINGS_STORAGE_KEY, useSettingsStore } from "@/lib/store/settings-sto
 export function SettingsSync() {
   useEffect(() => {
     let fromOtherTab = false;
+    let fromServer = false;
+    let cancelled = false;
     const onStorage = (event: StorageEvent) => {
       if (event.key !== SETTINGS_STORAGE_KEY || event.storageArea !== localStorage) return;
       fromOtherTab = true;
@@ -25,13 +28,29 @@ export function SettingsSync() {
       });
     };
     const unsubscribe = useSettingsStore.subscribe((state, previous) => {
-      // Perubahan hasil membaca ulang tab lain sudah disimpan oleh tab itu.
-      if (fromOtherTab) return;
+      // Perubahan hasil membaca ulang tab lain sudah disimpan oleh tab itu,
+      // dan yang baru dimuat dari server tidak perlu dikirim balik.
+      if (fromOtherTab || fromServer) return;
       if (state.audio === previous.audio && state.graphics === previous.graphics && state.controls === previous.controls) return;
       useSettingsSaveStore.getState().queueSave({ audio: state.audio, graphics: state.graphics, controls: state.controls });
     });
+    // Pengaturan ikut pemain: bila server punya simpanan, itu yang dipakai;
+    // bila belum, pengaturan di perangkat ini dikirim sebagai simpanan pertama.
+    void loadSettingsRemote().then((saved) => {
+      if (cancelled) return;
+      if (saved) {
+        fromServer = true;
+        useSettingsStore.getState().setAudio(saved.audio);
+        fromServer = false;
+      } else {
+        const { audio, graphics, controls } = useSettingsStore.getState();
+        useSettingsSaveStore.getState().queueSave({ audio, graphics, controls });
+      }
+    });
+
     window.addEventListener("storage", onStorage);
     return () => {
+      cancelled = true;
       window.removeEventListener("storage", onStorage);
       unsubscribe();
     };

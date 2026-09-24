@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { saveSettingsRemote } from "@/lib/mock/settings-remote";
+import { saveSettingsRemote, type RemoteSettingsPayload } from "@/lib/api/settings-remote";
 
 /**
  * Status penyimpanan pengaturan. Pengaturan SELALU langsung berlaku di
@@ -20,20 +20,21 @@ interface SaveState {
   localFailed: boolean;
   /** Pemain sudah menutup notifikasi untuk kegagalan saat ini. */
   dismissed: boolean;
-  queueSave: (snapshot: unknown) => void;
+  queueSave: (snapshot: RemoteSettingsPayload) => void;
   retry: () => void;
   dismiss: () => void;
   reportLocal: (ok: boolean) => void;
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined;
-let pending: unknown = null;
-let latest: unknown = null;
+let pending: RemoteSettingsPayload | null = null;
+let latest: RemoteSettingsPayload | null = null;
 let attempt = 0;
 
 async function flush(set: (patch: Partial<SaveState>) => void) {
   const snapshot = pending;
   pending = null;
+  if (!snapshot) return;
   latest = snapshot;
   const id = ++attempt;
   set({ status: "saving" });
