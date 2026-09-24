@@ -1,4 +1,5 @@
 import { channel } from "@/lib/audio/engine";
+import { duckMusic } from "@/lib/audio/music";
 
 /**
  * Efek suara prosedural dengan Web Audio API — tanpa berkas audio.
@@ -16,6 +17,8 @@ import { channel } from "@/lib/audio/engine";
 export function playExplosion(volume = 1): void {
   const bus = channel("sfx");
   if (!bus || volume <= 0.01) return;
+  // Musik meredup sejenak supaya dentuman terasa menguasai ruang.
+  duckMusic(0.35, 1.1);
   const ctx = bus.context;
   const now = ctx.currentTime;
 
@@ -100,6 +103,7 @@ const GUNSHOT_VOICE: Record<string, { cutoff: number; length: number; thump: num
 export function playGunshot(type: string): void {
   const bus = channel("sfx");
   if (!bus) return;
+  duckMusic(type === "sniper" || type === "shotgun" ? 0.55 : 0.75, 0.25);
   const ctx = bus.context;
   const voice = GUNSHOT_VOICE[type] ?? GUNSHOT_VOICE.rifle;
   const now = ctx.currentTime;

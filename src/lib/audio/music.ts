@@ -57,6 +57,43 @@ interface Player {
 
 let current: Player | null = null;
 
+/**
+ * Peredam bersama di antara semua pemutar dan bus musik. `duckMusic` menurunkan
+ * sesaat (ledakan, rentetan tembakan); `holdMusicLevel` menahan pada tingkat
+ * tertentu (mis. jeda) sampai dilepas lagi.
+ */
+let duck: GainNode | null = null;
+let holdLevel = 1;
+
+function duckNode(ctx: AudioContext, out: AudioNode): GainNode {
+  if (!duck || duck.context !== ctx) {
+    duck = ctx.createGain();
+    duck.gain.value = holdLevel;
+    duck.connect(out);
+  }
+  return duck;
+}
+
+/** Menurunkan musik ke `level` sebentar lalu naik lagi ke tingkat tahan. */
+export function duckMusic(level: number, seconds: number): void {
+  if (!duck) return;
+  const ctx = duck.context;
+  const now = ctx.currentTime;
+  const target = Math.min(level, holdLevel);
+  duck.gain.cancelScheduledValues(now);
+  duck.gain.setTargetAtTime(target, now, 0.03);
+  duck.gain.setTargetAtTime(holdLevel, now + seconds, 0.25);
+}
+
+/** Menahan musik di tingkat tertentu (1 = normal) sampai diubah lagi. */
+export function holdMusicLevel(level: number): void {
+  holdLevel = level;
+  if (!duck) return;
+  const now = duck.context.currentTime;
+  duck.gain.cancelScheduledValues(now);
+  duck.gain.setTargetAtTime(level, now, 0.2);
+}
+
 function tone(
   ctx: AudioContext,
   out: AudioNode,
@@ -146,7 +183,7 @@ export function playMusic(mood: MusicMood): boolean {
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0.0001, ctx.currentTime);
   gain.gain.exponentialRampToValueAtTime(1, ctx.currentTime + 1.5);
-  gain.connect(out);
+  gain.connect(duckNode(ctx, out));
 
   const player: Player = { mood, gain, step: 0, nextTime: ctx.currentTime + 0.05, timer: 0 as never };
   player.timer = setInterval(() => {
