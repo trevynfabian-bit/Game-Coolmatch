@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { CoinSummary } from "@/components/arena/hud/coin-summary";
 import { TrialSummary } from "@/components/arena/hud/trial-summary";
+import { WeaponProgressSummary } from "@/components/arena/hud/weapon-progress-summary";
 import { KillstreakSummary } from "@/components/arena/hud/killstreak-summary";
 import { restartMatch } from "@/lib/game/match-reset";
 import { unseenCount, useNotificationStore } from "@/lib/store/notification-store";
@@ -148,6 +149,7 @@ export function MatchEndScreen({
           <>
             <CoinSummary fighters={fighters} difficulty={snapshot.difficulty} matchWinner={round.matchWinner} />
             <KillstreakSummary />
+            <WeaponProgressSummary kills={local?.kills ?? 0} won={playerWon} />
           </>
         )}
 

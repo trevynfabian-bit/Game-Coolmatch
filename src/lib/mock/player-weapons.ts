@@ -30,6 +30,15 @@ export interface WeaponOwnership {
 const WINS_FOR_SHOTGUN = 5;
 const KILLS_FOR_SNIPER = 60;
 
+/** Statistik kemajuan yang dipakai syarat pembukaan senjata. */
+export type UnlockStat = "wins" | "totalKills";
+
+/** Syarat buka senjata dalam bentuk data, supaya bisa dihitung ulang. */
+export const WEAPON_UNLOCK_RULES: { weaponId: string; stat: UnlockStat; target: number; label: string }[] = [
+  { weaponId: "wpn-shotgun-badai", stat: "wins", target: WINS_FOR_SHOTGUN, label: `Menangi ${WINS_FOR_SHOTGUN} pertandingan` },
+  { weaponId: "wpn-sniper-elang", stat: "totalKills", target: KILLS_FOR_SNIPER, label: `Kumpulkan ${KILLS_FOR_SNIPER} kill` },
+];
+
 export const MOCK_PLAYER_WEAPONS: WeaponOwnership[] = [
   { weaponId: "wpn-pistol-p9", isUnlocked: true, requirement: null, progress: null, progressLabel: null },
   { weaponId: "wpn-smg-vektor", isUnlocked: true, requirement: null, progress: null, progressLabel: null },
