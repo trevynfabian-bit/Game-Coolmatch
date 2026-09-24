@@ -1,8 +1,12 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { Group } from "three";
+import { findSkin } from "@/lib/economy/skin-catalog";
+import { skinFinish, skinTexture } from "@/lib/skins/skin-texture";
+import { useCombatStore } from "@/lib/store/combat-store";
+import { useSkinStore } from "@/lib/store/skin-store";
 
 /**
  * Jarak senjata dari kamera. Ditahan cukup jauh supaya popor tidak menembus
@@ -14,9 +18,35 @@ const GUN_SCALE = 0.78;
 /**
  * Senjata sudut pandang orang pertama. Group luar menyalin transform kamera
  * tiap frame sehingga offset di dalamnya berperilaku seperti anak kamera, lalu
- * ditambah ayunan idle halus supaya arena tidak terasa beku.
+ * ditambah ayunan idle halus supaya arena tidak terasa beku. Skin yang
+ * terpasang di senjata aktif dicat ke badan, laras, magasin, dan popornya.
  */
 export function WeaponViewmodel({ color = "#39424d" }: { color?: string }) {
+  // Skin senjata yang sedang dipegang ikut tampil di tangan pemain.
+  const activeWeaponId = useCombatStore((state) => state.activeWeaponId);
+  const skinId = useSkinStore((state) => state.collection.equipped[activeWeaponId]);
+  const skin = findSkin(skinId);
+  const texture = useMemo(() => (skin ? skinTexture(skin) : null), [skin]);
+  const finish = skinFinish(skin);
+  /** Material bagian yang ikut dicat skin (badan, laras, magasin, popor). */
+  const painted = (factory: string, wood = false) =>
+    texture ? (
+      <meshStandardMaterial
+        map={texture}
+        roughness={finish.roughness}
+        metalness={finish.metalness}
+        emissive="#0d1116"
+        emissiveIntensity={0.4}
+      />
+    ) : (
+      <meshStandardMaterial
+        color={factory}
+        roughness={wood ? 0.8 : 0.45}
+        metalness={wood ? 0.05 : 0.5}
+        emissive={wood ? "#120d08" : "#0d1116"}
+        emissiveIntensity={0.6}
+      />
+    );
   const rigRef = useRef<Group>(null);
   const gunRef = useRef<Group>(null);
   const camera = useThree((state) => state.camera);
@@ -57,24 +87,12 @@ export function WeaponViewmodel({ color = "#39424d" }: { color?: string }) {
       <group ref={gunRef} scale={GUN_SCALE}>
         <mesh>
           <boxGeometry args={[0.13, 0.17, 0.72]} />
-          <meshStandardMaterial
-            color={color}
-            roughness={0.45}
-            metalness={0.5}
-            emissive="#0d1116"
-            emissiveIntensity={0.6}
-          />
+          {painted(color)}
         </mesh>
 
         <mesh position={[0, 0.005, -0.62]}>
           <boxGeometry args={[0.065, 0.07, 0.55]} />
-          <meshStandardMaterial
-            color="#2a3139"
-            roughness={0.35}
-            metalness={0.65}
-            emissive="#0d1116"
-            emissiveIntensity={0.6}
-          />
+          {painted("#2a3139")}
         </mesh>
 
         <mesh position={[0, 0.115, -0.12]}>
@@ -90,13 +108,7 @@ export function WeaponViewmodel({ color = "#39424d" }: { color?: string }) {
 
         <mesh position={[0, -0.2, 0.02]} rotation={[0.18, 0, 0]}>
           <boxGeometry args={[0.1, 0.3, 0.16]} />
-          <meshStandardMaterial
-            color="#333c46"
-            roughness={0.6}
-            metalness={0.3}
-            emissive="#0d1116"
-            emissiveIntensity={0.6}
-          />
+          {painted("#333c46")}
         </mesh>
 
         <mesh position={[0, -0.16, 0.3]} rotation={[-0.35, 0, 0]}>
@@ -112,13 +124,7 @@ export function WeaponViewmodel({ color = "#39424d" }: { color?: string }) {
 
         <mesh position={[0, -0.01, 0.52]}>
           <boxGeometry args={[0.11, 0.15, 0.26]} />
-          <meshStandardMaterial
-            color="#5a4633"
-            roughness={0.8}
-            metalness={0.05}
-            emissive="#120d08"
-            emissiveIntensity={0.6}
-          />
+          {painted("#5a4633", true)}
         </mesh>
       </group>
     </group>
