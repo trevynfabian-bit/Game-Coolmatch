@@ -7,6 +7,7 @@ import { findSkin } from "@/lib/economy/skin-catalog";
 import { skinFinish, skinTexture } from "@/lib/skins/skin-texture";
 import { useCombatStore } from "@/lib/store/combat-store";
 import { useSkinStore } from "@/lib/store/skin-store";
+import { viewmodelRuntime } from "@/lib/game/viewmodel-runtime";
 
 /**
  * Jarak senjata dari kamera. Ditahan cukup jauh supaya popor tidak menembus
@@ -51,10 +52,14 @@ export function WeaponViewmodel({ color = "#39424d" }: { color?: string }) {
   const gunRef = useRef<Group>(null);
   const camera = useThree((state) => state.camera);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     const rig = rigRef.current;
     const gun = gunRef.current;
     if (!rig || !gun) return;
+
+    // Sentakan tembakan meluruh cepat kembali ke posisi diam.
+    viewmodelRuntime.kick = Math.max(0, viewmodelRuntime.kick - Math.min(delta, 0.1) * 9);
+    const kick = viewmodelRuntime.kick;
 
     rig.position.copy(camera.position);
     rig.quaternion.copy(camera.quaternion);
@@ -63,11 +68,11 @@ export function WeaponViewmodel({ color = "#39424d" }: { color?: string }) {
     const t = clock.elapsedTime;
     gun.position.set(
       0.46 + Math.sin(t * 0.6) * 0.01,
-      -0.36 + Math.sin(t * 1.25) * 0.014,
-      GUN_DISTANCE,
+      -0.36 + Math.sin(t * 1.25) * 0.014 + kick * 0.02,
+      GUN_DISTANCE + kick * 0.09,
     );
     gun.rotation.set(
-      Math.sin(t * 1.25) * 0.01,
+      Math.sin(t * 1.25) * 0.01 + kick * 0.12,
       -0.06 + Math.sin(t * 0.6) * 0.014,
       0,
     );

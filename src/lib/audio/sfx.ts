@@ -104,3 +104,66 @@ export function playGunBurst(volume = 0.3): void {
   source.start(now, Math.random() * 0.5);
   source.stop(now + 0.09);
 }
+
+/** Karakter bunyi tembakan per jenis senjata: frekuensi potong, panjang, dan "dug". */
+const GUNSHOT_VOICE: Record<string, { cutoff: number; length: number; thump: number; gain: number }> = {
+  pistol: { cutoff: 3200, length: 0.12, thump: 180, gain: 0.35 },
+  smg: { cutoff: 4200, length: 0.08, thump: 200, gain: 0.28 },
+  rifle: { cutoff: 2600, length: 0.16, thump: 140, gain: 0.4 },
+  shotgun: { cutoff: 1500, length: 0.3, thump: 90, gain: 0.55 },
+  sniper: { cutoff: 1900, length: 0.45, thump: 70, gain: 0.6 },
+};
+
+/** Letusan senjata pemain, dibedakan per jenis supaya tiap senjata terdengar khas. */
+export function playGunshot(type: string): void {
+  const ctx = audio();
+  if (!ctx) return;
+  const voice = GUNSHOT_VOICE[type] ?? GUNSHOT_VOICE.rifle;
+  const now = ctx.currentTime;
+
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(voice.gain, now);
+  master.gain.exponentialRampToValueAtTime(0.001, now + voice.length);
+  master.connect(ctx.destination);
+
+  const source = ctx.createBufferSource();
+  source.buffer = noiseBuffer(ctx);
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(voice.cutoff, now);
+  filter.frequency.exponentialRampToValueAtTime(300, now + voice.length);
+  source.connect(filter).connect(master);
+  source.start(now, Math.random() * 0.8);
+  source.stop(now + voice.length + 0.02);
+
+  const thump = ctx.createOscillator();
+  thump.type = "triangle";
+  thump.frequency.setValueAtTime(voice.thump, now);
+  thump.frequency.exponentialRampToValueAtTime(40, now + voice.length * 0.6);
+  const thumpGain = ctx.createGain();
+  thumpGain.gain.setValueAtTime(0.6, now);
+  thumpGain.gain.exponentialRampToValueAtTime(0.001, now + voice.length * 0.7);
+  thump.connect(thumpGain).connect(master);
+  thump.start(now);
+  thump.stop(now + voice.length);
+}
+
+/** "Tik" konfirmasi tembakan kena; lebih tinggi untuk kepala, dobel untuk kill. */
+export function playHitConfirm(kind: "badan" | "kepala" | "kill"): void {
+  const ctx = audio();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const tones = kind === "kill" ? [1320, 1760] : [kind === "kepala" ? 1560 : 1100];
+  tones.forEach((frequency, index) => {
+    const start = now + index * 0.06;
+    const osc = ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(frequency, start);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.06, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.07);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.08);
+  });
+}

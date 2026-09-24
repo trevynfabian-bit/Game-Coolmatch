@@ -24,6 +24,8 @@ import {
 import { markFighterHit } from "@/lib/game/fighter-runtime";
 import { resolveShotDamage } from "@/lib/game/damage";
 import { useCombatStore } from "@/lib/store/combat-store";
+import { playGunshot, playHitConfirm } from "@/lib/audio/sfx";
+import { viewmodelRuntime } from "@/lib/game/viewmodel-runtime";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 import type { MatchSnapshot, Vec3, Weapon } from "@/types/game";
@@ -187,6 +189,7 @@ export function WeaponSystem({
     const matchState = useMatchStore.getState();
     const targets = buildFighterTargets(matchState.fighters);
     const shooterId = matchState.fighters.find((f) => f.isLocal)?.id ?? "";
+    let killedSomeone = false;
     let bestHitOnFighter: { fighterId: string; isHeadshot: boolean } | null =
       null;
 
@@ -222,6 +225,7 @@ export function WeaponSystem({
           // Null berarti sasaran sudah tumbang lebih dulu — misalnya butir
           // shotgun berikutnya yang datang sesudah butir yang mematikan.
           if (report) {
+            if (report.isLethal) killedSomeone = true;
             markFighterHit(hit.fighterId);
             useCombatStore.getState().pushDamagePop({
               amount: report.healthLost + report.armorLost,
@@ -243,9 +247,13 @@ export function WeaponSystem({
 
     if (bestHitOnFighter) {
       useCombatStore.getState().registerHit(bestHitOnFighter.isHeadshot);
+      playHitConfirm(killedSomeone ? "kill" : bestHitOnFighter.isHeadshot ? "kepala" : "badan");
     }
 
     effects.current?.flashMuzzle();
+    playGunshot(weapon.type);
+    // Sentakan viewmodel sebanding dengan sentakan kamera senjata ini.
+    viewmodelRuntime.kick = Math.min(1, viewmodelRuntime.kick + 0.25 + weapon.recoilDegrees * 0.2);
     recoil.current += weapon.recoilDegrees;
     bloom.current = Math.min(
       MAX_BLOOM_DEGREES,
