@@ -1,6 +1,7 @@
 "use client";
 
 import { CONTROL_HINTS } from "@/lib/game/controls";
+import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 
@@ -14,9 +15,11 @@ export function EngageOverlay() {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const hasEngaged = usePlayerStore((state) => state.hasEngaged);
   const roundStatus = useMatchStore((state) => state.round.status);
+  const targeting = useKillstreakStore((state) => state.targeting);
 
-  // Pertandingan usai punya layarnya sendiri; jangan tumpuk dengan ajakan main.
-  if (isLocked || roundStatus === "ended") return null;
+  // Pertandingan usai dan denah sasaran punya layarnya sendiri; jangan tumpuk
+  // dengan ajakan main.
+  if (isLocked || roundStatus === "ended" || targeting) return null;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-slate-950/70 px-6 backdrop-blur-[2px]">
@@ -45,10 +48,6 @@ export function EngageOverlay() {
           ))}
         </dl>
 
-        <p className="mt-6 text-[11px] leading-relaxed text-amber-200/80">
-          Musuh belum bergerak sendiri dan hasil pertandingan belum tersimpan —
-          keduanya menyusul di task berikutnya.
-        </p>
       </div>
     </div>
   );

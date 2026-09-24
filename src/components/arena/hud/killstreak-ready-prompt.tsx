@@ -1,7 +1,7 @@
 "use client";
 
 import { KillstreakIcon } from "@/components/arena/hud/killstreak-tracker";
-import { findKillstreak } from "@/lib/game/killstreak";
+import { callKillstreak, findKillstreak } from "@/lib/game/killstreak";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { usePlayerStore } from "@/lib/store/player-store";
 
@@ -13,7 +13,6 @@ import { usePlayerStore } from "@/lib/store/player-store";
 export function KillstreakReadyPrompt() {
   const ready = useKillstreakStore((state) => state.ready);
   const loadout = useKillstreakStore((state) => state.loadout);
-  const activate = useKillstreakStore((state) => state.activate);
   const isLocked = usePlayerStore((state) => state.isLocked);
 
   const items = loadout.filter((id) => ready.includes(id)).map((id) => ({
@@ -31,7 +30,7 @@ export function KillstreakReadyPrompt() {
           onClick={(event) => {
             // Jangan merambat ke kanvas yang akan mengunci kursor.
             event.stopPropagation();
-            activate(reward.id);
+            callKillstreak(reward.id, useKillstreakStore.getState());
           }}
           className={`killstreak-ready flex items-center gap-2 rounded-lg border bg-slate-950/80 px-3 py-1.5 text-left backdrop-blur-sm ${
             isLocked ? "pointer-events-none" : "pointer-events-auto hover:bg-slate-900"

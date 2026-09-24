@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { AirstrikeTargeting } from "@/components/arena/hud/airstrike-targeting";
 import { AmmoPanel } from "@/components/arena/hud/ammo-panel";
 import { ControlHints } from "@/components/arena/hud/control-hints";
 import { DamageNumbers } from "@/components/arena/hud/damage-numbers";
@@ -117,6 +118,8 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
         map={match.map}
         snapshot={match}
       />
+
+      <AirstrikeTargeting map={match.map} />
 
       <EngageOverlay />
     </>

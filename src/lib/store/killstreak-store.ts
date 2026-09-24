@@ -18,6 +18,10 @@ interface KillstreakState {
   loadout: KillstreakId[];
   /** Penanda hadiah yang BARU saja terbuka, untuk animasi HUD. */
   lastUnlocked: { id: KillstreakId; at: number } | null;
+  /** Hadiah yang sedang menunggu pemain memilih sasaran di denah. */
+  targeting: KillstreakId | null;
+  /** Serangan udara yang sudah diluncurkan: titik sasaran dan waktu diluncurkan (ms). */
+  strike: { x: number; z: number; launchedAt: number } | null;
 
   /**
    * Memanggil hadiah yang sudah siap. Mengembalikan false bila hadiah itu
@@ -27,13 +31,19 @@ interface KillstreakState {
   activate: (id: KillstreakId) => boolean;
   /** Mengakhiri hadiah aktif yang waktunya sudah habis. */
   expire: (now: number) => void;
+  /** Membuka denah untuk memilih sasaran hadiah (serangan udara). */
+  beginTargeting: (id: KillstreakId) => boolean;
+  /** Menutup denah tanpa meluncurkan apa pun; hadiah tetap siap. */
+  cancelTargeting: () => void;
+  /** Meluncurkan serangan udara ke titik yang dipilih. */
+  launchStrike: (target: { x: number; z: number }) => boolean;
 }
 
-/** Data tiruan untuk fase frontend: UAV sudah siap dipanggil. */
+/** Data tiruan untuk fase frontend: UAV dan serangan udara sudah siap dipanggil. */
 const MOCK_STATE: Pick<KillstreakState, "streak" | "bestStreak" | "ready" | "active"> = {
-  streak: 3,
-  bestStreak: 4,
-  ready: ["uav"],
+  streak: 5,
+  bestStreak: 5,
+  ready: ["uav", "serangan_udara"],
   active: {},
 };
 
@@ -41,6 +51,8 @@ export const useKillstreakStore = create<KillstreakState>((set, get) => ({
   ...MOCK_STATE,
   loadout: KILLSTREAKS.map((item) => item.id),
   lastUnlocked: null,
+  targeting: null,
+  strike: null,
 
   activate: (id) => {
     const { ready, active } = get();
@@ -57,6 +69,24 @@ export const useKillstreakStore = create<KillstreakState>((set, get) => ({
     const { active } = get();
     const entries = Object.entries(active) as [KillstreakId, number][];
     if (!entries.some(([, endsAt]) => endsAt <= now)) return;
-    set({ active: Object.fromEntries(entries.filter(([, endsAt]) => endsAt > now)) });
+    const next = Object.fromEntries(entries.filter(([, endsAt]) => endsAt > now));
+    set({ active: next, strike: next.serangan_udara === undefined ? null : get().strike });
+  },
+
+  beginTargeting: (id) => {
+    const { ready, active } = get();
+    if (!ready.includes(id) || active[id] !== undefined) return false;
+    set({ targeting: id });
+    return true;
+  },
+
+  cancelTargeting: () => set({ targeting: null }),
+
+  launchStrike: (target) => {
+    if (get().targeting !== "serangan_udara") return false;
+    set({ targeting: null });
+    if (!get().activate("serangan_udara")) return false;
+    set({ strike: { ...target, launchedAt: performance.now() } });
+    return true;
   },
 }));

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useKeyboardControls } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { STREAK_ACTIONS, type MoveAction } from "@/lib/game/controls";
+import { callKillstreak } from "@/lib/game/killstreak";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { usePlayerStore } from "@/lib/store/player-store";
@@ -26,7 +27,7 @@ export function KillstreakInput() {
           if (useMatchStore.getState().round.status !== "live") return;
           const streaks = useKillstreakStore.getState();
           const id = streaks.loadout[index];
-          if (id) streaks.activate(id);
+          if (id) callKillstreak(id, streaks);
         },
       ),
     );
