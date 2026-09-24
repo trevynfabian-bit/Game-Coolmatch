@@ -119,3 +119,23 @@ export interface SkinCollection {
   /** weaponId → skinId. Senjata tanpa entri memakai cat pabrik. */
   equipped: Record<string, string>;
 }
+
+/** Jenis notifikasi hadiah. */
+export type RewardNotificationKind = "koin" | "skin" | "upgrade" | "hadiah" | "senjata";
+
+/**
+ * Satu notifikasi hadiah. `seenAt` kosong berarti belum dilihat — pola yang
+ * sama dengan `announced_at` pada pembukaan senjata.
+ */
+export interface RewardNotification {
+  id: number;
+  kind: RewardNotificationKind;
+  title: string;
+  body: string;
+  /** Id item terkait (skin, hadiah, senjata), untuk ikon dan tautan. */
+  itemId: string | null;
+  /** Jumlah koin untuk notifikasi koin. */
+  amount: number | null;
+  createdAt: number;
+  seenAt: number | null;
+}
