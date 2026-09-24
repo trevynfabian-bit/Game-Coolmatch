@@ -7,7 +7,6 @@ export const SETTINGS_TABS = [
   { href: "/pengaturan/grafis", label: "Grafis" },
   { href: "/pengaturan/kontrol", label: "Kontrol" },
   { href: "/pengaturan/lawan", label: "Lawan" },
-  { href: "/pengaturan/profil", label: "Profil" },
 ] as const;
 
 /** Kerangka halaman pengaturan: judul dan tab antar bagian. */

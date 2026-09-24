@@ -11,7 +11,7 @@ import { QUALITY_PRESETS, useSettingsStore } from "@/lib/store/settings-store";
 
 /**
  * Ringkasan pengaturan: satu pandangan atas semua preferensi yang ikut
- * pemain — audio, grafis, kontrol, profil, dan pilihan pertandingan — dengan
+ * pemain — audio, grafis, kontrol, dan pilihan lawan — dengan
  * jalan pintas ke tiap bagiannya.
  */
 export function SettingsOverview() {
@@ -30,7 +30,6 @@ export function SettingsOverview() {
     },
     { href: "/pengaturan/grafis", title: "Grafis", summary: `${QUALITY_PRESETS[graphics.quality].label} · FOV ${graphics.fov}°` },
     { href: "/pengaturan/kontrol", title: "Kontrol", summary: `Sensitivitas ${controls.sensitivity.toFixed(2)}× · maju ${keyLabel(controls.bindings.forward)}` },
-    { href: "/pengaturan/profil", title: "Profil", summary: "Nama yang tampil di arena dan klasemen" },
     {
       href: "/pengaturan/lawan",
       title: "Lawan",
