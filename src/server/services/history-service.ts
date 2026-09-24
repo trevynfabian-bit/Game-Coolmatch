@@ -1,10 +1,11 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { matchScores, matches } from "@/server/db/schema";
 import { kd } from "@/lib/history/standings";
 import { progressMatchesOf } from "@/server/services/progress-isolation";
 import { getPlayerStats } from "@/server/services/player-stats-service";
-import type { StandingRow } from "@/types/history";
+import { toHistoryMatch } from "@/server/services/match-report-service";
+import type { HistoryMatch, StandingRow } from "@/types/history";
 
 /**
  * Riwayat pertandingan pemain: klasemen gabungan dan ringkasan statistik.
@@ -61,4 +62,27 @@ export function getAggregateStandings(playerId: number, { limit = 50 }: { limit?
     db.select({ value: sql<number>`count(*)` }).from(matches).where(counted).get()?.value ?? 0,
   );
   return { standings, matchesCounted, summary: getPlayerStats(playerId) };
+}
+
+export type HistoryMode = "semua" | "pertandingan" | "uji";
+
+/**
+ * Riwayat pertandingan yang sudah selesai, terbaru lebih dulu. Paginasi
+ * memakai kursor `beforeId` (id pertandingan terakhir yang sudah tampil)
+ * supaya pertandingan baru tidak menggeser halaman.
+ */
+export function listMatchHistory(
+  playerId: number,
+  { limit = 50, beforeId, mode = "semua" }: { limit?: number; beforeId?: number; mode?: HistoryMode } = {},
+): { matches: HistoryMatch[]; nextBefore: number | null } {
+  const conditions = [eq(matches.playerId, playerId), isNotNull(matches.endedAt)];
+  if (mode === "pertandingan") conditions.push(eq(matches.isTrial, false));
+  if (mode === "uji") conditions.push(eq(matches.isTrial, true));
+  if (beforeId !== undefined) conditions.push(lt(matches.id, beforeId));
+  const size = Math.max(1, Math.min(100, limit));
+  const rows = db.select().from(matches).where(and(...conditions)).orderBy(desc(matches.id)).limit(size).all();
+  return {
+    matches: rows.map(toHistoryMatch),
+    nextBefore: rows.length === size ? rows[rows.length - 1].id : null,
+  };
 }

@@ -1,13 +1,14 @@
 import { create } from "zustand";
-import { MOCK_HISTORY } from "@/lib/mock/history";
+import { apiFetch } from "@/lib/api/client";
 import type { HistoryMatch } from "@/types/history";
 
 /**
  * Riwayat pertandingan pemain di klien, beserta status pemuatannya supaya
  * halaman bisa menampilkan keadaan memuat, galat, dan data cadangan.
  *
- * Fase frontend memuat data tiruan; lapisan backend mengganti isi `load`
- * dengan pengambilan /api/riwayat.
+ * Dimuat dari /api/riwayat (100 pertandingan terakhir). Bila database sedang
+ * bermasalah server mengirim daftar kosong bertanda `degraded`, dan halaman
+ * menampilkan keadaan cadangannya.
  */
 export type HistoryStatus = "idle" | "loading" | "ready" | "degraded" | "error";
 
@@ -27,8 +28,12 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
   load: async () => {
     if (get().status === "loading") return;
     set({ status: "loading", error: null });
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    set({ matches: MOCK_HISTORY, status: "ready" });
+    const response = await apiFetch<{ matches: HistoryMatch[]; degraded?: boolean }>("/api/riwayat?limit=100");
+    if (!response.ok) {
+      set({ status: "error", error: response.message });
+      return;
+    }
+    set({ matches: response.data.matches, status: response.data.degraded ? "degraded" : "ready" });
   },
 
   hydrate: (matches) => set({ matches, status: "ready", error: null }),
