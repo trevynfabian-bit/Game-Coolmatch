@@ -14,6 +14,7 @@ import { MOCK_MAPS } from "@/lib/mock/maps";
 import { maxBotsForMap } from "@/lib/mock/bots";
 import { MATCH_RULES, sameRules } from "@/lib/game/match-rules";
 import { ApiError } from "@/server/api/http";
+import { refereeRounds, type RoundFacts, type RoundVerdict } from "@/server/services/round-referee";
 import { awardMatchCoins, type MatchCoinAward } from "@/server/services/coin-service";
 import { getLoadout, getRewardsFor } from "@/server/services/killstreak-service";
 
@@ -99,12 +100,7 @@ export interface ParticipantFacts {
   roundWins: number;
 }
 
-export interface RoundFacts {
-  roundNumber: number;
-  winnerName: string | null;
-  endedReason: "batas_kill" | "waktu_habis" | "ditinggal";
-  playerKills: number;
-}
+export type { RoundFacts } from "@/server/services/round-referee";
 
 export interface FinishMatchInput {
   participants: ParticipantFacts[];
@@ -166,6 +162,19 @@ export function finishMatch(
   if (!match) throw new ApiError(404, "pertandingan_tidak_ada", "Pertandingan tidak ditemukan.");
 
   if (match.endedAt == null) {
+    // Bila catatan ronde dikirim, pemenang tiap ronde diputus ulang di sini
+    // dan ronde menang tiap peserta diturunkan dari putusan itu. Tanpa
+    // catatan (pertandingan ditinggal sebelum ronde pertama usai) angka ronde
+    // menang dari klien tetap diperiksa oleh validateFacts.
+    let verdicts: RoundVerdict[] = [];
+    if (input.rounds.length > 0) {
+      const refereed = refereeRounds(match, input.participants, input.rounds, { abandoned: input.abandoned });
+      verdicts = refereed.verdicts;
+      input = {
+        ...input,
+        participants: input.participants.map((p) => ({ ...p, roundWins: refereed.roundWins.get(p.name) ?? 0 })),
+      };
+    }
     validateFacts(match, input);
     const local = input.participants.find((p) => !p.isBot)!;
     const winner = input.abandoned ? null : findMatchWinner(input.participants);
@@ -193,10 +202,9 @@ export function finishMatch(
           .onConflictDoNothing()
           .run();
       }
-      for (const round of input.rounds) {
-        if (round.roundNumber < 1 || round.roundNumber > match.totalRounds) continue;
+      for (const verdict of verdicts) {
         tx.insert(matchRounds)
-          .values({ matchId, ...round, endedAt: Date.now() })
+          .values({ matchId, ...verdict, endedAt: Date.now() })
           .onConflictDoNothing()
           .run();
       }

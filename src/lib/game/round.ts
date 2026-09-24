@@ -1,13 +1,32 @@
 import type { Fighter } from "@/types/game";
 
+/** Perolehan satu peserta saat ronde ditutup. */
+export interface RoundStanding {
+  name: string;
+  /** Kill pada ronde ini saja. */
+  roundKills: number;
+  /** Total kematian sampai ronde ini ditutup (dipakai memecah seri). */
+  deaths: number;
+}
+
+/** Catatan satu ronde yang sudah ditutup; dikirim ke server saat pertandingan selesai. */
+export interface RoundRecord {
+  roundNumber: number;
+  endedReason: "batas_kill" | "waktu_habis";
+  standings: RoundStanding[];
+}
+
 /**
  * Pemenang satu ronde: kill terbanyak pada ronde itu, seri dipecah oleh jumlah
  * kematian yang lebih sedikit. Mengembalikan null bila benar-benar seri —
  * termasuk saat belum ada satu kill pun — supaya ronde kosong tidak memberi
  * kemenangan kepada siapa pun.
+ *
+ * Hanya membaca kill ronde dan kematian, jadi server memakai fungsi yang sama
+ * persis untuk memeriksa ulang pemenang tiap ronde dari catatan klien.
  */
-export function findRoundWinner(fighters: Fighter[]): Fighter | null {
-  let best: Fighter | null = null;
+export function findRoundWinner<T extends Pick<Fighter, "roundKills" | "deaths">>(fighters: T[]): T | null {
+  let best: T | null = null;
   let tied = false;
 
   for (const fighter of fighters) {
@@ -34,7 +53,7 @@ export function findRoundWinner(fighters: Fighter[]): Fighter | null {
 
 /** Benar bila ada yang sudah mencapai batas kill ronde ini. */
 export function hasReachedScoreLimit(
-  fighters: Fighter[],
+  fighters: Pick<Fighter, "roundKills">[],
   scoreLimit: number,
 ): boolean {
   if (scoreLimit <= 0) return false;

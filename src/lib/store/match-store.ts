@@ -8,6 +8,7 @@ import {
   findMatchWinner,
   findRoundWinner,
   hasReachedScoreLimit,
+  type RoundRecord,
 } from "@/lib/game/round";
 import type {
   Fighter,
@@ -41,6 +42,8 @@ interface MatchState {
   fighters: Fighter[];
   killFeed: KillFeedEntry[];
   round: RoundState;
+  /** Catatan ronde yang sudah ditutup, urut; dikirim ke server saat selesai. */
+  roundHistory: RoundRecord[];
 
   /** Mengisi state dari potret pertandingan; dipanggil saat arena dibuka. */
   init: (snapshot: MatchSnapshot) => void;
@@ -106,6 +109,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
   generation: 0,
   fighters: [],
   killFeed: [],
+  roundHistory: [],
   round: {
     current: 1,
     total: 1,
@@ -126,6 +130,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       fighters: snapshot.fighters.map((fighter) => ({ ...fighter })),
       killFeed: [...snapshot.killFeed],
       round: { ...snapshot.round },
+      roundHistory: [],
     })),
 
   startFreshMatch: (snapshot, spawns) =>
@@ -133,6 +138,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       generation: state.generation + 1,
       matchId: snapshot.matchId,
       killFeed: [],
+      roundHistory: [],
       fighters: snapshot.fighters.map((fighter) => ({
         ...fighter,
         health: fighter.maxHealth,
@@ -249,6 +255,15 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       if (state.round.status !== "live") return state;
 
       const winner = findRoundWinner(state.fighters);
+      const record: RoundRecord = {
+        roundNumber: state.round.current,
+        endedReason: hasReachedScoreLimit(state.fighters, state.round.scoreLimit) ? "batas_kill" : "waktu_habis",
+        standings: state.fighters.map((fighter) => ({
+          name: fighter.name,
+          roundKills: fighter.roundKills,
+          deaths: fighter.deaths,
+        })),
+      };
       const fighters = winner
         ? state.fighters.map((fighter) =>
             fighter.id === winner.id
@@ -261,6 +276,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
 
       return {
         fighters,
+        roundHistory: [...state.roundHistory, record],
         round: {
           ...state.round,
           secondsLeft: isLastRound ? 0 : state.round.intermissionSeconds,

@@ -95,7 +95,7 @@ export function reportKillstreakEvent(rewardId: KillstreakId, kind: "terbuka" | 
 }
 
 function finishBody(abandoned: boolean) {
-  const { fighters } = useMatchStore.getState();
+  const { fighters, roundHistory } = useMatchStore.getState();
   return {
     participants: fighters.map((fighter) => ({
       name: fighter.name,
@@ -105,6 +105,8 @@ function finishBody(abandoned: boolean) {
       score: fighter.score,
       roundWins: fighter.roundWins,
     })),
+    // Server menentukan ulang pemenang tiap ronde dari catatan ini.
+    rounds: roundHistory,
     bestStreak: useKillstreakStore.getState().bestStreak,
     abandoned,
   };
