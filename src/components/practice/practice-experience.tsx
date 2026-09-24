@@ -15,7 +15,7 @@ import { applyUpgrades } from "@/lib/economy/weapon-modifiers";
 import { findWeapon } from "@/lib/mock/weapons";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useMatchStore } from "@/lib/store/match-store";
-import { usePracticeStore } from "@/lib/store/practice-store";
+import { savePracticeSession, usePracticeStore } from "@/lib/store/practice-store";
 
 function SceneFallback() {
   return (
@@ -63,7 +63,14 @@ export function PracticeExperience() {
     usePracticeStore.getState().reset();
     useMatchStore.getState().init(snapshot);
     armPlayerFrom(snapshot);
-  }, [snapshot]);
+    // Sesi disimpan saat berganti senjata, meninggalkan halaman, atau menutup tab.
+    const save = () => savePracticeSession(weapon.id);
+    window.addEventListener("pagehide", save);
+    return () => {
+      window.removeEventListener("pagehide", save);
+      save();
+    };
+  }, [snapshot, weapon.id]);
 
   if (!settingsReady) {
     return (

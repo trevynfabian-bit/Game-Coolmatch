@@ -721,6 +721,34 @@ export const playerAudioSettings = sqliteTable(
   ],
 );
 
+/**
+ * Hasil latihan sasaran. Sengaja TERISOLASI dari progres: tidak menyentuh
+ * `matches`, koin, statistik, maupun syarat buka senjata — hanya catatan
+ * ketepatan untuk pemain sendiri. `per_target` menyimpan jumlah kena per
+ * sasaran (id sasaran → kena).
+ */
+export const practiceSessions = sqliteTable(
+  "practice_sessions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    weaponId: text("weapon_id")
+      .notNull()
+      .references(() => weapons.id, { onDelete: "restrict" }),
+    shots: integer("shots").notNull(),
+    hits: integer("hits").notNull(),
+    perTarget: text("per_target", { mode: "json" }).$type<Record<string, number>>().notNull().default(sql`'{}'`),
+    durationMs: integer("duration_ms").notNull(),
+    endedAt: integer("ended_at").notNull().default(now),
+  },
+  (table) => [
+    index("practice_sessions_pemain_idx").on(table.playerId, table.endedAt),
+    check("practice_sessions_angka_sah", sql`${table.shots} > 0 AND ${table.hits} >= 0 AND ${table.hits} <= ${table.shots} AND ${table.durationMs} >= 0`),
+  ],
+);
+
 /** Jenis notifikasi hadiah; sama dengan `RewardNotificationKind` di klien. */
 export const REWARD_NOTIFICATION_KINDS = ["koin", "skin", "upgrade", "hadiah", "senjata"] as const;
 
@@ -792,3 +820,4 @@ export type PlayerAudioSettingsRow = typeof playerAudioSettings.$inferSelect;
 export type MapBlockRow = typeof mapBlocks.$inferSelect;
 export type MapSpawnPointRow = typeof mapSpawnPoints.$inferSelect;
 export type PlayerMapChoiceRow = typeof playerMapChoices.$inferSelect;
+export type PracticeSessionRow = typeof practiceSessions.$inferSelect;

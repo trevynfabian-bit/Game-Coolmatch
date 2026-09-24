@@ -120,6 +120,13 @@
       "when": 1790274722549,
       "tag": "0016_pilihan_peta",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1790274799814,
+      "tag": "0017_latihan_sasaran",
+      "breakpoints": true
     }
   ]
 }

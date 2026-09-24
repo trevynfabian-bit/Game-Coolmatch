@@ -9,7 +9,7 @@ import { QuickAudioControl } from "@/components/settings/quick-audio-control";
 import { QuickGameSettings } from "@/components/settings/quick-game-settings";
 import { useControlHints } from "@/lib/game/use-keybindings";
 import { RANGE_TARGETS } from "@/lib/practice/range-map";
-import { accuracyPercent, usePracticeStore } from "@/lib/store/practice-store";
+import { accuracyPercent, usePracticeStore, savePracticeSession } from "@/lib/store/practice-store";
 import { PracticeResults } from "@/components/practice/practice-results";
 import { usePlayerStore } from "@/lib/store/player-store";
 import { WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
@@ -20,7 +20,6 @@ function ScorePanel({ weapon }: { weapon: Weapon }) {
   const shots = usePracticeStore((state) => state.shots);
   const hits = usePracticeStore((state) => state.hits);
   const perTarget = usePracticeStore((state) => state.perTarget);
-  const reset = usePracticeStore((state) => state.reset);
 
   const accuracy = accuracyPercent(shots, hits);
 
@@ -70,7 +69,8 @@ function ScorePanel({ weapon }: { weapon: Weapon }) {
 
         <button
           type="button"
-          onClick={reset}
+          // Sesi yang dinolkan disimpan dulu ke catatan latihan.
+          onClick={() => savePracticeSession(weapon.id)}
           className="pointer-events-auto mt-3 w-full rounded border border-white/15 px-2 py-1.5 text-[11px] text-slate-300 transition-colors hover:border-white/30 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
         >
           Nolkan catatan
