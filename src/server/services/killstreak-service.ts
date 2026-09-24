@@ -11,6 +11,8 @@ import {
 } from "@/server/db/schema";
 import { DEFAULT_LOADOUT, KILLSTREAKS, LOADOUT_SLOTS, type KillstreakId } from "@/lib/game/killstreak";
 import { validateKillstreakEvent } from "@/lib/game/killstreak-rules";
+import type { AchievementStat, PlayerAchievementStats } from "@/lib/game/killstreak";
+import { getAchievementStats } from "@/server/services/player-stats-service";
 
 /**
  * Layanan killstreak: katalog hadiah, hadiah yang terbuka, dan loadout
@@ -57,33 +59,60 @@ export interface KillstreakRewardView {
   kills: number;
   durationSeconds: number;
   unlockPrice: number;
+  unlockAchievement: { stat: AchievementStat; value: number } | null;
   unlocked: boolean;
+  /** Jalan terbukanya: gratis sejak awal, dibeli, atau lewat pencapaian. */
+  unlockedVia: "gratis" | "koin" | "pencapaian" | null;
+}
+
+/**
+ * Membuka hadiah yang syarat pencapaiannya sudah terpenuhi tapi belum
+ * tercatat. Dipanggil tiap kali status hadiah dibaca, jadi hadiah terbuka
+ * dengan sendirinya begitu statistik pemain mencapai ambang.
+ */
+function unlockByAchievement(playerId: number, stats: PlayerAchievementStats): void {
+  const rows = db.select().from(killstreakRewards).all();
+  for (const row of rows) {
+    if (row.unlockPrice === 0 || !row.unlockStat || row.unlockValue == null) continue;
+    if (stats[row.unlockStat] < row.unlockValue) continue;
+    db.insert(playerKillstreakUnlocks)
+      .values({ playerId, rewardId: row.id, via: "pencapaian", unlockedAt: Date.now() })
+      .onConflictDoNothing()
+      .run();
+  }
 }
 
 /** Katalog hadiah beserta status terbukanya untuk pemain ini. */
-export function getRewardsFor(playerId: number): KillstreakRewardView[] {
+export function getRewardsFor(playerId: number, stats = getAchievementStats(playerId)): KillstreakRewardView[] {
   syncKillstreakCatalog();
-  const unlocked = new Set(
+  unlockByAchievement(playerId, stats);
+  const unlocks = new Map(
     db
-      .select({ id: playerKillstreakUnlocks.rewardId })
+      .select()
       .from(playerKillstreakUnlocks)
       .where(eq(playerKillstreakUnlocks.playerId, playerId))
       .all()
-      .map((row) => row.id),
+      .map((row) => [row.rewardId, row.via]),
   );
   return db
     .select()
     .from(killstreakRewards)
     .all()
     .sort((a, b) => a.killsRequired - b.killsRequired)
-    .map((row) => ({
-      id: row.id,
-      name: row.name,
-      kills: row.killsRequired,
-      durationSeconds: row.durationSeconds,
-      unlockPrice: row.unlockPrice,
-      unlocked: row.unlockPrice === 0 || unlocked.has(row.id),
-    }));
+    .map((row) => {
+      const via = row.unlockPrice === 0 ? "gratis" : (unlocks.get(row.id) ?? null);
+      return {
+        id: row.id,
+        name: row.name,
+        kills: row.killsRequired,
+        durationSeconds: row.durationSeconds,
+        unlockPrice: row.unlockPrice,
+        unlockAchievement:
+          row.unlockStat && row.unlockValue != null ? { stat: row.unlockStat, value: row.unlockValue } : null,
+        unlocked: via !== null,
+        unlockedVia: via,
+      };
+    });
 }
 
 export type LoadoutSlots = (KillstreakId | null)[];

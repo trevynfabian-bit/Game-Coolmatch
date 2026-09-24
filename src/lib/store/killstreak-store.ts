@@ -8,9 +8,6 @@ import {
   type PlayerAchievementStats,
 } from "@/lib/game/killstreak";
 
-/** Statistik tiruan sampai endpoint statistik pemain tersedia. */
-const MOCK_ACHIEVEMENT_STATS: PlayerAchievementStats = { totalKills: 41, bestStreak: 5, wins: 2 };
-
 /**
  * Keadaan killstreak pemain lokal selama pertandingan.
  *
@@ -92,7 +89,7 @@ const FRESH_STATE: Pick<KillstreakState, "streak" | "bestStreak" | "ready" | "ac
 export const useKillstreakStore = create<KillstreakState>((set, get) => ({
   ...FRESH_STATE,
   loadout: DEFAULT_LOADOUT,
-  achievementStats: MOCK_ACHIEVEMENT_STATS,
+  achievementStats: { totalKills: 0, bestStreak: 0, wins: 0 },
   rewardStatus: KILLSTREAKS.map((item) => ({ id: item.id, unlockPrice: item.unlockPrice, unlocked: item.unlockPrice === 0 })),
   lastUnlocked: null,
   targeting: null,
@@ -113,12 +110,15 @@ export const useKillstreakStore = create<KillstreakState>((set, get) => ({
   },
 
   loadLoadout: async () => {
-    const result = await apiFetch<{ loadout: (KillstreakId | null)[]; rewards: RewardStatus[] }>(
-      "/api/killstreak/loadout",
-    );
+    const result = await apiFetch<{
+      loadout: (KillstreakId | null)[];
+      rewards: RewardStatus[];
+      stats: PlayerAchievementStats;
+    }>("/api/killstreak/loadout");
     if (result.ok) {
       set({
         loadout: result.data.loadout,
+        achievementStats: result.data.stats,
         rewardStatus: result.data.rewards.map(({ id, unlockPrice, unlocked }) => ({ id, unlockPrice, unlocked })),
       });
     }
