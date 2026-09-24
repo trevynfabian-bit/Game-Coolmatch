@@ -29,8 +29,8 @@ function LockIcon({ className }: { className?: string }) {
  * Senjata yang sudah terbuka bisa dipilih dan kartunya menyorot terang saat
  * terpilih. Senjata yang baru terbuka diberi penanda "Baru" yang hilang begitu
  * kartunya dipilih. Senjata terkunci tetap ditampilkan — justru itu yang membuat
- * pemain tahu ada sesuatu untuk dikejar — tetapi tombolnya dimatikan dan
- * diganti syarat membuka beserta kemajuannya.
+ * pemain tahu ada sesuatu untuk dikejar. Memilih kartu terkunci hanya membuka
+ * rinciannya (syarat dan kemajuan), tidak memasang senjatanya.
  */
 export function WeaponCard({
   weapon,
@@ -59,14 +59,15 @@ export function WeaponCard({
         if (isNew) markItemSeen("senjata", weapon.id);
         onSelect();
       }}
-      disabled={locked}
-      aria-pressed={locked ? undefined : selected}
+      aria-pressed={selected}
       aria-label={
         locked ? `${weapon.name} — terkunci, ${ownership.requirement}` : undefined
       }
       className={`relative flex w-full items-center gap-4 overflow-hidden rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
         locked
-          ? "cursor-not-allowed border-white/5 bg-slate-900/35"
+          ? selected
+            ? "border-amber-400/50 bg-slate-900/60"
+            : "border-white/5 bg-slate-900/35 hover:border-white/15"
           : selected
             ? "border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_0_1px_rgba(52,211,153,0.25)]"
             : "border-white/10 bg-slate-900/60 hover:border-white/25 hover:bg-slate-900"

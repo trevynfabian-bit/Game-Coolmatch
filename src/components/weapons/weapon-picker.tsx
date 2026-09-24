@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { LockedWeaponPanel } from "@/components/weapons/locked-weapon-panel";
 import { WeaponCard } from "@/components/weapons/weapon-card";
 import { WeaponPreview } from "@/components/weapons/weapon-preview";
 import { weaponOwnership } from "@/lib/mock/player-weapons";
@@ -47,8 +48,15 @@ function StatRow({
 export function WeaponPicker() {
   const selectedWeaponId = useLoadoutStore((state) => state.selectedWeaponId);
   const selectWeapon = useLoadoutStore((state) => state.selectWeapon);
+  /** Senjata terkunci yang sedang dilihat rinciannya; null = lihat pilihan aktif. */
+  const [viewingLockedId, setViewingLockedId] = useState<string | null>(null);
 
-  const selected = useMemo(() => findWeapon(selectedWeaponId), [selectedWeaponId]);
+  const selected = useMemo(
+    () => findWeapon(viewingLockedId ?? selectedWeaponId),
+    [viewingLockedId, selectedWeaponId],
+  );
+  const selectedOwnership = weaponOwnership(selected.id);
+  const viewingLocked = !selectedOwnership.isUnlocked;
   const bars = useMemo(() => weaponStatBars(selected), [selected]);
   const feel = useMemo(() => weaponFeel(selected), [selected]);
   const accent = WEAPON_SHAPES[selected.type].accent;
@@ -90,8 +98,15 @@ export function WeaponPicker() {
               <WeaponCard
                 weapon={weapon}
                 ownership={weaponOwnership(weapon.id)}
-                selected={weapon.id === selectedWeaponId}
-                onSelect={() => selectWeapon(weapon.id)}
+                selected={weapon.id === selected.id}
+                onSelect={() => {
+                  if (weaponOwnership(weapon.id).isUnlocked) {
+                    setViewingLockedId(null);
+                    selectWeapon(weapon.id);
+                  } else {
+                    setViewingLockedId(weapon.id);
+                  }
+                }}
               />
             </li>
             ))}
@@ -185,12 +200,16 @@ export function WeaponPicker() {
             </dl>
           </details>
 
-          <Link
-            href="/arena"
-            className="mt-6 block rounded-lg bg-emerald-500 px-5 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-          >
-            Bawa {selected.name} ke arena
-          </Link>
+          {viewingLocked ? (
+            <LockedWeaponPanel weapon={selected} ownership={selectedOwnership} />
+          ) : (
+            <Link
+              href="/arena"
+              className="mt-6 block rounded-lg bg-emerald-500 px-5 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+            >
+              Bawa {selected.name} ke arena
+            </Link>
+          )}
           <Link
             href="/latihan"
             className="mt-2 block rounded-lg border border-white/20 px-5 py-2.5 text-center text-sm font-semibold text-slate-100 transition-colors hover:border-white/40 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
