@@ -2,7 +2,8 @@
 
 import { useCallback, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import type { MeshStandardMaterial } from "three";
+import type { Mesh, MeshBasicMaterial, MeshStandardMaterial } from "three";
+import { playTargetPing } from "@/lib/audio/sfx";
 import { ArenaMap } from "@/components/arena/arena-map";
 import { PlayerController } from "@/components/arena/player-controller";
 import { WeaponSystem } from "@/components/arena/weapon-system";
@@ -76,6 +77,51 @@ function TargetFlashes() {
   );
 }
 
+const DECAL_POOL = 30;
+const DECAL_SECONDS = 4;
+
+/** Bekas peluru yang menempel sesaat di pelat sasaran; kolam tetap di luar React. */
+const decals: { point: [number, number, number]; until: number }[] = [];
+let nextDecal = 0;
+
+function addDecal(point: [number, number, number]) {
+  decals[nextDecal % DECAL_POOL] = { point, until: performance.now() / 1000 + DECAL_SECONDS };
+  nextDecal += 1;
+}
+
+/**
+ * Bekas tembakan di sasaran: titik gelap yang memudar, jadi pemain bisa
+ * melihat sebaran pelurunya sendiri — rapat atau menyebar — di tiap jarak.
+ */
+function HitDecals() {
+  const meshes = useRef<(Mesh | null)[]>([]);
+  useFrame(() => {
+    const now = performance.now() / 1000;
+    for (let i = 0; i < DECAL_POOL; i++) {
+      const mesh = meshes.current[i];
+      const decal = decals[i];
+      if (!mesh) continue;
+      if (!decal || decal.until <= now) {
+        mesh.visible = false;
+        continue;
+      }
+      mesh.visible = true;
+      mesh.position.set(decal.point[0], decal.point[1], decal.point[2] + 0.02);
+      (mesh.material as MeshBasicMaterial).opacity = Math.min(0.9, (decal.until - now) / 1.2);
+    }
+  });
+  return (
+    <>
+      {Array.from({ length: DECAL_POOL }, (_, index) => (
+        <mesh key={index} ref={(mesh) => { meshes.current[index] = mesh; }} visible={false}>
+          <circleGeometry args={[0.045, 10]} />
+          <meshBasicMaterial color="#111827" transparent depthWrite={false} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
 /** Pencahayaan lorong latihan: terang dan rata supaya sasaran mudah dibaca. */
 function RangeLights() {
   return (
@@ -124,8 +170,10 @@ export function PracticeScene({
           ? (TARGET_INDEX_BY_BLOCK.get(hit.blockIndex) ?? null)
           : null;
 
-      if (targetId) {
+      if (targetId && hit) {
         flashUntil.set(targetId, performance.now() / 1000 + FLASH_SECONDS);
+        addDecal(hit.point);
+        playTargetPing(RANGE_TARGETS.find((target) => target.id === targetId)?.distance ?? 20);
       }
       recordShot(targetId);
     },
@@ -152,6 +200,7 @@ export function PracticeScene({
       <WeaponSystem match={snapshot} weapon={weapon} onShot={handleShot} />
       <ArenaMap map={RANGE_MAP} />
       <TargetFlashes />
+      <HitDecals />
       <WeaponViewmodel />
     </Canvas>
   );

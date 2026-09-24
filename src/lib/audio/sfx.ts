@@ -352,3 +352,24 @@ export function playCue(cue: "tumbang" | "muncul" | "ronde_mulai" | "ronde_seles
       return stinger([440, 392, 349, 330], 0.16, "triangle", 0.1);
   }
 }
+
+/** "Ting" pelat baja sasaran latihan; makin jauh sasarannya makin tinggi nadanya. */
+export function playTargetPing(distance: number): void {
+  const bus = channel("sfx");
+  if (!bus) return;
+  if (!acquireVoice("sasaran", 4, 30, 400)) return;
+  const ctx = bus.context;
+  const now = ctx.currentTime;
+  const base = 700 + Math.min(60, distance) * 18;
+  [1, 2.76].forEach((ratio, index) => {
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(base * ratio, now);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(index === 0 ? 0.18 : 0.06, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+    osc.connect(gain).connect(bus.out);
+    osc.start(now);
+    osc.stop(now + 0.5);
+  });
+}
