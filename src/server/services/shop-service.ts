@@ -20,7 +20,8 @@ import type {
   UpgradeTrack,
   WeaponUpgradeState,
 } from "@/types/economy";
-import type { WeaponType } from "@/types/game";
+import type { Weapon, WeaponType } from "@/types/game";
+import { applyUpgrades } from "@/lib/economy/weapon-modifiers";
 
 /**
  * Layanan toko upgrade senjata: katalog dan kepemilikan pemain.
@@ -193,10 +194,27 @@ export interface PurchaseResult {
  * pemotongan koin, dan kenaikan tingkat terjadi di satu transaksi; bila koin
  * kurang, CoinError("saldo_kurang") dilempar dan tidak ada yang berubah.
  */
-export function buyUpgrade(playerId: number, weaponId: string, stat: UpgradeStat): PurchaseResult {
+export function buyUpgrade(
+  playerId: number,
+  weaponId: string,
+  stat: UpgradeStat,
+  /**
+   * Tingkat yang dimaksud klien. Bila diisi dan tidak sama dengan tingkat
+   * berikutnya yang sebenarnya, pembelian ditolak — menjaga klik ganda atau tab
+   * lama agar tidak diam-diam membeli tingkat di atasnya.
+   */
+  expectedLevel?: number,
+): PurchaseResult {
   syncCatalog();
   const weapon = weaponOrThrow(weaponId);
   const current = stateOf(playerId, weaponId).levels[stat];
+  if (expectedLevel !== undefined && expectedLevel !== current + 1) {
+    throw new ShopError(
+      409,
+      "tingkat_berubah",
+      `${UPGRADE_STAT_LABEL[stat]} ${weapon.name} sekarang tingkat ${current}; muat ulang toko lalu coba lagi.`,
+    );
+  }
   const tier = db
     .select()
     .from(weaponUpgrades)
@@ -292,4 +310,29 @@ function equipInTx(tx: Tx, playerId: number, weaponId: string, slot: AttachmentS
       ),
     )
     .run();
+}
+
+export interface EffectiveWeapon {
+  weaponId: string;
+  base: Weapon;
+  effective: Weapon;
+  upgrades: WeaponUpgradeState;
+}
+
+/**
+ * Statistik efektif tiap senjata untuk pemain: statistik dasar yang sudah
+ * dikenai upgrade dan attachment terpasang, dihitung dengan fungsi yang sama
+ * dengan pratinjau di toko.
+ */
+export function getEffectiveWeapons(playerId: number): EffectiveWeapon[] {
+  const owned = new Map(getPlayerUpgrades(playerId).map((item) => [item.weaponId, item]));
+  return MOCK_WEAPONS.map((base) => {
+    const upgrades = owned.get(base.id) ?? {
+      weaponId: base.id,
+      levels: { damage: 0, accuracy: 0, reload: 0 },
+      ownedAttachmentIds: [],
+      equipped: {},
+    };
+    return { weaponId: base.id, base, effective: applyUpgrades(base, upgrades), upgrades };
+  });
 }
