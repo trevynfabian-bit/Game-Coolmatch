@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { useSettingsSaveStore } from "@/lib/store/settings-save-store";
 import { DEFAULT_BINDINGS, sanitizeBindings, type KeyBindings } from "@/lib/game/keybindings";
 
 /**
@@ -107,6 +108,36 @@ export function sanitizeControls(value: unknown): ControlSettings {
   return { sensitivity, bindings: sanitizeBindings(raw.bindings) };
 }
 
+/**
+ * localStorage yang tidak pernah melempar: bila browser menolak menulis,
+ * pengaturan tetap berlaku di memori dan kegagalannya dilaporkan supaya
+ * pemain diberi tahu.
+ */
+const guardedLocalStorage = {
+  getItem: (name: string) => {
+    try {
+      return localStorage.getItem(name);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name: string, value: string) => {
+    try {
+      localStorage.setItem(name, value);
+      useSettingsSaveStore.getState().reportLocal(true);
+    } catch {
+      useSettingsSaveStore.getState().reportLocal(false);
+    }
+  },
+  removeItem: (name: string) => {
+    try {
+      localStorage.removeItem(name);
+    } catch {
+      // Tidak ada yang perlu dilakukan.
+    }
+  },
+};
+
 export const SETTINGS_STORAGE_KEY = "coolmatch:pengaturan";
 const STORAGE_VERSION = 3;
 
@@ -161,7 +192,11 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: SETTINGS_STORAGE_KEY,
       version: STORAGE_VERSION,
-      storage: createJSONStorage(() => localStorage),
+      // Di server getStorage melempar, jadi persist tidak aktif di sana.
+      storage: createJSONStorage(() => {
+        if (typeof window === "undefined") throw new Error("tanpa localStorage");
+        return guardedLocalStorage;
+      }),
       partialize: (state): StoredSettings => ({
         audio: state.audio,
         graphics: state.graphics,
