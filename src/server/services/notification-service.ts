@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull, lt } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, lt } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import {
   REWARD_NOTIFICATION_KINDS,
@@ -96,4 +96,30 @@ export function recordNotification(input: NewNotification, executor: Executor = 
     })
     .onConflictDoNothing({ target: [rewardNotifications.playerId, rewardNotifications.sourceId] })
     .run();
+}
+
+export type MarkSeenTarget =
+  | { all: true }
+  | { ids: number[] }
+  | { kind: NotificationKind; itemId: string };
+
+/**
+ * Menandai notifikasi pemain sudah dilihat: semua, per id, atau semua yang
+ * menunjuk satu item (dipakai saat pemain membuka item itu di koleksi).
+ * Hanya baris milik pemain sendiri yang belum dilihat yang tersentuh, jadi
+ * aman dipanggil berulang dan `seen_at` pertama tidak pernah tertimpa.
+ */
+export function markSeen(playerId: number, target: MarkSeenTarget, at = Date.now()): number {
+  const conditions = [eq(rewardNotifications.playerId, playerId), isNull(rewardNotifications.seenAt)];
+  if ("ids" in target) {
+    if (target.ids.length === 0) return 0;
+    conditions.push(inArray(rewardNotifications.id, target.ids));
+  } else if ("kind" in target) {
+    conditions.push(eq(rewardNotifications.kind, target.kind), eq(rewardNotifications.itemId, target.itemId));
+  }
+  return db
+    .update(rewardNotifications)
+    .set({ seenAt: at })
+    .where(and(...conditions))
+    .run().changes;
 }
