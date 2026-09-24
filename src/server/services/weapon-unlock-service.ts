@@ -15,6 +15,8 @@ import { getWeaponProgress, listWeaponCatalog, type CatalogWeapon } from "@/serv
 export interface EvaluatedWeapon extends CatalogWeapon {
   ownership: WeaponOwnership;
   unlockedAt: number | null;
+  /** Jalan terbukanya menurut catatan; null bila belum terbuka. */
+  via: PlayerWeaponRow["via"] | null;
   /** Terbuka tapi pemberitahuannya belum dilihat pemain. */
   isNew: boolean;
 }
@@ -80,7 +82,13 @@ export function evaluateWeaponUnlocks(playerId: number): UnlockEvaluation {
     const ownership: WeaponOwnership = row
       ? { weaponId: weapon.id, isUnlocked: true, requirement: null, progress: null, progressLabel: null }
       : computed;
-    return { ...weapon, ownership, unlockedAt: row?.unlockedAt ?? null, isNew: row != null && row.announcedAt == null };
+    return {
+      ...weapon,
+      ownership,
+      unlockedAt: row?.unlockedAt ?? null,
+      via: row?.via ?? null,
+      isNew: row != null && row.announcedAt == null,
+    };
   });
   return { progress, weapons, newlyUnlocked };
 }

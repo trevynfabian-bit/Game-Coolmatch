@@ -7,7 +7,6 @@ import {
   WEAPON_UNLOCK_RULES,
   computeOwnership,
   unlockLabel,
-  type WeaponOwnership,
   type WeaponProgress,
 } from "@/lib/game/weapon-unlock";
 import { getAchievementStats } from "@/server/services/player-stats-service";
@@ -131,9 +130,4 @@ export function saveWeaponLoadout(playerId: number, weaponId: string): { primary
     .onConflictDoUpdate({ target: playerLoadouts.playerId, set: { primaryWeaponId: weaponId, updatedAt } })
     .run();
   return { primaryWeaponId: weaponId, updatedAt };
-}
-
-/** Kepemilikan satu senjata dengan syarat dari katalog database. */
-export function catalogOwnership(weaponId: string, progress: WeaponProgress): WeaponOwnership {
-  return computeOwnership(weaponId, progress, findCatalogWeapon(weaponId)?.unlock ?? null);
 }
