@@ -69,6 +69,7 @@ export const CONTROL_HINTS: { keys: string; label: string }[] = [
   { keys: "6-8", label: "Panggil hadiah killstreak" },
   { keys: "Tab", label: "Papan skor" },
   { keys: "H", label: "Petunjuk kontrol" },
+  { keys: "M", label: "Bisukan suara" },
   { keys: "Esc", label: "Lepas kursor" },
 ];
 

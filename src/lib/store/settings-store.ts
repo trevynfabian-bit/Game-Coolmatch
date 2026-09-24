@@ -1,10 +1,13 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 /**
  * Preferensi pemain: audio (dan nanti grafis, sensitivitas, tata tombol).
  *
- * Fase frontend memakai nilai tiruan di memori; lapisan backend nanti
- * memuat dan menyimpannya di server supaya preferensi mengikuti pemain.
+ * Disimpan otomatis di localStorage supaya langsung berlaku saat game dibuka
+ * lagi; lapisan backend menyelaraskannya ke server supaya ikut pindah
+ * perangkat. Apa pun yang dibaca kembali dibersihkan dulu karena simpanan
+ * bisa rusak atau berasal dari versi lama.
  */
 
 export interface AudioSettings {
@@ -27,14 +30,51 @@ export const DEFAULT_AUDIO: AudioSettings = {
   muted: false,
 };
 
-interface SettingsState {
-  audio: AudioSettings;
-  setAudio: (patch: Partial<AudioSettings>) => void;
-  resetAudio: () => void;
+const STORAGE_KEY = "coolmatch:pengaturan";
+const STORAGE_VERSION = 1;
+
+function volume(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : fallback;
 }
 
-export const useSettingsStore = create<SettingsState>((set) => ({
-  audio: { ...DEFAULT_AUDIO },
-  setAudio: (patch) => set((state) => ({ audio: { ...state.audio, ...patch } })),
-  resetAudio: () => set({ audio: { ...DEFAULT_AUDIO } }),
-}));
+export function sanitizeAudio(value: unknown): AudioSettings {
+  const raw = (value && typeof value === "object" ? value : {}) as Partial<AudioSettings>;
+  return {
+    master: volume(raw.master, DEFAULT_AUDIO.master),
+    sfx: volume(raw.sfx, DEFAULT_AUDIO.sfx),
+    music: volume(raw.music, DEFAULT_AUDIO.music),
+    ui: volume(raw.ui, DEFAULT_AUDIO.ui),
+    muted: typeof raw.muted === "boolean" ? raw.muted : DEFAULT_AUDIO.muted,
+  };
+}
+
+interface StoredSettings {
+  audio: AudioSettings;
+}
+
+interface SettingsState extends StoredSettings {
+  setAudio: (patch: Partial<AudioSettings>) => void;
+  resetAudio: () => void;
+  toggleMute: () => void;
+}
+
+export const useSettingsStore = create<SettingsState>()(
+  persist(
+    (set) => ({
+      audio: { ...DEFAULT_AUDIO },
+      setAudio: (patch) => set((state) => ({ audio: sanitizeAudio({ ...state.audio, ...patch }) })),
+      resetAudio: () => set({ audio: { ...DEFAULT_AUDIO } }),
+      toggleMute: () => set((state) => ({ audio: { ...state.audio, muted: !state.audio.muted } })),
+    }),
+    {
+      name: STORAGE_KEY,
+      version: STORAGE_VERSION,
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state): StoredSettings => ({ audio: state.audio }),
+      merge: (persisted, current): SettingsState => {
+        const saved = (persisted ?? {}) as Partial<StoredSettings>;
+        return { ...current, audio: sanitizeAudio(saved.audio) };
+      },
+    },
+  ),
+);

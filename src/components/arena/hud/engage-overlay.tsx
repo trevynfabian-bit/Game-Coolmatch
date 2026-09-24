@@ -1,6 +1,7 @@
 "use client";
 
 import { RoundRulesPanel } from "@/components/arena/hud/round-rules-panel";
+import { QuickAudioControl } from "@/components/settings/quick-audio-control";
 import { CONTROL_HINTS } from "@/lib/game/controls";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
@@ -49,6 +50,8 @@ export function EngageOverlay() {
             </div>
           ))}
         </dl>
+
+        <QuickAudioControl />
 
         {round.total > 0 ? <RoundRulesPanel round={round} /> : null}
       </div>
