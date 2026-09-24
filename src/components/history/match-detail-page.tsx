@@ -18,7 +18,12 @@ const REASON_LABEL = {
  * berakhir, dan kill pemain di ronde itu.
  */
 export function MatchDetailPage({ matchId }: { matchId: number }) {
-  const match = useHistoryStore((state) => state.matches.find((item) => item.id === matchId));
+  const matches = useHistoryStore((state) => state.matches);
+  const index = matches.findIndex((item) => item.id === matchId);
+  const match = index >= 0 ? matches[index] : undefined;
+  // Riwayat urut terbaru dulu: "lebih baru" ada di indeks sebelumnya.
+  const newer = index > 0 ? matches[index - 1] : null;
+  const older = index >= 0 && index < matches.length - 1 ? matches[index + 1] : null;
 
   if (!match) {
     return (
@@ -136,6 +141,21 @@ export function MatchDetailPage({ matchId }: { matchId: number }) {
           </table>
         </div>
       </section>
+
+      <nav aria-label="Pertandingan lain" className="mt-8 flex justify-between gap-3 border-t border-white/10 pt-4 text-sm">
+        {older ? (
+          <Link href={`/riwayat/pertandingan/${older.id}`} className="text-slate-400 hover:text-slate-200">
+            ← Lebih lama · {older.mapName}
+          </Link>
+        ) : (
+          <span />
+        )}
+        {newer ? (
+          <Link href={`/riwayat/pertandingan/${newer.id}`} className="text-slate-400 hover:text-slate-200">
+            Lebih baru · {newer.mapName} →
+          </Link>
+        ) : null}
+      </nav>
     </div>
   );
 }
