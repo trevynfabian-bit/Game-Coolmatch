@@ -34,6 +34,12 @@ export default function Home() {
           >
             Pilih Senjata
           </Link>
+          <Link
+            href="/toko"
+            className="w-full rounded-lg border border-amber-400/30 px-6 py-3 text-center text-sm font-semibold text-amber-200 transition-colors hover:border-amber-400/60 hover:bg-amber-400/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 sm:w-auto"
+          >
+            Toko
+          </Link>
         </div>
 
         <p className="mt-6 text-xs text-slate-600">
