@@ -54,6 +54,23 @@ export function WeaponCollectionPage() {
         </Link>
       </p>
 
+      {owned === 0 ? (
+        <div className="mb-8 rounded-xl border border-dashed border-white/15 px-6 py-8 text-center">
+          <p className="text-sm text-slate-300">Belum ada senjata di koleksimu.</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Menangi pertandingan dan kumpulkan kill untuk membuka senjata pertama. Sementara itu, coba dulu di mode uji coba.
+          </p>
+          <div className="mt-4 flex justify-center gap-2">
+            <Link href="/lawan" className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
+              Main sekarang
+            </Link>
+            <Link href="/uji" className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-white/30">
+              Uji coba senjata
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map(({ weapon, ownership, effective, levels, attachments, skin }) => {
           const locked = !ownership.isUnlocked;

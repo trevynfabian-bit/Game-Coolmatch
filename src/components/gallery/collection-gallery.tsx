@@ -185,6 +185,10 @@ export function CollectionGallery() {
         </label>
       ) : null}
 
+      {tab === "senjata" && !favoritesOnly && unlockedCount === 0 ? (
+        <EmptyState text="Belum ada senjata di koleksimu — menangi pertandingan untuk membukanya." href="/lawan" cta="Main sekarang" />
+      ) : null}
+
       {tab === "senjata" && weapons.length === 0 ? (
         <p className="rounded-xl border border-dashed border-white/15 px-6 py-8 text-center text-sm text-slate-400">
           Belum ada senjata favorit. Tekan bintang di kartu untuk menandainya.
