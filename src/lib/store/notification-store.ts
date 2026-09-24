@@ -31,3 +31,22 @@ export const useNotificationStore = create<NotificationState>((set) => ({
 export function unseenCount(items: RewardNotification[]): number {
   return items.filter((item) => item.seenAt === null).length;
 }
+
+/**
+ * Id item yang punya notifikasi belum dilihat, per jenis. Dipakai daftar
+ * koleksi untuk menandai item "Baru" dengan pola yang sama seperti penanda
+ * senjata baru.
+ */
+export function unseenItemIds(items: RewardNotification[], kind: RewardNotification["kind"]): Set<string> {
+  return new Set(
+    items.filter((item) => item.kind === kind && item.seenAt === null && item.itemId).map((item) => item.itemId!),
+  );
+}
+
+/** Menandai dilihat semua notifikasi yang menunjuk item tertentu. */
+export function markItemSeen(kind: RewardNotification["kind"], itemId: string): void {
+  const { items, markSeen } = useNotificationStore.getState();
+  for (const item of items) {
+    if (item.kind === kind && item.itemId === itemId && item.seenAt === null) markSeen(item.id);
+  }
+}

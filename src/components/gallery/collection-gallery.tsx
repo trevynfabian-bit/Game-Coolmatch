@@ -22,6 +22,7 @@ import {
   favoritesFirst,
   useFavoriteStore,
 } from "@/lib/store/favorite-store";
+import { markItemSeen, unseenItemIds, useNotificationStore } from "@/lib/store/notification-store";
 import { useSkinStore } from "@/lib/store/skin-store";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
 import type { SkinCollection, WeaponUpgradeState } from "@/types/economy";
@@ -66,6 +67,12 @@ export function CollectionGallery() {
   }, []);
   const favorites = useFavoriteStore((state) => state.favorites);
   const collection = useSkinStore((state) => state.collection);
+  const notifications = useNotificationStore((state) => state.items);
+  const newSkins = useMemo(() => unseenItemIds(notifications, "skin"), [notifications]);
+  const newWeapons = useMemo(
+    () => new Set([...unseenItemIds(notifications, "senjata"), ...unseenItemIds(notifications, "upgrade")]),
+    [notifications],
+  );
   const upgrades = useShopStore((state) => state.upgrades);
 
   const allWeapons = useMemo(
@@ -191,6 +198,7 @@ export function CollectionGallery() {
               <li key={weapon.id}>
                 <GalleryItemCard
                   status={unlocked ? "dimiliki" : "terkunci"}
+                isNew={newWeapons.has(weapon.id)}
                   actions={
                     unlocked ? (
                       <>
@@ -296,6 +304,7 @@ export function CollectionGallery() {
                 <li key={skin.id}>
                   <GalleryItemCard
                     status={on.length > 0 ? "terpasang" : "dimiliki"}
+                    isNew={newSkins.has(skin.id)}
                     accent={
                       skin.rarity === "gold"
                         ? RARITY_META.gold.color
@@ -383,9 +392,16 @@ export function CollectionGallery() {
 
       {inspecting ? (
         <InspectViewer
+          key={`${inspecting.weaponId}:${inspecting.skinId}`}
           weapon={findWeapon(inspecting.weaponId)}
           skin={findSkin(inspecting.skinId) ?? null}
-          onClose={() => setInspecting(null)}
+          onClose={() => {
+            // Memeriksa item dari dekat berarti sudah melihatnya.
+            if (inspecting.skinId) markItemSeen("skin", inspecting.skinId);
+            markItemSeen("senjata", inspecting.weaponId);
+            markItemSeen("upgrade", inspecting.weaponId);
+            setInspecting(null);
+          }}
         />
       ) : null}
 

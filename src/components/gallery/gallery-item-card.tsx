@@ -24,6 +24,7 @@ export function GalleryItemCard({
   details,
   actions,
   accent,
+  isNew = false,
 }: {
   /** Gambar item: siluet senjata, contoh skin, atau ikon attachment. */
   preview: ReactNode;
@@ -40,6 +41,8 @@ export function GalleryItemCard({
   actions?: ReactNode;
   /** Warna garis tepi untuk item istimewa (mis. skin gold). */
   accent?: string;
+  /** Item baru yang belum dilihat: diberi titik dan label "Baru". */
+  isNew?: boolean;
 }) {
   const badge = STATUS_BADGE[status];
   const locked = status === "terkunci";
@@ -59,7 +62,14 @@ export function GalleryItemCard({
         ) : null}
       </div>
       <div className="mt-2.5 flex items-center justify-between gap-2">
-        <h3 className="truncate text-sm font-semibold text-white">{title}</h3>
+        <h3 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-white">
+          <span className="truncate">{title}</span>
+          {isNew ? (
+            <span className="shrink-0 rounded bg-emerald-400 px-1 py-px text-[9px] font-bold tracking-wider text-slate-950 uppercase">
+              Baru
+            </span>
+          ) : null}
+        </h3>
         {tag ? (
           <span className="shrink-0 text-[9px] font-semibold tracking-wider uppercase" style={{ color: tagColor ?? "#64748b" }}>
             {tag}

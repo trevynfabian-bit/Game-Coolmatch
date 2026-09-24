@@ -9,6 +9,7 @@ import { RARITY_META, RARITY_ORDER, SKINS, findSkin } from "@/lib/economy/skin-c
 import { filterSkins, groupByRarity } from "@/lib/economy/skin-filter";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import { useSkinStore } from "@/lib/store/skin-store";
+import { unseenItemIds, useNotificationStore } from "@/lib/store/notification-store";
 
 /**
  * Daftar kepemilikan skin: semua skin yang sudah dibeli, di senjata mana
@@ -17,6 +18,8 @@ import { useSkinStore } from "@/lib/store/skin-store";
  */
 export function SkinCollectionView() {
   const collection = useSkinStore((state) => state.collection);
+  const notifications = useNotificationStore((state) => state.items);
+  const newSkins = useMemo(() => unseenItemIds(notifications, "skin"), [notifications]);
 
   const owned = useMemo(
     () => filterSkins(SKINS, collection, { rarity: "semua", ownership: "dimiliki", sort: "tingkat_turun" }),
@@ -130,7 +133,14 @@ export function SkinCollectionView() {
                         <span className="block rounded-lg bg-slate-950/60 px-2 py-3">
                           <SkinnedWeapon type="rifle" skin={skin} className="h-10 w-full" />
                         </span>
-                        <p className="mt-2 truncate text-sm font-semibold text-slate-100">{skin.name}</p>
+                        <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-slate-100">
+                          <span className="truncate">{skin.name}</span>
+                          {newSkins.has(skin.id) ? (
+                            <span className="shrink-0 rounded bg-emerald-400 px-1 py-px text-[9px] font-bold tracking-wider text-slate-950 uppercase">
+                              Baru
+                            </span>
+                          ) : null}
+                        </p>
                         <p className="truncate text-[11px] text-slate-500">
                           {on.length > 0 ? `Terpasang: ${on.join(", ")}` : "Belum dipasang"}
                         </p>
