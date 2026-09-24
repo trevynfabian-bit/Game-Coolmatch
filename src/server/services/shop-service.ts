@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import {
   attachments,
@@ -7,6 +7,12 @@ import {
   weaponUpgrades,
 } from "@/server/db/schema";
 import { ATTACHMENTS, UPGRADE_TRACKS, UPGRADE_STAT_LABEL } from "@/lib/economy/upgrade-catalog";
+import { MOCK_WEAPONS } from "@/lib/mock/weapons";
+import {
+  spendCoins,
+  type CoinTransactionView,
+  type WalletView,
+} from "@/server/services/coin-service";
 import type {
   Attachment,
   AttachmentSlot,
@@ -144,4 +150,146 @@ export function getPlayerUpgrades(playerId: number): WeaponUpgradeState[] {
   }
 
   return [...byWeapon.values()];
+}
+
+export class ShopError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ShopError";
+  }
+}
+
+function weaponOrThrow(weaponId: string) {
+  const weapon = MOCK_WEAPONS.find((item) => item.id === weaponId);
+  if (!weapon) throw new ShopError(404, "senjata_tidak_ada", "Senjata tidak dikenal.");
+  return weapon;
+}
+
+function stateOf(playerId: number, weaponId: string): WeaponUpgradeState {
+  return (
+    getPlayerUpgrades(playerId).find((item) => item.weaponId === weaponId) ?? {
+      weaponId,
+      levels: { damage: 0, accuracy: 0, reload: 0 },
+      ownedAttachmentIds: [],
+      equipped: {},
+    }
+  );
+}
+
+export interface PurchaseResult {
+  weapon: WeaponUpgradeState;
+  wallet: WalletView;
+  transaction: CoinTransactionView | null;
+}
+
+/**
+ * Membeli tingkat BERIKUTNYA satu statistik senjata.
+ *
+ * Harga dibaca dari tabel katalog, bukan dari klien. Pemeriksaan tingkat,
+ * pemotongan koin, dan kenaikan tingkat terjadi di satu transaksi; bila koin
+ * kurang, CoinError("saldo_kurang") dilempar dan tidak ada yang berubah.
+ */
+export function buyUpgrade(playerId: number, weaponId: string, stat: UpgradeStat): PurchaseResult {
+  syncCatalog();
+  const weapon = weaponOrThrow(weaponId);
+  const current = stateOf(playerId, weaponId).levels[stat];
+  const tier = db
+    .select()
+    .from(weaponUpgrades)
+    .where(
+      and(
+        eq(weaponUpgrades.weaponId, weaponId),
+        eq(weaponUpgrades.stat, stat),
+        eq(weaponUpgrades.level, current + 1),
+      ),
+    )
+    .get();
+  if (!tier) {
+    throw new ShopError(409, "sudah_maksimal", `${UPGRADE_STAT_LABEL[stat]} ${weapon.name} sudah di tingkat maksimal.`);
+  }
+
+  const paid = spendCoins(
+    playerId,
+    {
+      kind: "beli_upgrade",
+      amount: tier.price,
+      sourceType: "upgrade",
+      sourceId: `${weaponId}:${stat}:${tier.level}`,
+      note: `${UPGRADE_STAT_LABEL[stat]} Tk ${tier.level} · ${weapon.name}`,
+    },
+    (tx) => {
+      tx.insert(playerUpgrades)
+        .values({ playerId, weaponId, stat, level: tier.level, updatedAt: Date.now() })
+        .onConflictDoUpdate({
+          target: [playerUpgrades.playerId, playerUpgrades.weaponId, playerUpgrades.stat],
+          set: { level: tier.level, updatedAt: Date.now() },
+        })
+        .run();
+    },
+  );
+
+  return { weapon: stateOf(playerId, weaponId), wallet: paid.wallet, transaction: paid.transaction };
+}
+
+/**
+ * Membeli attachment untuk satu senjata dan langsung memasangnya, melepas
+ * attachment lain di slot yang sama.
+ */
+export function buyAttachment(playerId: number, weaponId: string, attachmentId: string): PurchaseResult {
+  syncCatalog();
+  const weapon = weaponOrThrow(weaponId);
+  const item = db.select().from(attachments).where(eq(attachments.id, attachmentId)).get();
+  if (!item) throw new ShopError(404, "attachment_tidak_ada", "Attachment tidak dikenal.");
+  if (!item.compatibleTypes.includes(weapon.type)) {
+    throw new ShopError(400, "tidak_cocok", `${item.name} tidak cocok untuk ${weapon.name}.`);
+  }
+  if (stateOf(playerId, weaponId).ownedAttachmentIds.includes(attachmentId)) {
+    throw new ShopError(409, "sudah_dimiliki", `${item.name} untuk ${weapon.name} sudah kamu miliki.`);
+  }
+
+  const paid = spendCoins(
+    playerId,
+    {
+      kind: "beli_attachment",
+      amount: item.price,
+      sourceType: "attachment",
+      sourceId: `${weaponId}:${attachmentId}`,
+      note: `${item.name} · ${weapon.name}`,
+    },
+    (tx) => {
+      equipInTx(tx, playerId, weaponId, item.slot);
+      tx.insert(playerAttachments)
+        .values({
+          playerId,
+          weaponId,
+          attachmentId,
+          slot: item.slot,
+          isEquipped: true,
+          purchasedAt: Date.now(),
+        })
+        .run();
+    },
+  );
+
+  return { weapon: stateOf(playerId, weaponId), wallet: paid.wallet, transaction: paid.transaction };
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Melepas attachment yang terpasang di slot ini, supaya slot kosong untuk yang baru. */
+function equipInTx(tx: Tx, playerId: number, weaponId: string, slot: AttachmentSlot) {
+  tx.update(playerAttachments)
+    .set({ isEquipped: false })
+    .where(
+      and(
+        eq(playerAttachments.playerId, playerId),
+        eq(playerAttachments.weaponId, weaponId),
+        eq(playerAttachments.slot, slot),
+      ),
+    )
+    .run();
 }

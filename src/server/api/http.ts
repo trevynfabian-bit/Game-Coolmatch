@@ -1,4 +1,5 @@
 import { CoinError } from "@/server/services/coin-service";
+import { ShopError } from "@/server/services/shop-service";
 
 /**
  * Pembantu kecil untuk Route Handler `/api/*`: bentuk galat yang seragam,
@@ -102,6 +103,9 @@ const COIN_STATUS: Record<CoinError["code"], number> = {
  */
 export function toErrorResponse(error: unknown): Response {
   if (error instanceof ApiError) {
+    return jsonError(error.status, error.code, error.message);
+  }
+  if (error instanceof ShopError) {
     return jsonError(error.status, error.code, error.message);
   }
   if (error instanceof CoinError) {
