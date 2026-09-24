@@ -77,6 +77,8 @@ interface KillstreakState {
   loadLoadout: () => Promise<void>;
   /** Mengganti loadout di klien (mis. sesudah disimpan dari halaman loadout). */
   setLoadout: (loadout: (KillstreakId | null)[]) => void;
+  /** Menyimpan loadout ke server; loadout di klien hanya berubah bila server menerima. */
+  saveLoadout: (slots: (KillstreakId | null)[]) => Promise<{ ok: true } | { ok: false; message: string }>;
 }
 
 /** Keadaan awal tiap pertandingan: belum ada kill beruntun maupun hadiah. */
@@ -123,6 +125,16 @@ export const useKillstreakStore = create<KillstreakState>((set, get) => ({
   },
 
   setLoadout: (loadout) => set({ loadout }),
+
+  saveLoadout: async (slots) => {
+    const result = await apiFetch<{ loadout: (KillstreakId | null)[] }>("/api/killstreak/loadout", {
+      method: "POST",
+      body: { slots },
+    });
+    if (!result.ok) return { ok: false, message: result.message };
+    set({ loadout: result.data.loadout });
+    return { ok: true };
+  },
 
   registerKill: () => {
     const { streak, bestStreak, loadout, ready } = get();

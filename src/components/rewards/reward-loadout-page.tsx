@@ -4,6 +4,7 @@ import Link from "next/link";
 import { KillstreakIcon } from "@/components/arena/hud/killstreak-tracker";
 import { WalletBadge } from "@/components/economy/wallet-badge";
 import { useState } from "react";
+import { NoticeToast, useNotice } from "@/components/economy/notice-toast";
 import { SlotPicker } from "@/components/rewards/slot-picker";
 import { KILLSTREAKS, type KillstreakId } from "@/lib/game/killstreak";
 import { assignSlot, sameLoadout } from "@/lib/game/loadout-draft";
@@ -33,6 +34,19 @@ export function RewardLoadoutPage() {
     if (sameLoadout(draft, base)) setDraft(saved);
   }
   const dirty = !sameLoadout(draft, saved);
+  const saveLoadout = useKillstreakStore((state) => state.saveLoadout);
+  const [saving, setSaving] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const { notice, show } = useNotice();
+
+  async function save() {
+    setSaving(true);
+    setFailure(null);
+    const result = await saveLoadout(draft);
+    setSaving(false);
+    if (result.ok) show({ tone: "ok", text: "Loadout hadiah tersimpan. Berlaku di pertandingan berikutnya." });
+    else setFailure(result.message);
+  }
   const loadout = draft;
 
   return (
@@ -66,11 +80,51 @@ export function RewardLoadoutPage() {
             </li>
           ))}
         </ol>
-        {dirty ? (
-          <p className="mt-3 text-xs text-amber-300" role="status">
-            Ada perubahan yang belum disimpan.
-          </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={save}
+            disabled={!dirty || saving}
+            className="rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+          >
+            {saving ? "Menyimpan…" : failure ? "Coba simpan lagi" : "Simpan loadout"}
+          </button>
+          {dirty ? (
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(saved);
+                setFailure(null);
+              }}
+              disabled={saving}
+              className="rounded-lg px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-slate-200"
+            >
+              Batalkan perubahan
+            </button>
+          ) : null}
+          <span className="text-xs text-slate-500">
+            {dirty ? "Ada perubahan yang belum disimpan." : "Tersimpan di akunmu."}
+          </span>
+        </div>
+
+        {failure ? (
+          <div
+            role="alert"
+            className="mt-3 flex items-start gap-3 rounded-lg border border-rose-400/40 bg-rose-950/60 px-4 py-3 text-sm text-rose-100"
+          >
+            <span aria-hidden>⚠</span>
+            <span className="flex-1">
+              <span className="block font-semibold">Loadout gagal disimpan</span>
+              <span className="block text-xs text-rose-200/80">
+                {failure} Susunanmu tetap di layar ini — coba simpan lagi.
+              </span>
+            </span>
+            <button type="button" onClick={() => setFailure(null)} className="text-xs text-rose-200/70 hover:text-rose-100" aria-label="Tutup pesan">
+              Tutup
+            </button>
+          </div>
         ) : null}
+        <NoticeToast notice={notice} />
       </section>
 
       <section aria-labelledby="judul-katalog-hadiah">
