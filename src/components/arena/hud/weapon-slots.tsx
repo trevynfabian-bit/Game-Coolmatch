@@ -24,7 +24,7 @@ export function WeaponSlots() {
         isSwapping ? "opacity-45" : "opacity-100"
       }`}
     >
-      <ul className="flex items-end gap-2">
+      <ul className="flex items-end gap-1.5 md:gap-2">
         {SWAP_SLOTS.map((weapon, index) => {
           const active = weapon.id === activeWeaponId;
           const accent = WEAPON_SHAPES[weapon.type].accent;
@@ -32,7 +32,7 @@ export function WeaponSlots() {
           return (
             <li
               key={weapon.id}
-              className={`flex w-24 flex-col items-center gap-1 rounded-lg border px-2 py-1.5 backdrop-blur-sm transition-colors sm:w-28 ${
+              className={`flex w-14 flex-col items-center gap-1 rounded-lg border px-2 py-1.5 backdrop-blur-sm transition-colors lg:w-28 ${
                 active
                   ? "border-white/25 bg-slate-900/85"
                   : "border-white/10 bg-slate-950/55"
@@ -55,7 +55,7 @@ export function WeaponSlots() {
                   {index + 1}
                 </span>
                 <span
-                  className={`truncate text-[10px] ${
+                  className={`hidden truncate text-[10px] lg:inline ${
                     active ? "text-slate-100" : "text-slate-500"
                   }`}
                 >
