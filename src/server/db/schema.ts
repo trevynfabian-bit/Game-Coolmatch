@@ -113,6 +113,51 @@ export const matches = sqliteTable(
   ],
 );
 
+/** Kelas senjata; sama dengan `WeaponType` di klien. */
+export const WEAPON_TYPES = ["pistol", "smg", "rifle", "shotgun", "sniper"] as const;
+
+/** Statistik pemain yang bisa menjadi syarat membuka senjata. */
+export const WEAPON_UNLOCK_STATS = ["wins", "totalKills"] as const;
+
+/**
+ * Katalog senjata. Kode (`lib/mock/weapons`) tetap sumber kebenarannya dan
+ * disalin ke sini sekali per proses, supaya server bisa memvalidasi senjata,
+ * menghitung kerusakan, dan menautkan data pemain tanpa bergantung klien.
+ * `unlock_stat` kosong berarti senjata terbuka sejak awal.
+ */
+export const weapons = sqliteTable(
+  "weapons",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    type: text("type", { enum: WEAPON_TYPES }).notNull(),
+    damage: integer("damage").notNull(),
+    /** Peluru per menit. */
+    fireRate: integer("fire_rate").notNull(),
+    magazineSize: integer("magazine_size").notNull(),
+    /** Lama isi ulang dalam milidetik (integer supaya tidak ada pembulatan real). */
+    reloadMs: integer("reload_ms").notNull(),
+    automatic: integer("automatic", { mode: "boolean" }).notNull().default(false),
+    pellets: integer("pellets").notNull().default(1),
+    /** Sebaran dan sentakan dalam seperseratus derajat. */
+    spreadCentiDeg: integer("spread_centi_deg").notNull(),
+    recoilCentiDeg: integer("recoil_centi_deg").notNull(),
+    unlockStat: text("unlock_stat", { enum: WEAPON_UNLOCK_STATS }),
+    unlockTarget: integer("unlock_target"),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (table) => [
+    check(
+      "weapons_statistik_positif",
+      sql`${table.damage} > 0 AND ${table.fireRate} > 0 AND ${table.magazineSize} > 0 AND ${table.reloadMs} > 0 AND ${table.pellets} >= 1`,
+    ),
+    check(
+      "weapons_syarat_lengkap",
+      sql`(${table.unlockStat} IS NULL AND ${table.unlockTarget} IS NULL) OR (${table.unlockStat} IS NOT NULL AND ${table.unlockTarget} IS NOT NULL AND ${table.unlockTarget} > 0)`,
+    ),
+  ],
+);
+
 /** Sebab sebuah ronde berakhir. */
 export const ROUND_END_REASONS = [
   "batas_kill",
@@ -627,3 +672,4 @@ export type PlayerFavoriteRow = typeof playerFavorites.$inferSelect;
 export type RewardNotificationRow = typeof rewardNotifications.$inferSelect;
 export type NewRewardNotificationRow = typeof rewardNotifications.$inferInsert;
 export type MatchKillEventRow = typeof matchKillEvents.$inferSelect;
+export type WeaponRow = typeof weapons.$inferSelect;
