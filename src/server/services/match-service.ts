@@ -13,6 +13,7 @@ import { MOCK_MAPS } from "@/lib/mock/maps";
 import { syncMapCatalog } from "@/server/services/map-service";
 import { countsTowardProgress } from "@/server/services/progress-isolation";
 import { evaluateWeaponUnlocks } from "@/server/services/weapon-unlock-service";
+import { refreshPlayerStats } from "@/server/services/player-stats-service";
 import { MOCK_WEAPONS } from "@/lib/mock/weapons";
 import { maxBotsForMap } from "@/lib/mock/bots";
 import { MATCH_RULES, sameRules } from "@/lib/game/match-rules";
@@ -232,6 +233,7 @@ export function finishMatch(
     getRewardsFor(playerId);
     // Senjata yang syaratnya baru terpenuhi dicatat terbuka sekarang juga.
     evaluateWeaponUnlocks(playerId);
+    refreshPlayerStats(playerId);
   }
 
   return {

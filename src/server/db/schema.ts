@@ -274,6 +274,38 @@ export const playerWeapons = sqliteTable(
   ],
 );
 
+/**
+ * Ringkasan statistik pemain untuk layar riwayat: satu baris per pemain,
+ * dihitung ulang penuh dari pertandingan yang sah (bukan uji coba) setiap kali
+ * pertandingan ditutup — jadi tidak pernah berselisih dengan riwayatnya.
+ */
+export const playerStats = sqliteTable(
+  "player_stats",
+  {
+    playerId: integer("player_id")
+      .primaryKey()
+      .references(() => players.id, { onDelete: "cascade" }),
+    matchesPlayed: integer("matches_played").notNull().default(0),
+    wins: integer("wins").notNull().default(0),
+    losses: integer("losses").notNull().default(0),
+    draws: integer("draws").notNull().default(0),
+    abandoned: integer("abandoned").notNull().default(0),
+    kills: integer("kills").notNull().default(0),
+    deaths: integer("deaths").notNull().default(0),
+    roundWins: integer("round_wins").notNull().default(0),
+    bestStreak: integer("best_streak").notNull().default(0),
+    coinsEarned: integer("coins_earned").notNull().default(0),
+    lastPlayedAt: integer("last_played_at"),
+    updatedAt: integer("updated_at").notNull().default(now),
+  },
+  (table) => [
+    check(
+      "player_stats_konsisten",
+      sql`${table.wins} + ${table.losses} + ${table.draws} + ${table.abandoned} = ${table.matchesPlayed} AND ${table.kills} >= 0 AND ${table.deaths} >= 0`,
+    ),
+  ],
+);
+
 /** Sebab sebuah ronde berakhir. */
 export const ROUND_END_REASONS = [
   "batas_kill",
@@ -895,3 +927,4 @@ export type PlayerMapChoiceRow = typeof playerMapChoices.$inferSelect;
 export type PracticeSessionRow = typeof practiceSessions.$inferSelect;
 export type TrialSessionRow = typeof trialSessions.$inferSelect;
 export type PlayerWeaponRow = typeof playerWeapons.$inferSelect;
+export type PlayerStatsRow = typeof playerStats.$inferSelect;
