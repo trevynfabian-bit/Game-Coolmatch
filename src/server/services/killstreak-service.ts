@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import {
   KILLSTREAK_EVENT_KINDS,
@@ -10,6 +10,7 @@ import {
   playerKillstreakUnlocks,
 } from "@/server/db/schema";
 import { DEFAULT_LOADOUT, KILLSTREAKS, LOADOUT_SLOTS, type KillstreakId } from "@/lib/game/killstreak";
+import { validateKillstreakEvent } from "@/lib/game/killstreak-rules";
 
 /**
  * Layanan killstreak: katalog hadiah, hadiah yang terbuka, dan loadout
@@ -166,12 +167,9 @@ export function getMatchRewardSummary(matchId: number): MatchRewardSummary[] {
 /**
  * Mencatat satu kejadian killstreak di pertandingan yang sedang berjalan.
  *
- * Pemeriksaan yang dijalankan server:
- * - pertandingan milik pemain ini dan belum ditutup;
- * - hadiah ada di loadout pemain;
- * - "terbuka" hanya sah bila kill beruntun yang dilaporkan mencapai ambangnya;
- * - "dipakai" hanya sah bila masih ada hadiah itu yang terbuka tapi belum dipakai;
- * - "kill" hanya sah sesudah hadiah itu pernah dipakai.
+ * Pertandingan harus milik pemain ini dan belum ditutup; selebihnya aturan
+ * di `lib/game/killstreak-rules` (loadout, ambang kill beruntun, urutan
+ * terbuka → dipakai → kill, jeda waktu, dan batas kill per pemakaian).
  */
 export function recordKillstreakEvent(
   playerId: number,
@@ -187,26 +185,26 @@ export function recordKillstreakEvent(
   if (match.endedAt != null) {
     throw new KillstreakError(409, "pertandingan_selesai", "Pertandingan ini sudah selesai.");
   }
-  if (!getLoadout(playerId).includes(input.rewardId)) {
-    throw new KillstreakError(409, "bukan_loadout", "Hadiah itu tidak ada di loadout-mu.");
-  }
-
-  const summary = getMatchRewardSummary(matchId).find((item) => item.rewardId === input.rewardId)!;
-  const reward = KILLSTREAKS.find((item) => item.id === input.rewardId)!;
-
-  if (input.kind === "terbuka" && input.streak < reward.kills) {
-    throw new KillstreakError(400, "streak_kurang", `${reward.name} butuh ${reward.kills} kill beruntun.`);
-  }
-  if (input.kind === "dipakai" && summary.used >= summary.unlocked) {
-    throw new KillstreakError(409, "belum_terbuka", `${reward.name} belum terbuka di pertandingan ini.`);
-  }
-  if (input.kind === "kill" && summary.used === 0) {
-    throw new KillstreakError(409, "belum_dipakai", `${reward.name} belum dipakai di pertandingan ini.`);
+  const history = db
+    .select()
+    .from(matchKillstreakEvents)
+    .where(eq(matchKillstreakEvents.matchId, matchId))
+    .orderBy(asc(matchKillstreakEvents.at), asc(matchKillstreakEvents.id))
+    .all();
+  const at = Date.now();
+  const verdict = validateKillstreakEvent(
+    { ...input, at },
+    { loadout: getLoadout(playerId), botCount: match.botCount, history },
+  );
+  if (!verdict.ok) {
+    // Laporan yang cacat (angka salah) 400; yang bertentangan dengan keadaan 409.
+    const status = verdict.code === "streak_kurang" || verdict.code === "hadiah_tidak_dikenal" ? 400 : 409;
+    throw new KillstreakError(status, verdict.code, verdict.message);
   }
 
   db.transaction((tx) => {
     tx.insert(matchKillstreakEvents)
-      .values({ matchId, rewardId: input.rewardId, kind: input.kind, streak: input.streak, at: Date.now() })
+      .values({ matchId, rewardId: input.rewardId, kind: input.kind, streak: input.streak, at })
       .run();
     // Kill beruntun terpanjang ikut dicatat dari laporan yang sudah lolos pemeriksaan.
     if (input.streak > match.bestStreak) {
