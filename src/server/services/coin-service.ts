@@ -7,11 +7,16 @@ import {
   matches,
   type CoinTransactionKind,
   type CoinTransactionRow,
+  type MatchRow,
 } from "@/server/db/schema";
 import {
+  DIFFICULTY_MULTIPLIER,
   calculateMatchCoins,
+  type CoinLine,
   type MatchCoinReward,
 } from "@/lib/economy/coin-rules";
+import { findMap } from "@/lib/mock/maps";
+import { recordNotification } from "@/server/services/notification-service";
 
 /**
  * Layanan dompet koin: satu-satunya jalan untuk mengubah saldo pemain.
@@ -312,25 +317,24 @@ export function awardMatchCoins(
 
     // Rincian yang dikembalikan diambil dari yang BENAR-BENAR tercatat, supaya
     // pemanggilan ulang dengan fakta berbeda tidak menampilkan angka palsu.
-    const recorded = tx
-      .select()
-      .from(coinTransactions)
-      .where(
-        and(
-          eq(coinTransactions.playerId, playerId),
-          eq(coinTransactions.sourceType, "match"),
-          eq(coinTransactions.sourceId, String(matchId)),
-        ),
-      )
-      .orderBy(coinTransactions.id)
-      .all();
-    const lines = recorded
-      .filter((row) => row.amount > 0)
-      .map((row) => ({
-        kind: row.kind as MatchCoinReward["lines"][number]["kind"],
-        label: row.note,
-        amount: row.amount,
-      }));
+    const lines = recordedMatchLines(tx, playerId, matchId);
+    const total = lines.reduce((sum, line) => sum + line.amount, 0);
+
+    // Koin yang baru saja masuk diumumkan di kotak masuk hadiah, dalam
+    // transaksi yang sama supaya koin dan notifikasinya tidak berselisih.
+    if (!alreadyAwarded && total > 0) {
+      recordNotification(
+        {
+          playerId,
+          kind: "koin",
+          title: `+${total} koin dari pertandingan`,
+          body: matchCoinBody(match, lines),
+          amount: total,
+          sourceId: `pertandingan:${matchId}`,
+        },
+        tx,
+      );
+    }
 
     const wallet = ensureWallet(tx, playerId);
     return {
@@ -338,7 +342,7 @@ export function awardMatchCoins(
       reward: {
         lines,
         multiplier: reward.multiplier,
-        total: lines.reduce((sum, line) => sum + line.amount, 0),
+        total,
       },
       alreadyAwarded,
       excluded: false,
@@ -349,4 +353,91 @@ export function awardMatchCoins(
       },
     };
   });
+}
+
+/** Baris koin sebuah pertandingan yang benar-benar tercatat, urut pencatatan. */
+function recordedMatchLines(executor: Tx | Db, playerId: number, matchId: number): CoinLine[] {
+  return executor
+    .select()
+    .from(coinTransactions)
+    .where(
+      and(
+        eq(coinTransactions.playerId, playerId),
+        eq(coinTransactions.sourceType, "match"),
+        eq(coinTransactions.sourceId, String(matchId)),
+      ),
+    )
+    .orderBy(coinTransactions.id)
+    .all()
+    .filter((row) => row.amount > 0)
+    .map((row) => ({
+      kind: row.kind as CoinLine["kind"],
+      label: row.note,
+      amount: row.amount,
+    }));
+}
+
+const RESULT_WORD: Record<NonNullable<MatchRow["result"]>, string> = {
+  menang: "Menang",
+  kalah: "Kalah",
+  seri: "Seri",
+  ditinggal: "Ditinggal",
+};
+
+/** Isi notifikasi koin: hasil, peta, lalu rincian bonusnya. */
+function matchCoinBody(match: MatchRow, lines: CoinLine[]): string {
+  const head = `${match.result ? RESULT_WORD[match.result] : "Selesai"} di ${findMap(match.mapId).name}`;
+  const extras = lines.filter((line) => line.kind !== "pertandingan").map((line) => line.label);
+  return extras.length > 0 ? `${head}: ${extras.join(", ")}.` : `${head}.`;
+}
+
+export type MatchCoinStatus = "berlangsung" | "dibayar" | "tanpa_koin" | "uji_coba";
+
+export interface MatchCoinSummary {
+  matchId: number;
+  /**
+   * berlangsung: belum selesai; dibayar: koin sudah masuk dompet;
+   * tanpa_koin: selesai tapi tidak berhak (mis. ditinggal); uji_coba: latihan.
+   */
+  status: MatchCoinStatus;
+  result: MatchRow["result"];
+  difficulty: MatchRow["difficulty"];
+  multiplier: number;
+  lines: CoinLine[];
+  total: number;
+  endedAt: number | null;
+}
+
+/**
+ * Ringkasan koin sebuah pertandingan milik pemain, hanya baca: rincian yang
+ * tercatat di buku besar koin, bukan hitungan ulang. Dipakai layar akhir,
+ * riwayat, dan kotak masuk hadiah.
+ */
+export function getMatchCoinSummary(playerId: number, matchId: number): MatchCoinSummary {
+  const match = db
+    .select()
+    .from(matches)
+    .where(and(eq(matches.id, matchId), eq(matches.playerId, playerId)))
+    .get();
+  if (!match) throw new CoinError("pertandingan_tidak_ada", "Pertandingan tidak ditemukan.");
+
+  const lines = match.isTrial ? [] : recordedMatchLines(db, playerId, matchId);
+  const total = lines.reduce((sum, line) => sum + line.amount, 0);
+  const status: MatchCoinStatus = match.isTrial
+    ? "uji_coba"
+    : match.endedAt == null
+      ? "berlangsung"
+      : total > 0
+        ? "dibayar"
+        : "tanpa_koin";
+  return {
+    matchId,
+    status,
+    result: match.result,
+    difficulty: match.difficulty,
+    multiplier: match.isTrial ? 0 : (DIFFICULTY_MULTIPLIER[match.difficulty] ?? 1),
+    lines,
+    total,
+    endedAt: match.endedAt,
+  };
 }

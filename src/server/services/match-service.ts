@@ -13,7 +13,7 @@ import { findMatchWinner } from "@/lib/game/round";
 import { MOCK_MAPS } from "@/lib/mock/maps";
 import { ApiError } from "@/server/api/http";
 import { awardMatchCoins, type MatchCoinAward } from "@/server/services/coin-service";
-import { getLoadout } from "@/server/services/killstreak-service";
+import { getLoadout, getRewardsFor } from "@/server/services/killstreak-service";
 
 /**
  * Layanan pertandingan: membuat baris pertandingan saat arena dibuka dan
@@ -205,6 +205,10 @@ export function finishMatch(
   const coins = awardMatchCoins(playerId, matchId, {
     bestStreak: Math.max(closed.bestStreak, input.bestStreak),
   });
+  // Statistik pemain baru saja bertambah: hadiah killstreak yang syarat
+  // pencapaiannya kini terpenuhi dicatat terbuka (beserta notifikasinya)
+  // sekarang, bukan menunggu pemain membuka menu hadiah.
+  if (!closed.isTrial) getRewardsFor(playerId);
 
   return {
     matchId,

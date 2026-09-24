@@ -1,39 +1,73 @@
 import { create } from "zustand";
-import { MOCK_NOTIFICATIONS } from "@/lib/mock/notifications";
+import { apiFetch } from "@/lib/api/client";
 import type { RewardNotification } from "@/types/economy";
 
 /**
- * Notifikasi hadiah pemain. Fase frontend memakai data tiruan; lapisan
- * backend nanti memuatnya dari /api/notifikasi dan menyimpan penanda
- * "sudah dilihat" di server.
+ * Notifikasi hadiah pemain, dimuat dari /api/notifikasi. Server yang mencatat
+ * notifikasi saat hadiah diberikan (koin pertandingan, hadiah killstreak
+ * lewat pencapaian, dan seterusnya); klien hanya membaca dan menandai
+ * dilihat. Penandaan diterapkan seketika di layar lalu dikirim ke server;
+ * bila gagal, daftar dimuat ulang supaya kembali sama dengan server.
  */
 interface NotificationState {
   items: RewardNotification[];
-  hydrate: (items: RewardNotification[]) => void;
+  status: "idle" | "loading" | "ready" | "error";
+  load: () => Promise<void>;
   markSeen: (id: number) => void;
   markAllSeen: () => void;
-  /** Menambah notifikasi yang lahir di klien (mis. hasil pertandingan barusan). */
-  push: (item: Omit<RewardNotification, "id" | "createdAt" | "seenAt">) => void;
+  /** Menandai dilihat semua notifikasi yang menunjuk satu item. */
+  markItem: (kind: RewardNotification["kind"], itemId: string) => void;
 }
 
-export const useNotificationStore = create<NotificationState>((set) => ({
-  items: MOCK_NOTIFICATIONS,
-  hydrate: (items) => set({ items }),
-  markSeen: (id) =>
-    set((state) => ({
-      items: state.items.map((item) => (item.id === id && item.seenAt === null ? { ...item, seenAt: Date.now() } : item)),
-    })),
-  push: (item) =>
-    set((state) => ({
-      items: [
-        { ...item, id: Math.max(0, ...state.items.map((entry) => entry.id)) + 1, createdAt: Date.now(), seenAt: null },
-        ...state.items,
-      ],
-    })),
-  markAllSeen: () =>
-    set((state) => ({
-      items: state.items.map((item) => (item.seenAt === null ? { ...item, seenAt: Date.now() } : item)),
-    })),
+type SeenTarget = { all: true } | { ids: number[] } | { kind: RewardNotification["kind"]; itemId: string };
+
+let loadGeneration = 0;
+
+async function sendSeen(target: SeenTarget) {
+  const response = await apiFetch<{ updated: number; unseenCount: number }>("/api/notifikasi/dilihat", {
+    method: "POST",
+    body: target,
+  });
+  if (!response.ok) void useNotificationStore.getState().load();
+}
+
+function markLocally(items: RewardNotification[], match: (item: RewardNotification) => boolean): RewardNotification[] {
+  const now = Date.now();
+  return items.map((item) => (item.seenAt === null && match(item) ? { ...item, seenAt: now } : item));
+}
+
+export const useNotificationStore = create<NotificationState>((set, get) => ({
+  items: [],
+  status: "idle",
+  load: async () => {
+    const generation = ++loadGeneration;
+    if (get().status === "idle") set({ status: "loading" });
+    const response = await apiFetch<{ notifications: RewardNotification[]; degraded?: boolean }>(
+      "/api/notifikasi?limit=50",
+    );
+    if (generation !== loadGeneration) return;
+    if (!response.ok || response.data.degraded) {
+      set({ status: get().items.length > 0 ? "ready" : "error" });
+      return;
+    }
+    set({ items: response.data.notifications, status: "ready" });
+  },
+  markSeen: (id) => {
+    if (!get().items.some((item) => item.id === id && item.seenAt === null)) return;
+    set((state) => ({ items: markLocally(state.items, (item) => item.id === id) }));
+    void sendSeen({ ids: [id] });
+  },
+  markAllSeen: () => {
+    if (!get().items.some((item) => item.seenAt === null)) return;
+    set((state) => ({ items: markLocally(state.items, () => true) }));
+    void sendSeen({ all: true });
+  },
+  markItem: (kind, itemId) => {
+    const match = (item: RewardNotification) => item.kind === kind && item.itemId === itemId;
+    if (!get().items.some((item) => item.seenAt === null && match(item))) return;
+    set((state) => ({ items: markLocally(state.items, match) }));
+    void sendSeen({ kind, itemId });
+  },
 }));
 
 /** Jumlah notifikasi yang belum dilihat. */
@@ -54,8 +88,5 @@ export function unseenItemIds(items: RewardNotification[], kind: RewardNotificat
 
 /** Menandai dilihat semua notifikasi yang menunjuk item tertentu. */
 export function markItemSeen(kind: RewardNotification["kind"], itemId: string): void {
-  const { items, markSeen } = useNotificationStore.getState();
-  for (const item of items) {
-    if (item.kind === kind && item.itemId === itemId && item.seenAt === null) markSeen(item.id);
-  }
+  useNotificationStore.getState().markItem(kind, itemId);
 }

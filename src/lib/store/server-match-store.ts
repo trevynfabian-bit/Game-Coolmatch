@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { apiFetch } from "@/lib/api/client";
-import { findKillstreak, type KillstreakId } from "@/lib/game/killstreak";
+import type { KillstreakId } from "@/lib/game/killstreak";
 import { useNotificationStore } from "@/lib/store/notification-store";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
@@ -132,39 +132,15 @@ export async function finishServerMatch() {
 }
 
 /**
- * Mengubah hasil pertandingan menjadi notifikasi hadiah: koin yang didapat,
- * dan hadiah killstreak yang baru terbuka lewat pencapaian (statistik pemain
- * bertambah dari pertandingan ini). Dialog perayaannya sendiri baru muncul
- * setelah pemain meninggalkan arena — RewardCelebration diam di arena.
+ * Server sudah mencatat notifikasi hadiah pertandingan ini (koin yang masuk
+ * dan hadiah killstreak yang terbuka lewat pencapaian). Di sini klien cukup
+ * memuat ulang status hadiah dan kotak masuknya. Dialog perayaannya baru
+ * muncul setelah pemain meninggalkan arena — RewardCelebration diam di arena.
  */
 async function announceMatchRewards(result: MatchFinishResult) {
   if (result.coins.excluded) return;
-  const notifications = useNotificationStore.getState();
-  const { total } = result.coins.reward;
-  if (total > 0 && !result.coins.alreadyAwarded) {
-    notifications.push({
-      kind: "koin",
-      title: `+${total} koin dari pertandingan`,
-      body: result.coins.reward.lines.map((line) => line.label).join(", "),
-      itemId: null,
-      amount: total,
-    });
-  }
-
-  const streaks = useKillstreakStore.getState();
-  const lockedBefore = new Set(streaks.rewardStatus.filter((item) => !item.unlocked).map((item) => item.id));
-  await streaks.loadLoadout();
-  for (const reward of useKillstreakStore.getState().rewardStatus) {
-    if (!reward.unlocked || !lockedBefore.has(reward.id)) continue;
-    const info = findKillstreak(reward.id);
-    notifications.push({
-      kind: "hadiah",
-      title: `${info.name} terbuka`,
-      body: "Syarat pencapaiannya terpenuhi. Pasang di loadout hadiah untuk memakainya.",
-      itemId: reward.id,
-      amount: null,
-    });
-  }
+  await useKillstreakStore.getState().loadLoadout();
+  await useNotificationStore.getState().load();
 }
 
 /**

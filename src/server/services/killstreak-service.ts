@@ -13,6 +13,7 @@ import { DEFAULT_LOADOUT, KILLSTREAKS, LOADOUT_SLOTS, type KillstreakId } from "
 import { validateKillstreakEvent } from "@/lib/game/killstreak-rules";
 import { computeUnlockStatus, type AchievementStat } from "@/lib/game/killstreak";
 import { spendCoins } from "@/server/services/coin-service";
+import { recordNotification } from "@/server/services/notification-service";
 import { getAchievementStats } from "@/server/services/player-stats-service";
 
 /**
@@ -89,10 +90,26 @@ export function getRewardsFor(playerId: number, stats = getAchievementStats(play
   return KILLSTREAKS.map((reward) => {
     const status = computeUnlockStatus(reward, stats, recorded.get(reward.id) === "koin");
     if (status.unlocked && status.via === "pencapaian" && !recorded.has(reward.id)) {
-      db.insert(playerKillstreakUnlocks)
-        .values({ playerId, rewardId: reward.id, via: "pencapaian", unlockedAt: Date.now() })
-        .onConflictDoNothing()
-        .run();
+      db.transaction((tx) => {
+        const inserted = tx
+          .insert(playerKillstreakUnlocks)
+          .values({ playerId, rewardId: reward.id, via: "pencapaian", unlockedAt: Date.now() })
+          .onConflictDoNothing()
+          .run().changes;
+        if (inserted > 0) {
+          recordNotification(
+            {
+              playerId,
+              kind: "hadiah",
+              title: `${reward.name} terbuka`,
+              body: "Syarat pencapaiannya terpenuhi. Pasang di loadout hadiah untuk memakainya.",
+              itemId: reward.id,
+              sourceId: `hadiah:${reward.id}`,
+            },
+            tx,
+          );
+        }
+      });
     }
     // Hadiah yang pernah terbuka lewat pencapaian tetap terbuka walau syaratnya
     // kelak berubah — yang sudah didapat tidak dicabut.

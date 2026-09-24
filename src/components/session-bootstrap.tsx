@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useShopStore } from "@/lib/store/shop-store";
+import { useNotificationStore } from "@/lib/store/notification-store";
 import { useFavoriteStore } from "@/lib/store/favorite-store";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useSkinStore } from "@/lib/store/skin-store";
@@ -20,6 +21,7 @@ export function SessionBootstrap() {
     void useSkinStore.getState().load();
     void useKillstreakStore.getState().loadLoadout();
     void useFavoriteStore.getState().load();
+    void useNotificationStore.getState().load();
   }, []);
   return null;
 }
