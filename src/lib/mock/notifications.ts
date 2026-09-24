@@ -47,6 +47,16 @@ export const MOCK_NOTIFICATIONS: RewardNotification[] = [
     seenAt: ANCHOR - 25 * 60 * MINUTE,
   },
   {
+    id: 6,
+    kind: "senjata",
+    title: "Senjata terbuka: Badai 12",
+    body: "Shotgun delapan butir kini bisa kamu bawa ke arena.",
+    itemId: "wpn-shotgun-badai",
+    amount: null,
+    createdAt: ANCHOR - 60 * MINUTE,
+    seenAt: null,
+  },
+  {
     id: 1,
     kind: "senjata",
     title: "Senjata terbuka: Vektor Cepat",

@@ -7,11 +7,12 @@ import { KillstreakIcon } from "@/components/arena/hud/killstreak-tracker";
 import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
 import { RARITY_META, findSkin } from "@/lib/economy/skin-catalog";
 import { findWeapon } from "@/lib/mock/weapons";
+import { WEAPON_SHAPES } from "@/lib/weapons/weapon-shape";
 import { useNotificationStore } from "@/lib/store/notification-store";
 import type { RewardNotification } from "@/types/economy";
 
 /** Jenis hadiah yang pantas dirayakan dengan dialog, bukan sekadar daftar. */
-const CELEBRATED = new Set<RewardNotification["kind"]>(["skin", "upgrade", "hadiah"]);
+const CELEBRATED = new Set<RewardNotification["kind"]>(["skin", "upgrade", "hadiah", "senjata"]);
 
 /** Halaman tempat dialog tidak boleh muncul karena pemain sedang bermain. */
 const QUIET_PATHS = ["/arena", "/latihan", "/uji/arena"];
@@ -36,15 +37,16 @@ function Hero({ item }: { item: RewardNotification }) {
       </span>
     );
   }
+  const weapon = findWeapon(item.itemId ?? "");
   return (
-    <span className="block text-sky-300">
-      <SkinnedWeapon type={findWeapon(item.itemId ?? "").type} skin={null} className="h-28 w-full" />
+    <span className="block" style={{ color: item.kind === "senjata" ? WEAPON_SHAPES[weapon.type].accent : "#7dd3fc" }}>
+      <SkinnedWeapon type={weapon.type} skin={null} className="h-28 w-full" />
     </span>
   );
 }
 
 /**
- * Dialog perayaan untuk skin, upgrade, dan hadiah killstreak yang baru.
+ * Dialog perayaan untuk senjata, skin, upgrade, dan hadiah killstreak yang baru.
  *
  * Mengikuti pola perayaan senjata baru: hadiah pertama yang belum dilihat
  * tampil besar dengan konfeti, dan penanda "belum dilihat" baru hilang
@@ -83,19 +85,29 @@ export function RewardCelebration() {
   if (!current || quiet) return null;
 
   const skin = current.kind === "skin" ? findSkin(current.itemId) : undefined;
-  const accent = skin ? RARITY_META[skin.rarity].color : current.kind === "hadiah" ? "#a3e635" : "#38bdf8";
+  const accent = skin
+    ? RARITY_META[skin.rarity].color
+    : current.kind === "hadiah"
+      ? "#a3e635"
+      : current.kind === "senjata"
+        ? "#34d399"
+        : "#38bdf8";
   const eyebrow =
     current.kind === "skin"
       ? `Skin ${skin ? RARITY_META[skin.rarity].label.toLowerCase() : ""} baru`
       : current.kind === "hadiah"
         ? "Hadiah killstreak terbuka"
-        : "Upgrade baru";
+        : current.kind === "senjata"
+          ? "Senjata baru terbuka"
+          : "Upgrade baru";
   const next =
     current.kind === "skin"
       ? { href: "/toko/koleksi", label: "Lihat koleksi" }
       : current.kind === "hadiah"
         ? { href: "/hadiah", label: "Atur loadout" }
-        : { href: "/toko", label: "Ke toko upgrade" };
+        : current.kind === "senjata"
+          ? { href: "/senjata", label: "Pilih senjata ini" }
+          : { href: "/toko", label: "Ke toko upgrade" };
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/85 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="judul-perayaan">
@@ -125,7 +137,7 @@ export function RewardCelebration() {
           <Hero item={current} />
         </div>
         <h2 id="judul-perayaan" className="text-2xl font-bold text-white">
-          {current.title.replace(/^Skin baru: /, "")}
+          {current.title.replace(/^(Skin baru|Senjata terbuka): /, "")}
         </h2>
         <p className="mt-2 text-sm text-slate-400">{current.body}</p>
 
