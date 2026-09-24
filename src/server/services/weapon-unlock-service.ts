@@ -7,7 +7,9 @@ import { getWeaponProgress, listWeaponCatalog, type CatalogWeapon } from "@/serv
 
 /**
  * Evaluasi pembukaan senjata. Syarat (dari katalog) dibandingkan dengan
- * statistik pemain yang sungguhan; senjata yang syaratnya baru terpenuhi
+ * statistik pemain yang sungguhan — `getWeaponProgress` hanya membaca
+ * pertandingan yang lolos `progressMatchesOf`, jadi uji coba dan latihan
+ * sasaran tidak pernah ikut membuka senjata. Senjata yang syaratnya baru terpenuhi
  * dicatat ke `player_weapons` beserta notifikasi "senjata". Senjata yang
  * sudah pernah terbuka tetap terbuka walau syaratnya kelak berubah.
  */

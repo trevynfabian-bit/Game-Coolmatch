@@ -4,12 +4,15 @@ import {
   coinTransactions,
   matchKillstreakEvents,
   matches,
+  playerWeapons,
   practiceSessions,
   rewardNotifications,
   trialSessions,
+  weapons,
   type MatchRow,
 } from "@/server/db/schema";
 import { ApiError } from "@/server/api/http";
+import { getAchievementStats } from "@/server/services/player-stats-service";
 
 /**
  * Satu-satunya tempat aturan isolasi progres: pertandingan uji coba
@@ -45,8 +48,14 @@ export interface IsolationReport {
   trialMatches: number;
   practiceSessions: number;
   trialSessions: number;
-  /** Harus selalu nol: bukti uji coba tidak pernah menyentuh koin/killstreak/notifikasi. */
-  leaks: { coinTransactions: number; killstreakEvents: number; coinNotifications: number };
+  /** Harus selalu nol: bukti uji coba tidak pernah menyentuh koin/killstreak/notifikasi/senjata. */
+  leaks: {
+    coinTransactions: number;
+    killstreakEvents: number;
+    coinNotifications: number;
+    /** Senjata tercatat terbuka lewat pencapaian padahal statistik sungguhan belum memenuhi. */
+    weaponUnlocksWithoutProgress: number;
+  };
 }
 
 /**
@@ -93,6 +102,19 @@ export function isolationReport(playerId: number): IsolationReport {
             ),
           ),
       ),
+      weaponUnlocksWithoutProgress: unlocksWithoutProgress(playerId),
     },
   };
+}
+
+/** Senjata "pencapaian" yang tercatat terbuka tanpa statistik sungguhan yang memenuhi syaratnya. */
+function unlocksWithoutProgress(playerId: number): number {
+  const stats = getAchievementStats(playerId);
+  const rows = db
+    .select({ unlockStat: weapons.unlockStat, unlockTarget: weapons.unlockTarget })
+    .from(playerWeapons)
+    .innerJoin(weapons, eq(weapons.id, playerWeapons.weaponId))
+    .where(and(eq(playerWeapons.playerId, playerId), eq(playerWeapons.via, "pencapaian")))
+    .all();
+  return rows.filter((row) => row.unlockStat && row.unlockTarget && stats[row.unlockStat] < row.unlockTarget).length;
 }
