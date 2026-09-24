@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import { findAttachment } from "@/lib/economy/upgrade-catalog";
+import { findAttachment, findUpgradeTrack } from "@/lib/economy/upgrade-catalog";
 import { MOCK_WALLET, MOCK_WEAPON_UPGRADES, emptyUpgradeState } from "@/lib/mock/shop";
 import { findWeapon } from "@/lib/mock/weapons";
-import type { AttachmentSlot, Wallet, WeaponUpgradeState } from "@/types/economy";
+import type { AttachmentSlot, UpgradeStat, Wallet, WeaponUpgradeState } from "@/types/economy";
 
 /**
  * State toko di klien: saldo koin dan kepemilikan upgrade per senjata.
@@ -20,6 +20,8 @@ interface ShopState {
   /** Kunci aksi yang sedang diproses, supaya tombolnya bisa dimatikan. */
   pending: string | null;
   hydrate: (input: { wallet?: Wallet; upgrades?: WeaponUpgradeState[] }) => void;
+  /** Membeli tingkat BERIKUTNYA satu statistik; tingkat tidak bisa dilompati. */
+  buyUpgrade: (weaponId: string, stat: UpgradeStat) => Promise<ShopResult>;
   buyAttachment: (weaponId: string, attachmentId: string) => Promise<ShopResult>;
   equipAttachment: (weaponId: string, attachmentId: string) => Promise<ShopResult>;
   unequipSlot: (weaponId: string, slot: AttachmentSlot) => Promise<ShopResult>;
@@ -73,6 +75,28 @@ export const useShopStore = create<ShopState>((set, get) => {
         wallet: wallet ?? state.wallet,
         upgrades: upgrades ? indexUpgrades(upgrades) : state.upgrades,
       })),
+
+    buyUpgrade: (weaponId, stat) =>
+      run(`upgrade:${weaponId}:${stat}`, () => {
+        const track = findUpgradeTrack(weaponId, stat);
+        if (!track) return { ok: false, message: "Upgrade ini tidak ada di katalog." };
+        const current = upgradeStateOf(get().upgrades, weaponId);
+        const next = track.tiers.find((tier) => tier.level === current.levels[stat] + 1);
+        if (!next) return { ok: false, message: `${track.label} sudah di tingkat maksimal.` };
+        const { wallet } = get();
+        if (wallet.balance < next.price) {
+          return {
+            ok: false,
+            message: `Koin kurang ${next.price - wallet.balance} untuk ${track.label} tingkat ${next.level}.`,
+          };
+        }
+        set({ wallet: { ...wallet, balance: wallet.balance - next.price } });
+        patchWeapon(weaponId, (s) => ({
+          ...s,
+          levels: { ...s.levels, [stat]: next.level },
+        }));
+        return { ok: true };
+      }),
 
     buyAttachment: (weaponId, attachmentId) =>
       run(`beli:${weaponId}:${attachmentId}`, () => {

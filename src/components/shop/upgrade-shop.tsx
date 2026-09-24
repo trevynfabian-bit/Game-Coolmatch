@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AttachmentRow } from "@/components/shop/attachment-row";
+import { UpgradeTrackRow } from "@/components/shop/upgrade-track-row";
 import { CoinBadge, CoinIcon, formatCoins } from "@/components/economy/coin-badge";
 import { WeaponSilhouette } from "@/components/weapons/weapon-silhouette";
 import {
@@ -15,137 +16,11 @@ import {
 import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { upgradeStateOf, useShopStore, type ShopResult } from "@/lib/store/shop-store";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
-import type { UpgradeTrack, WeaponUpgradeState } from "@/types/economy";
-
-function LevelPips({ level, max, accent }: { level: number; max: number; accent: string }) {
-  return (
-    <span className="flex gap-1" aria-label={`Tingkat ${level} dari ${max}`}>
-      {Array.from({ length: max }, (_, index) => (
-        <span
-          key={index}
-          className="h-1.5 w-6 rounded-full"
-          style={{ backgroundColor: index < level ? accent : "rgba(255,255,255,0.1)" }}
-        />
-      ))}
-    </span>
-  );
-}
-
-function PriceTag({ price, affordable }: { price: number; affordable: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1 font-mono text-xs tabular-nums ${
-        affordable ? "text-amber-200" : "text-rose-300/80"
-      }`}
-    >
-      <CoinIcon className="h-3.5 w-3.5" />
-      {formatCoins(price)}
-    </span>
-  );
-}
-
-function UpgradeRow({
-  track,
-  state,
-  balance,
-  accent,
-}: {
-  track: UpgradeTrack;
-  state: WeaponUpgradeState;
-  balance: number;
-  accent: string;
-}) {
-  const level = state.levels[track.stat];
-  const next = track.tiers.find((tier) => tier.level === level + 1) ?? null;
-  const current = track.tiers.find((tier) => tier.level === level) ?? null;
-
-  return (
-    <li className="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-100">{track.label}</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-slate-400">{track.description}</p>
-        </div>
-        <LevelPips level={level} max={track.tiers.length} accent={accent} />
-      </div>
-      <ol className="mt-3 grid grid-cols-3 gap-1.5" aria-label={`Tingkat ${track.label}`}>
-        {track.tiers.map((tier) => {
-          const owned = tier.level <= level;
-          const isNext = tier.level === level + 1;
-          return (
-            <li
-              key={tier.level}
-              className={`rounded-md border px-2 py-1.5 text-[11px] ${
-                owned
-                  ? "border-transparent"
-                  : isNext
-                    ? "border-white/20 bg-white/5"
-                    : "border-white/5 opacity-60"
-              }`}
-              style={owned ? { backgroundColor: `${accent}1f` } : undefined}
-            >
-              <span className="flex items-center justify-between gap-1">
-                <span className="font-semibold text-slate-200">Tk {tier.level}</span>
-                <span className="font-mono tabular-nums" style={{ color: owned || isNext ? accent : "#94a3b8" }}>
-                  +{tier.bonusPercent}%
-                </span>
-              </span>
-              <span className="mt-0.5 block text-[10px] text-slate-400">
-                {owned ? (
-                  "Dimiliki"
-                ) : (
-                  <span className="inline-flex items-center gap-1 font-mono tabular-nums">
-                    <CoinIcon className="h-3 w-3" />
-                    {formatCoins(tier.price)}
-                  </span>
-                )}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-      <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-        <span className="text-slate-500">
-          {current ? (
-            <>
-              Sekarang <span className="text-slate-200">+{current.bonusPercent}%</span>
-            </>
-          ) : (
-            "Belum ditingkatkan"
-          )}
-          {next ? (
-            <>
-              <span className="text-slate-700"> → </span>
-              <span style={{ color: accent }}>+{next.bonusPercent}%</span>
-            </>
-          ) : null}
-        </span>
-        {next ? (
-          <span className="flex items-center gap-3">
-            <PriceTag price={next.price} affordable={balance >= next.price} />
-            <button
-              type="button"
-              disabled
-              title="Pembelian menyusul"
-              className="rounded-md border border-white/15 px-3 py-1 text-[11px] font-semibold text-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Tingkat {next.level}
-            </button>
-          </span>
-        ) : (
-          <span className="rounded bg-emerald-400/15 px-2 py-0.5 text-[10px] font-semibold tracking-[0.12em] text-emerald-300 uppercase">
-            Maksimal
-          </span>
-        )}
-      </div>
-    </li>
-  );
-}
 
 /**
  * Halaman toko upgrade senjata: pilih senjata di kiri, lalu lihat jalur
  * peningkatan statistik dan attachment yang cocok untuknya. Semua data masih
- * tiruan dari `useShopStore`, termasuk aksi beli dan pasang attachment.
+ * tiruan dari `useShopStore`, termasuk aksi beli tingkat statistik serta beli dan pasang attachment.
  */
 export function UpgradeShop() {
   const [weaponId, setWeaponId] = useState(MOCK_WEAPONS[2]?.id ?? MOCK_WEAPONS[0].id);
@@ -262,7 +137,14 @@ export function UpgradeShop() {
             </div>
             <ul className="mt-3 space-y-2">
               {tracks.map((track) => (
-                <UpgradeRow key={track.id} track={track} state={state} balance={wallet.balance} accent={accent} />
+                <UpgradeTrackRow
+                  key={track.id}
+                  track={track}
+                  state={state}
+                  balance={wallet.balance}
+                  accent={accent}
+                  onResult={report}
+                />
               ))}
             </ul>
           </section>
