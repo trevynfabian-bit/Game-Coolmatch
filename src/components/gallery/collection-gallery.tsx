@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { WalletBadge } from "@/components/economy/wallet-badge";
 import { GalleryItemCard } from "@/components/gallery/gallery-item-card";
+import { InspectViewer } from "@/components/gallery/inspect-viewer";
 import { SkinnedWeapon } from "@/components/skins/skinned-weapon";
 import { RARITY_META, SKINS, findSkin } from "@/lib/economy/skin-catalog";
 import { filterSkins } from "@/lib/economy/skin-filter";
 import { ATTACHMENT_SLOT_LABEL, findAttachment } from "@/lib/economy/upgrade-catalog";
 import { weaponOwnership } from "@/lib/mock/player-weapons";
-import { MOCK_WEAPONS } from "@/lib/mock/weapons";
+import { MOCK_WEAPONS, findWeapon } from "@/lib/mock/weapons";
 import { upgradeStateOf, useShopStore } from "@/lib/store/shop-store";
 import { useSkinStore } from "@/lib/store/skin-store";
 import { WEAPON_SHAPES, WEAPON_TYPE_LABEL } from "@/lib/weapons/weapon-shape";
@@ -29,6 +30,8 @@ const TABS: { id: Tab; label: string }[] = [
  */
 export function CollectionGallery() {
   const [tab, setTab] = useState<Tab>("senjata");
+  /** Item yang sedang di-inspect: senjata dan skin yang dipakainya. */
+  const [inspecting, setInspecting] = useState<{ weaponId: string; skinId: string | null } | null>(null);
   const collection = useSkinStore((state) => state.collection);
   const upgrades = useShopStore((state) => state.upgrades);
 
@@ -99,6 +102,11 @@ export function CollectionGallery() {
             <li key={weapon.id}>
               <GalleryItemCard
                 status={unlocked ? "dimiliki" : "terkunci"}
+                actions={
+                  unlocked ? (
+                    <InspectButton label={weapon.name} onClick={() => setInspecting({ weaponId: weapon.id, skinId: skin?.id ?? null })} />
+                  ) : undefined
+                }
                 preview={
                   <span className="block" style={{ color: WEAPON_SHAPES[weapon.type].accent }}>
                     <SkinnedWeapon type={weapon.type} skin={unlocked ? skin : null} className="h-14 w-full" />
@@ -145,6 +153,18 @@ export function CollectionGallery() {
                   <GalleryItemCard
                     status={on.length > 0 ? "terpasang" : "dimiliki"}
                     accent={skin.rarity === "gold" ? RARITY_META.gold.color : undefined}
+                    actions={
+                      <InspectButton
+                        label={skin.name}
+                        onClick={() =>
+                          setInspecting({
+                            // Skin di-inspect di senjata tempat ia terpasang, atau senapan serbu.
+                            weaponId: weapons.find((item) => item.skin?.id === skin.id)?.weapon.id ?? "wpn-rifle-garuda",
+                            skinId: skin.id,
+                          })
+                        }
+                      />
+                    }
                     preview={<SkinnedWeapon type="rifle" skin={skin} className="h-10 w-full" />}
                     title={skin.name}
                     tag={RARITY_META[skin.rarity].label}
@@ -187,6 +207,14 @@ export function CollectionGallery() {
         )
       ) : null}
 
+      {inspecting ? (
+        <InspectViewer
+          weapon={findWeapon(inspecting.weaponId)}
+          skin={findSkin(inspecting.skinId) ?? null}
+          onClose={() => setInspecting(null)}
+        />
+      ) : null}
+
       <div className="mt-10 flex flex-wrap gap-2 border-t border-white/10 pt-6">
         <Link href="/toko" className="rounded-lg border border-white/15 px-5 py-2.5 text-sm font-semibold text-slate-200 hover:border-white/30">
           Ke toko
@@ -196,6 +224,24 @@ export function CollectionGallery() {
         </Link>
       </div>
     </div>
+  );
+}
+
+/** Tombol kecil pembuka mode inspect. */
+function InspectButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Inspect ${label}`}
+      title="Inspect"
+      className="grid h-7 w-7 place-items-center rounded-md border border-white/10 bg-slate-900/80 text-slate-300 hover:border-white/30 hover:text-white"
+    >
+      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+        <circle cx="7" cy="7" r="4.5" />
+        <path d="M10.5 10.5L14 14" strokeLinecap="round" />
+      </svg>
+    </button>
   );
 }
 

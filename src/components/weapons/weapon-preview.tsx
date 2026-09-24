@@ -1,20 +1,45 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import type { Group } from "three";
 import { WEAPON_SHAPES } from "@/lib/weapons/weapon-shape";
+import { skinFinish, skinTexture } from "@/lib/skins/skin-texture";
+import type { Skin } from "@/types/economy";
 import type { Weapon } from "@/types/game";
 
-/** Model senjata low-poly yang dirakit dari proporsi per jenis. */
-function WeaponModel({ weapon }: { weapon: Weapon }) {
+/**
+ * Model senjata low-poly yang dirakit dari proporsi per jenis.
+ *
+ * Dengan `skin`, badan, laras, magasin, dan popor dicat tekstur skin; tanpa
+ * skin memakai cat pabrik. `spin` memutar model pelan dengan sendirinya —
+ * dimatikan di mode inspect, tempat pemain memutarnya sendiri.
+ */
+export function WeaponModel({
+  weapon,
+  skin,
+  spin = true,
+}: {
+  weapon: Weapon;
+  skin?: Skin | null;
+  spin?: boolean;
+}) {
   const shape = WEAPON_SHAPES[weapon.type];
   const groupRef = useRef<Group>(null);
+  const texture = useMemo(() => (skin ? skinTexture(skin) : null), [skin]);
+  const finish = skinFinish(skin);
+  /** Material bagian yang ikut dicat skin. */
+  const painted = (factory: string) =>
+    texture ? (
+      <meshStandardMaterial map={texture} roughness={finish.roughness} metalness={finish.metalness} />
+    ) : (
+      <meshStandardMaterial color={factory} roughness={0.45} metalness={0.5} />
+    );
 
   useFrame(({ clock }) => {
     const group = groupRef.current;
-    if (!group) return;
+    if (!group || !spin) return;
     // Berputar pelan supaya bentuknya terbaca dari beberapa sisi.
     group.rotation.y = clock.elapsedTime * 0.5;
     group.rotation.x = Math.sin(clock.elapsedTime * 0.35) * 0.12;
@@ -27,14 +52,14 @@ function WeaponModel({ weapon }: { weapon: Weapon }) {
     <group ref={groupRef}>
       <mesh position={[0, 0, bodyZ]} castShadow>
         <boxGeometry args={[shape.bodyHeight * 0.8, shape.bodyHeight, shape.bodyLength]} />
-        <meshStandardMaterial color="#5a6675" roughness={0.45} metalness={0.5} />
+        {painted("#5a6675")}
       </mesh>
 
       <mesh position={[0, 0, barrelZ]} castShadow>
         <boxGeometry
           args={[shape.barrelThickness, shape.barrelThickness, shape.barrelLength]}
         />
-        <meshStandardMaterial color="#39434f" roughness={0.35} metalness={0.65} />
+        {painted("#39434f")}
       </mesh>
 
       {shape.magazineDepth > 0 ? (
@@ -46,7 +71,7 @@ function WeaponModel({ weapon }: { weapon: Weapon }) {
           <boxGeometry
             args={[shape.bodyHeight * 0.6, shape.magazineDepth, shape.bodyLength * 0.2]}
           />
-          <meshStandardMaterial color="#454f5c" roughness={0.6} metalness={0.3} />
+          {painted("#454f5c")}
         </mesh>
       ) : null}
 
@@ -65,7 +90,7 @@ function WeaponModel({ weapon }: { weapon: Weapon }) {
           castShadow
         >
           <boxGeometry args={[shape.bodyHeight * 0.65, shape.bodyHeight * 0.9, 0.22]} />
-          <meshStandardMaterial color="#7a6145" roughness={0.8} metalness={0.05} />
+          {texture ? painted("#7a6145") : <meshStandardMaterial color="#7a6145" roughness={0.8} metalness={0.05} />}
         </mesh>
       ) : null}
 
