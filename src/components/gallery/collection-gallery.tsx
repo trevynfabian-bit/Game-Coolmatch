@@ -135,7 +135,10 @@ export function CollectionGallery() {
             Galeri Koleksi
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
-            Semua senjata, skin, dan attachment milikmu di satu tempat.
+            Semua senjata, skin, dan attachment milikmu di satu tempat.{" "}
+            <Link href="/koleksi/senjata" className="text-emerald-300 hover:underline">
+              Rincian senjata
+            </Link>
           </p>
         </div>
         <WalletBadge />
