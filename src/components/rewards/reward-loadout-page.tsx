@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { KillstreakIcon } from "@/components/arena/hud/killstreak-tracker";
-import { CoinIcon, formatCoins } from "@/components/economy/coin-badge";
 import { WalletBadge } from "@/components/economy/wallet-badge";
 import { useState } from "react";
 import { SlotPicker } from "@/components/rewards/slot-picker";
 import { KILLSTREAKS, type KillstreakId } from "@/lib/game/killstreak";
 import { assignSlot, sameLoadout } from "@/lib/game/loadout-draft";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
+import { useWalletStore } from "@/lib/store/wallet-store";
+import { UnlockRequirements } from "@/components/rewards/unlock-requirements";
 
 /**
  * Halaman Loadout Hadiah: tiga slot hadiah killstreak yang dibawa ke arena
@@ -18,6 +19,8 @@ import { useKillstreakStore } from "@/lib/store/killstreak-store";
 export function RewardLoadoutPage() {
   const saved = useKillstreakStore((state) => state.loadout);
   const rewardStatus = useKillstreakStore((state) => state.rewardStatus);
+  const stats = useKillstreakStore((state) => state.achievementStats);
+  const balance = useWalletStore((state) => state.wallet.balance);
   /**
    * Susunan yang sedang diatur di halaman ini. Diinisialisasi dari loadout
    * tersimpan, dan disetel ulang bila loadout tersimpan berubah (mis. baru
@@ -80,7 +83,12 @@ export function RewardLoadoutPage() {
             const unlocked = status?.unlocked ?? reward.unlockPrice === 0;
             const slot = loadout.indexOf(reward.id);
             return (
-              <li key={reward.id} className="flex flex-wrap items-center gap-4 rounded-xl border border-white/10 bg-slate-900/60 p-4">
+              <li
+                key={reward.id}
+                className={`flex flex-wrap items-start gap-4 rounded-xl border p-4 ${
+                  unlocked ? "border-white/10 bg-slate-900/60" : "border-white/5 bg-slate-900/35"
+                }`}
+              >
                 <span
                   className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-slate-950/70"
                   style={{ color: unlocked ? reward.color : "#475569" }}
@@ -100,14 +108,21 @@ export function RewardLoadoutPage() {
                   <p className="mt-1 text-[11px] text-slate-500">
                     {reward.kills} kill beruntun · aktif {reward.durationSeconds} detik
                   </p>
+                  {unlocked ? null : (
+                    <UnlockRequirements
+                      reward={reward}
+                      price={status?.unlockPrice ?? reward.unlockPrice}
+                      stats={stats}
+                      balance={balance}
+                    />
+                  )}
                 </div>
                 <div className="text-right">
                   {unlocked ? (
                     <span className="text-[11px] font-semibold tracking-wider text-emerald-300 uppercase">Terbuka</span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 font-mono text-xs text-amber-200">
-                      <CoinIcon className="h-3.5 w-3.5" />
-                      {formatCoins(status?.unlockPrice ?? reward.unlockPrice)}
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+                      <LockGlyph /> Terkunci
                     </span>
                   )}
                 </div>
@@ -126,5 +141,14 @@ export function RewardLoadoutPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+function LockGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" aria-hidden>
+      <rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" />
+      <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
   );
 }

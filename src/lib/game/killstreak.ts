@@ -22,7 +22,29 @@ export interface KillstreakReward {
   needsTarget: boolean;
   /** Harga koin untuk membuka hadiah ini; nol berarti terbuka sejak awal. */
   unlockPrice: number;
+  /**
+   * Jalan kedua membuka hadiah tanpa koin: pencapaian pemain. Hadiah terbuka
+   * begitu statistik pemain mencapai angka ini. Null bila tidak ada.
+   */
+  unlockAchievement: UnlockAchievement | null;
 }
+
+/** Statistik pemain yang bisa dijadikan syarat buka hadiah. */
+export type AchievementStat = "totalKills" | "bestStreak" | "wins";
+
+export interface UnlockAchievement {
+  stat: AchievementStat;
+  value: number;
+}
+
+export const ACHIEVEMENT_LABEL: Record<AchievementStat, (value: number) => string> = {
+  totalKills: (value) => `Kumpulkan ${value} kill`,
+  bestStreak: (value) => `Capai ${value} kill beruntun dalam satu pertandingan`,
+  wins: (value) => `Menangi ${value} pertandingan`,
+};
+
+/** Statistik pemain yang dipakai menilai pencapaian. */
+export type PlayerAchievementStats = Record<AchievementStat, number>;
 
 export const KILLSTREAKS: KillstreakReward[] = [
   {
@@ -34,6 +56,7 @@ export const KILLSTREAKS: KillstreakReward[] = [
     durationSeconds: 20,
     needsTarget: false,
     unlockPrice: 0,
+    unlockAchievement: null,
   },
   {
     id: "serangan_udara",
@@ -43,7 +66,8 @@ export const KILLSTREAKS: KillstreakReward[] = [
     color: "#f97316",
     durationSeconds: 5,
     needsTarget: true,
-    unlockPrice: 0,
+    unlockPrice: 300,
+    unlockAchievement: { stat: "totalKills", value: 50 },
   },
   {
     id: "helikopter",
@@ -53,12 +77,33 @@ export const KILLSTREAKS: KillstreakReward[] = [
     color: "#a3e635",
     durationSeconds: 30,
     needsTarget: false,
-    unlockPrice: 0,
+    unlockPrice: 750,
+    unlockAchievement: { stat: "bestStreak", value: 7 },
   },
 ];
 
 /** Jumlah slot loadout hadiah (tombol 6, 7, 8). */
 export const LOADOUT_SLOTS = 3;
+
+/**
+ * Kemajuan menuju syarat pencapaian sebuah hadiah, 0..1, beserta labelnya.
+ * Null bila hadiah ini tidak punya jalan pencapaian.
+ */
+export function achievementProgress(
+  reward: KillstreakReward,
+  stats: PlayerAchievementStats,
+): { ratio: number; label: string; current: number; target: number; met: boolean } | null {
+  const goal = reward.unlockAchievement;
+  if (!goal) return null;
+  const current = stats[goal.stat] ?? 0;
+  return {
+    ratio: Math.min(1, current / goal.value),
+    label: ACHIEVEMENT_LABEL[goal.stat](goal.value),
+    current: Math.min(current, goal.value),
+    target: goal.value,
+    met: current >= goal.value,
+  };
+}
 
 /** Loadout bawaan: semua hadiah urut dari yang termurah. */
 export const DEFAULT_LOADOUT: (KillstreakId | null)[] = KILLSTREAKS.map((item) => item.id).slice(0, LOADOUT_SLOTS);

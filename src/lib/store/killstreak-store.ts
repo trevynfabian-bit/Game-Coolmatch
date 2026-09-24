@@ -1,6 +1,15 @@
 import { create } from "zustand";
 import { apiFetch } from "@/lib/api/client";
-import { DEFAULT_LOADOUT, KILLSTREAKS, findKillstreak, type KillstreakId } from "@/lib/game/killstreak";
+import {
+  DEFAULT_LOADOUT,
+  KILLSTREAKS,
+  findKillstreak,
+  type KillstreakId,
+  type PlayerAchievementStats,
+} from "@/lib/game/killstreak";
+
+/** Statistik tiruan sampai endpoint statistik pemain tersedia. */
+const MOCK_ACHIEVEMENT_STATS: PlayerAchievementStats = { totalKills: 41, bestStreak: 5, wins: 2 };
 
 /**
  * Keadaan killstreak pemain lokal selama pertandingan.
@@ -26,6 +35,8 @@ interface KillstreakState {
   loadout: (KillstreakId | null)[];
   /** Status terbuka tiap hadiah untuk pemain ini, dari server. */
   rewardStatus: RewardStatus[];
+  /** Statistik pemain untuk syarat buka hadiah lewat pencapaian. */
+  achievementStats: PlayerAchievementStats;
   /** Penanda hadiah yang BARU saja terbuka, untuk animasi HUD. */
   lastUnlocked: { id: KillstreakId; at: number } | null;
   /** Hadiah yang sedang menunggu pemain memilih sasaran di denah. */
@@ -79,6 +90,7 @@ const FRESH_STATE: Pick<KillstreakState, "streak" | "bestStreak" | "ready" | "ac
 export const useKillstreakStore = create<KillstreakState>((set, get) => ({
   ...FRESH_STATE,
   loadout: DEFAULT_LOADOUT,
+  achievementStats: MOCK_ACHIEVEMENT_STATS,
   rewardStatus: KILLSTREAKS.map((item) => ({ id: item.id, unlockPrice: item.unlockPrice, unlocked: item.unlockPrice === 0 })),
   lastUnlocked: null,
   targeting: null,
