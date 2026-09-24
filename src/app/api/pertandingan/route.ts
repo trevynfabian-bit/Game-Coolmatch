@@ -12,7 +12,9 @@ import { currentPlayer } from "@/server/services/player-session";
 /**
  * POST /api/pertandingan — membuat baris pertandingan saat arena dibuka.
  *
- * Badan: { mapId, difficulty, botCount, totalRounds, scoreLimit, roundSeconds }.
+ * Badan: { mapId, difficulty, botCount, totalRounds, scoreLimit, roundSeconds,
+ * isTrial? }. `isTrial: true` untuk latihan dan uji coba senjata — sesi itu
+ * tercatat tapi tidak pernah menghasilkan koin.
  * Balasan 201: { match: { id, ... } }. Id ini yang dipakai untuk menutup
  * pertandingan lewat /api/pertandingan/[id]/selesai.
  */
@@ -27,6 +29,7 @@ export const POST = handle(async (request: Request) => {
     totalRounds: intField(body.totalRounds, "totalRounds", { min: 1, max: 15 }),
     scoreLimit: intField(body.scoreLimit, "scoreLimit", { min: 1, max: 100 }),
     roundSeconds: intField(body.roundSeconds, "roundSeconds", { min: 10, max: 1800 }),
+    isTrial: body.isTrial === true,
   });
 
   return Response.json({ match }, { status: 201 });

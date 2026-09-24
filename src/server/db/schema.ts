@@ -74,6 +74,13 @@ export const matches = sqliteTable(
     scoreLimit: integer("score_limit").notNull(),
     roundSeconds: integer("round_seconds").notNull(),
 
+    /**
+     * Benar untuk sesi latihan dan uji coba senjata. Pertandingan seperti ini
+     * tetap tercatat, tapi tidak pernah memberi koin dan tidak dihitung ke
+     * statistik utama.
+     */
+    isTrial: integer("is_trial", { mode: "boolean" }).notNull().default(false),
+
     /** Kosong selama pertandingan masih berjalan. */
     result: text("result", { enum: MATCH_RESULTS }),
     winnerName: text("winner_name"),

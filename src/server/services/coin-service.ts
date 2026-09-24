@@ -229,6 +229,8 @@ export interface MatchCoinAward {
   reward: MatchCoinReward;
   /** Benar bila koin pertandingan ini sudah pernah dibayarkan sebelumnya. */
   alreadyAwarded: boolean;
+  /** Benar bila pertandingan ini latihan/uji coba sehingga tidak berhak koin. */
+  excluded: boolean;
   wallet: WalletView;
 }
 
@@ -263,6 +265,23 @@ export function awardMatchCoins(
         "pertandingan_belum_selesai",
         "Koin baru bisa diberikan setelah pertandingan selesai.",
       );
+    }
+
+    // Latihan dan uji coba senjata tidak pernah menghasilkan koin, apa pun
+    // perolehannya — kalau tidak, lorong sasaran bisa dipakai memanen koin.
+    if (match.isTrial) {
+      const wallet = ensureWallet(tx, playerId);
+      return {
+        matchId,
+        reward: { lines: [], multiplier: 0, total: 0 },
+        alreadyAwarded: false,
+        excluded: true,
+        wallet: {
+          balance: wallet.balance,
+          lifetimeEarned: wallet.lifetimeEarned,
+          updatedAt: wallet.updatedAt,
+        },
+      };
     }
 
     const score = tx
@@ -322,6 +341,7 @@ export function awardMatchCoins(
         total: lines.reduce((sum, line) => sum + line.amount, 0),
       },
       alreadyAwarded,
+      excluded: false,
       wallet: {
         balance: wallet.balance,
         lifetimeEarned: wallet.lifetimeEarned,

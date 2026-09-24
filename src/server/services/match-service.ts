@@ -35,6 +35,8 @@ export interface StartMatchInput {
   totalRounds: number;
   scoreLimit: number;
   roundSeconds: number;
+  /** Latihan atau uji coba senjata: tercatat, tapi tanpa koin. */
+  isTrial?: boolean;
 }
 
 /**
@@ -57,7 +59,7 @@ export function startMatch(playerId: number, input: StartMatchInput): MatchRow {
   ensureMap(input.mapId);
   return db
     .insert(matches)
-    .values({ playerId, ...input, startedAt: Date.now() })
+    .values({ playerId, ...input, isTrial: input.isTrial === true, startedAt: Date.now() })
     .returning()
     .get();
 }
