@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { DIFFICULTY_PROFILES, clampBotCount } from "@/lib/game/difficulty";
 import { DEFAULT_MATCH_SETUP } from "@/lib/mock/match";
+import { maxBotsForMap } from "@/lib/mock/bots";
+import { DEFAULT_MAP, MOCK_MAPS, findMap } from "@/lib/mock/maps";
 import type { Difficulty } from "@/types/game";
 
 /**
@@ -17,12 +19,14 @@ const STORAGE_KEY = "coolmatch:pengaturan-lawan";
  * yang versinya berbeda bila tidak ada migrasi, jadi pemain tidak pernah
  * mendapat bentuk data yang sudah tidak dikenali.
  */
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2;
 
 /** Bagian state yang benar-benar disimpan; sisanya adalah fungsi. */
 interface StoredSetup {
   difficulty: Difficulty;
   botCount: number;
+  /** Peta yang dipilih di halaman Pilih Peta. */
+  mapId: string;
 }
 
 /**
@@ -35,6 +39,10 @@ function sanitizeDifficulty(value: unknown): Difficulty {
   return typeof value === "string" && value in DIFFICULTY_PROFILES
     ? (value as Difficulty)
     : DEFAULT_MATCH_SETUP.difficulty;
+}
+
+function sanitizeMapId(value: unknown): string {
+  return typeof value === "string" && MOCK_MAPS.some((map) => map.id === value) ? value : DEFAULT_MAP.id;
 }
 
 function sanitizeBotCount(value: unknown): number {
@@ -51,6 +59,8 @@ interface MatchSetupState extends StoredSetup {
   setDifficulty: (difficulty: Difficulty) => void;
   /** Jumlah musuh selalu dijepit ke rentang yang didukung peta. */
   setBotCount: (count: number) => void;
+  /** Mengganti peta; jumlah musuh dijepit ulang ke kapasitas peta baru. */
+  setMap: (mapId: string) => void;
 }
 
 /**
@@ -71,6 +81,7 @@ export const useMatchSetupStore = create<MatchSetupState>()(
     (set) => ({
       difficulty: DEFAULT_MATCH_SETUP.difficulty,
       botCount: DEFAULT_MATCH_SETUP.botCount,
+      mapId: DEFAULT_MAP.id,
 
       setDifficulty: (difficulty) =>
         set((state) =>
@@ -79,8 +90,15 @@ export const useMatchSetupStore = create<MatchSetupState>()(
 
       setBotCount: (count) =>
         set((state) => {
-          const botCount = clampBotCount(count);
+          const botCount = Math.min(clampBotCount(count), maxBotsForMap(findMap(state.mapId)));
           return state.botCount === botCount ? state : { botCount };
+        }),
+
+      setMap: (mapId) =>
+        set((state) => {
+          const clean = sanitizeMapId(mapId);
+          if (clean === state.mapId) return state;
+          return { mapId: clean, botCount: Math.min(state.botCount, maxBotsForMap(findMap(clean))) };
         }),
     }),
     {
@@ -93,13 +111,17 @@ export const useMatchSetupStore = create<MatchSetupState>()(
       partialize: (state): StoredSetup => ({
         difficulty: state.difficulty,
         botCount: state.botCount,
+        mapId: state.mapId,
       }),
+      // Versi 1 belum menyimpan peta; pilihan lamanya tetap dipakai.
+      migrate: (persisted) => persisted as StoredSetup,
       merge: (persisted, current): MatchSetupState => {
         const saved = (persisted ?? {}) as Partial<StoredSetup>;
         return {
           ...current,
           difficulty: sanitizeDifficulty(saved.difficulty),
           botCount: sanitizeBotCount(saved.botCount),
+          mapId: sanitizeMapId(saved.mapId),
         };
       },
     },

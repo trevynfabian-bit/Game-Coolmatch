@@ -15,17 +15,18 @@ import { setRoundClock } from "@/lib/game/round-runtime";
 import { useKillstreakStore } from "@/lib/store/killstreak-store";
 import { useMatchStore } from "@/lib/store/match-store";
 import { startServerMatch } from "@/lib/store/server-match-store";
-import { DEFAULT_MAP } from "@/lib/mock/maps";
+import { findMap } from "@/lib/mock/maps";
 import { buildMatchSnapshot } from "@/lib/mock/match";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useMatchSetupStore } from "@/lib/store/match-setup-store";
-import type { Difficulty, MatchSnapshot } from "@/types/game";
+import type { ArenaMapInfo, Difficulty, MatchSnapshot } from "@/types/game";
 
 /** Pilihan pemain yang dipakai menyusun pertandingan saat arena dibuka. */
 interface MatchEntry {
   difficulty: Difficulty;
   botCount: number;
   weaponId: string;
+  map: ArenaMapInfo;
 }
 
 /**
@@ -39,8 +40,12 @@ const subscribeNever = () => () => {};
 const onClient = () => true;
 const onServer = () => false;
 
-/** Placeholder selagi bundel 3D diunduh dan konteks WebGL disiapkan. */
-function SceneFallback({ mapName }: { mapName: string }) {
+/**
+ * Placeholder selagi bundel 3D diunduh dan konteks WebGL disiapkan. Sengaja
+ * tanpa nama peta: pilihan peta baru terbaca sesudah hidrasi, dan teks yang
+ * berbeda antara prerender dan hidrasi akan ditolak React.
+ */
+function SceneFallback() {
   return (
     <div className="absolute inset-0 grid place-items-center bg-slate-950">
       <div className="text-center">
@@ -49,7 +54,7 @@ function SceneFallback({ mapName }: { mapName: string }) {
           role="status"
           aria-label="Memuat arena"
         />
-        <p className="text-sm text-slate-300">Memuat arena {mapName}…</p>
+        <p className="text-sm text-slate-300">Memuat arena…</p>
         <p className="mt-1 text-xs text-slate-500">Menyiapkan mesin 3D</p>
       </div>
     </div>
@@ -64,7 +69,7 @@ const ArenaScene = dynamic(
   () => import("@/components/arena/arena-scene").then((mod) => mod.ArenaScene),
   {
     ssr: false,
-    loading: () => <SceneFallback mapName={DEFAULT_MAP.name} />,
+    loading: () => <SceneFallback />,
   },
 );
 
@@ -98,6 +103,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
       difficulty: setup.difficulty,
       botCount: setup.botCount,
       weaponId: useLoadoutStore.getState().selectedWeaponId,
+      map: findMap(setup.mapId),
     };
   });
 
@@ -133,7 +139,7 @@ export function ArenaExperience({ match }: { match?: MatchSnapshot }) {
   if (!armedMatch) {
     return (
       <div className="relative h-full w-full overflow-hidden bg-slate-950">
-        <SceneFallback mapName={DEFAULT_MAP.name} />
+        <SceneFallback />
       </div>
     );
   }

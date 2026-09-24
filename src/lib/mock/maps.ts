@@ -189,6 +189,50 @@ const halfWalls: MapBlock[] = [
   },
 ];
 
+
+const HARBOR_WALL = "#4b5563";
+const CONTAINER_COLORS = ["#b45309", "#1d4ed8", "#15803d", "#b91c1c", "#6d28d9"];
+
+/** Kontainer pelabuhan: balok panjang, sebagian ditumpuk dua. */
+function container(id: string, x: number, z: number, rotated: boolean, level: 0 | 1, colorIndex: number): MapBlock {
+  return {
+    id,
+    kind: "crate",
+    position: [x, 1.3 + level * 2.6, z],
+    size: rotated ? [2.5, 2.6, 6] : [6, 2.6, 2.5],
+    color: CONTAINER_COLORS[colorIndex % CONTAINER_COLORS.length],
+  };
+}
+
+/**
+ * Pelabuhan Kabut: lapangan terbuka yang dipotong deretan kontainer menjadi
+ * lorong-lorong. Garis pandang panjang di lorong tengah, pertarungan jarak
+ * dekat di sela tumpukan.
+ */
+const harborBlocks: MapBlock[] = [
+  { id: "pk-wall-utara", kind: "wall", position: [0, 3.5, -26], size: [53, 7, 1], color: HARBOR_WALL },
+  { id: "pk-wall-selatan", kind: "wall", position: [0, 3.5, 26], size: [53, 7, 1], color: HARBOR_WALL },
+  { id: "pk-wall-barat", kind: "wall", position: [-26, 3.5, 0], size: [1, 7, 53], color: HARBOR_WALL },
+  { id: "pk-wall-timur", kind: "wall", position: [26, 3.5, 0], size: [1, 7, 53], color: HARBOR_WALL },
+  container("pk-k1", -14, -14, false, 0, 0),
+  container("pk-k1b", -14, -14, false, 1, 1),
+  container("pk-k2", -6, -18, true, 0, 2),
+  container("pk-k3", 8, -15, false, 0, 3),
+  container("pk-k4", 16, -8, true, 0, 4),
+  container("pk-k4b", 16, -8, true, 1, 0),
+  container("pk-k5", -17, 2, true, 0, 1),
+  container("pk-k6", -7, 5, false, 0, 2),
+  container("pk-k7", 6, 3, false, 0, 3),
+  container("pk-k7b", 6, 3, false, 1, 4),
+  container("pk-k8", 17, 10, true, 0, 0),
+  container("pk-k9", -12, 16, false, 0, 1),
+  container("pk-k10", 4, 17, true, 0, 2),
+  container("pk-k11", 12, 19, false, 0, 3),
+  { id: "pk-derek", kind: "pillar", position: [0, 4, -6], size: [1.6, 8, 1.6], color: "#facc15" },
+  { id: "pk-palet-1", kind: "platform", position: [-2, 0.4, 11], size: [4, 0.8, 3], color: "#78716c" },
+  { id: "pk-palet-2", kind: "platform", position: [11, 0.4, -2], size: [3, 0.8, 4], color: "#78716c" },
+];
+
 export const MOCK_MAPS: ArenaMapInfo[] = [
   {
     id: "map-gudang-senja",
@@ -224,6 +268,35 @@ export const MOCK_MAPS: ArenaMapInfo[] = [
       [0, 0, -19],
     ],
   },
+  {
+    id: "map-pelabuhan-kabut",
+    name: "Pelabuhan Kabut",
+    description:
+      "Dermaga berkabut dengan deretan kontainer. Lorong panjang untuk penembak jitu, sela tumpukan untuk baku tembak dekat.",
+    previewUrl: null,
+    floorSize: [53, 53],
+    playableBounds: { minX: -25.5, maxX: 25.5, minZ: -25.5, maxZ: 25.5 },
+    skyColor: "#1b2330",
+    fogColor: "#4b5563",
+    floorColor: "#3f4448",
+    blocks: harborBlocks,
+    spawnPoints: [
+      [-22, 0, 22],
+      [22, 0, -22],
+      [-22, 0, -22],
+      [22, 0, 22],
+      [0, 0, -22],
+      [0, 0, 22],
+      [-22, 0, 8],
+      [22, 0, -2],
+      [-2, 0, -2],
+    ],
+  },
 ];
 
 export const DEFAULT_MAP = MOCK_MAPS[0];
+
+/** Peta menurut id; jatuh ke peta bawaan bila id tidak dikenal. */
+export function findMap(mapId: string | null | undefined): ArenaMapInfo {
+  return MOCK_MAPS.find((map) => map.id === mapId) ?? DEFAULT_MAP;
+}

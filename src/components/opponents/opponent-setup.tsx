@@ -10,7 +10,7 @@ import {
   difficultyTraits,
 } from "@/lib/game/difficulty";
 import { buildBotRoster, maxBotsForMap } from "@/lib/mock/bots";
-import { DEFAULT_MAP } from "@/lib/mock/maps";
+import { findMap } from "@/lib/mock/maps";
 import { findWeapon } from "@/lib/mock/weapons";
 import { useLoadoutStore } from "@/lib/store/loadout-store";
 import { useMatchSetupStore } from "@/lib/store/match-setup-store";
@@ -37,12 +37,14 @@ export function OpponentSetup() {
   const setDifficulty = useMatchSetupStore((state) => state.setDifficulty);
   const setBotCount = useMatchSetupStore((state) => state.setBotCount);
   const selectedWeaponId = useLoadoutStore((state) => state.selectedWeaponId);
+  const mapId = useMatchSetupStore((state) => state.mapId);
+  const map = findMap(mapId);
 
   /**
    * Batas atas penggeser mengikuti peta, bukan angka tetap: peta yang titik
    * spawn-nya lebih sedikit menampung lebih sedikit lawan.
    */
-  const maxBots = maxBotsForMap(DEFAULT_MAP);
+  const maxBots = maxBotsForMap(map);
 
   // Pilihan yang tersimpan bisa berasal dari peta lain yang lebih lapang, jadi
   // dirapikan begitu layar ini dibuka — penggeser tidak boleh menampilkan
@@ -53,8 +55,8 @@ export function OpponentSetup() {
 
   const profile = difficultyProfile(difficulty);
   const roster = useMemo(
-    () => buildBotRoster(botCount, DEFAULT_MAP),
-    [botCount],
+    () => buildBotRoster(botCount, map),
+    [botCount, map],
   );
   const weapon = findWeapon(selectedWeaponId);
 
@@ -147,7 +149,7 @@ export function OpponentSetup() {
               {botCount}
             </span>
             <span className="text-sm text-slate-400">
-              musuh di arena {DEFAULT_MAP.name}
+              musuh di arena {map.name}
             </span>
           </div>
 

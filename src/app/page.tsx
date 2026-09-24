@@ -2,7 +2,7 @@ import Link from "next/link";
 import { WalletBadge } from "@/components/economy/wallet-badge";
 import { CollectionTeaser } from "@/components/menu/collection-teaser";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { DEFAULT_MAP } from "@/lib/mock/maps";
+import { CurrentMapLabel } from "@/components/menu/current-map-label";
 
 /**
  * Menu utama: jalan cepat ke arena, pilih senjata, toko, galeri koleksi,
@@ -79,9 +79,7 @@ export default function Home() {
 
         <CollectionTeaser />
 
-        <p className="mt-6 text-xs text-slate-600">
-          Peta saat ini: {DEFAULT_MAP.name}
-        </p>
+        <CurrentMapLabel />
       </div>
     </main>
   );

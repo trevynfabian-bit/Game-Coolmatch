@@ -123,7 +123,7 @@ export function ArenaHud({ match }: { match: MatchSnapshot }) {
 
       <AirstrikeTargeting map={match.map} />
 
-      <EngageOverlay />
+      <EngageOverlay mapName={match.map.name} />
     </>
   );
 }

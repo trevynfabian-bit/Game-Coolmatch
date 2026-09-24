@@ -13,7 +13,7 @@ import { usePlayerStore } from "@/lib/store/player-store";
  * Tombolnya sekadar sasaran klik yang jelas — drei PointerLockControls sendiri
  * menyimak klik di level document.
  */
-export function EngageOverlay() {
+export function EngageOverlay({ mapName }: { mapName: string }) {
   const isLocked = usePlayerStore((state) => state.isLocked);
   const hasEngaged = usePlayerStore((state) => state.hasEngaged);
   const round = useMatchStore((state) => state.round);
@@ -28,7 +28,7 @@ export function EngageOverlay() {
     <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-slate-950/70 px-6 backdrop-blur-[2px]">
       <div className="w-full max-w-sm text-center">
         <p className="text-[10px] tracking-[0.3em] text-emerald-400 uppercase">
-          {hasEngaged ? "Jeda" : "Gudang Senja"}
+          {hasEngaged ? "Jeda" : mapName}
         </p>
 
         <button
