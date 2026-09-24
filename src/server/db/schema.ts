@@ -407,6 +407,9 @@ export const playerWeaponSkins = sqliteTable(
   ],
 );
 
+/** Statistik pemain yang bisa menjadi syarat buka hadiah; sama dengan `AchievementStat`. */
+export const ACHIEVEMENT_STATS = ["totalKills", "bestStreak", "wins"] as const;
+
 /** Id hadiah killstreak; sama dengan `KillstreakId` di klien. */
 export const KILLSTREAK_IDS = ["uav", "serangan_udara", "helikopter"] as const;
 
@@ -423,6 +426,12 @@ export const killstreakRewards = sqliteTable(
     killsRequired: integer("kills_required").notNull(),
     durationSeconds: integer("duration_seconds").notNull(),
     unlockPrice: integer("unlock_price").notNull().default(0),
+    /**
+     * Jalan kedua membuka hadiah: statistik pemain (`unlock_stat`) mencapai
+     * `unlock_value`. Keduanya kosong bila hadiah hanya bisa dibeli.
+     */
+    unlockStat: text("unlock_stat", { enum: ACHIEVEMENT_STATS }),
+    unlockValue: integer("unlock_value"),
   },
   (table) => [
     check("killstreak_rewards_kill_positif", sql`${table.killsRequired} > 0`),
@@ -430,7 +439,10 @@ export const killstreakRewards = sqliteTable(
   ],
 );
 
-/** Hadiah killstreak yang sudah dibuka pemain (untuk hadiah berbayar). */
+/**
+ * Hadiah killstreak yang sudah dibuka pemain, lewat koin maupun pencapaian.
+ * `via` mencatat jalannya supaya riwayat dan dialog perayaan bisa membedakan.
+ */
 export const playerKillstreakUnlocks = sqliteTable(
   "player_killstreak_unlocks",
   {
@@ -440,7 +452,10 @@ export const playerKillstreakUnlocks = sqliteTable(
     rewardId: text("reward_id", { enum: KILLSTREAK_IDS })
       .notNull()
       .references(() => killstreakRewards.id, { onDelete: "cascade" }),
+    via: text("via", { enum: ["koin", "pencapaian"] }).notNull().default("koin"),
     unlockedAt: integer("unlocked_at").notNull().default(now),
+    /** Kapan dialog perayaannya sudah dilihat; kosong berarti belum (pola `announced_at`). */
+    announcedAt: integer("announced_at"),
   },
   (table) => [primaryKey({ columns: [table.playerId, table.rewardId] })],
 );

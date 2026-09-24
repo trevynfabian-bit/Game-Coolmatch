@@ -39,6 +39,8 @@ export function syncKillstreakCatalog(): void {
         killsRequired: reward.kills,
         durationSeconds: reward.durationSeconds,
         unlockPrice: reward.unlockPrice,
+        unlockStat: reward.unlockAchievement?.stat ?? null,
+        unlockValue: reward.unlockAchievement?.value ?? null,
       };
       tx.insert(killstreakRewards)
         .values({ id: reward.id, ...values })

@@ -50,6 +50,13 @@
       "when": 1790266323598,
       "tag": "0006_favorit",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1790267331215,
+      "tag": "0007_syarat_buka_hadiah",
+      "breakpoints": true
     }
   ]
 }
